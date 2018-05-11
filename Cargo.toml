@@ -1,0 +1,15 @@
+[package]
+name = "cita_cli"
+version = "0.1.0"
+authors = ["piaoliu <441594700@qq.com>"]
+
+[dependencies]
+hyper = "^0.11.26"
+tokio-core = "^0.1"
+futures = "^0.1"
+serde_json = "^1.0.17"
+serde = "^1.0.53"
+serde_derive = "^1.0.53"
+
+[features]
+
