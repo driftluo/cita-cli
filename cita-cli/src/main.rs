@@ -1,8 +1,8 @@
 extern crate clap;
 
-extern crate cita_cli;
+extern crate cita_tool;
 
-use cita_cli::{JsonRpcParams, Client, ParamsValue};
+use cita_tool::{JsonRpcParams, Client, ParamsValue};
 
 
 fn main() {

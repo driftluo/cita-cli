@@ -1,4 +1,7 @@
 .idea/
 /target/
+cita-cli/target/
+cita-tool/target/
+
 **/*.rs.bk
 Cargo.lock
