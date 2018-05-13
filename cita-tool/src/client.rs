@@ -108,6 +108,11 @@ impl JsonRpcParams {
     pub fn remove<T: Into<String>>(&mut self, key: T) -> Option<ParamsValue> {
         self.extra.remove(&key.into())
     }
+
+    /// Get params
+    pub fn get<T: Into<String>>(&self, key: T) -> Option<&ParamsValue> {
+        self.extra.get(&key.into())
+    }
 }
 
 impl Default for JsonRpcParams {
