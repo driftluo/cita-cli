@@ -3,16 +3,15 @@
 // #![deny(warnings)]
 #![deny(missing_docs)]
 
-extern crate hyper;
-extern crate tokio_core;
 extern crate futures;
-extern crate serde_json;
+extern crate hyper;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
+extern crate tokio_core;
 
 /// The Jsonrpc Client
 pub mod client;
 
-
-pub use client::{JsonRpcParams, Client, ParamsValue};
+pub use client::{Client, JsonRpcParams, ParamsValue};

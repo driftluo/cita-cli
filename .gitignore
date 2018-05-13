@@ -2,6 +2,7 @@
 /target/
 cita-cli/target/
 cita-tool/target/
+*/.idea/
 
 **/*.rs.bk
-Cargo.lock
+*/Cargo.lock
