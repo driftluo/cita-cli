@@ -14,4 +14,4 @@ extern crate tokio_core;
 /// The Jsonrpc Client
 pub mod client;
 
-pub use client::{Client, JsonRpcParams, ParamsValue};
+pub use client::{Client, JsonRpcParams, JsonRpcResponse, ParamsValue};

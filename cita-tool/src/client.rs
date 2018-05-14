@@ -1,9 +1,9 @@
 use tokio_core::reactor::Core;
-use std::{io, str};
-use hyper::{Body, Client as HyperClient, Method, Request, Uri, client::HttpConnector};
+use std::{io, str, u64};
+use hyper::{self, Body, Client as HyperClient, Method, Request, Uri, client::HttpConnector};
 use std::{collections::HashMap, convert::Into, default::Default, str::FromStr};
 use serde_json;
-use futures::{Future, Stream};
+use futures::{Future, Stream, future::JoinAll, future::join_all};
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 
@@ -33,56 +33,54 @@ impl Client {
     }
 
     /// Send requests
-    pub fn send_requests(&mut self, method: &str, params: JsonRpcParams) {
-        self.id += 1;
+    pub fn send_requests(
+        &mut self,
+        method: &str,
+        params: JsonRpcParams,
+    ) -> Result<Vec<JsonRpcResponse>, ()> {
+        self.id = self.id.overflowing_add(1).0;
         let client = HyperClient::new(&self.core.handle());
 
         let params = params.insert("id", ParamsValue::Int(self.id));
-        let reqs = self.make_requests(params);
+        let reqs = self.make_requests(&client, params);
 
-        for req in reqs {
-            self.send_request(method, &client, req);
-        }
+        self.send_request(method, reqs)
     }
 
     /// Send request
     fn send_request(
         &mut self,
         method: &str,
-        client: &HyperClient<HttpConnector>,
-        req: Request<Body>,
-    ) {
+        future: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>>,
+    ) -> Result<Vec<JsonRpcResponse>, ()> {
         match method {
             CITA_BLOCK_BUMBER => {
-                let work = client.request(req).and_then(|res| {
-                    res.body().concat2().and_then(move |body| {
-                        match serde_json::from_slice::<serde_json::Value>(&body) {
-                            Ok(v) => {
-                                println!("The current height is {}", v.get("result").unwrap());
-                            }
-                            Err(e) => {
-                                println!("{}", e);
-                            }
-                        }
-                        Ok(())
-                    })
-                });
-                let _ = self.core.run(work);
+                let responses = self.core.run(future).unwrap();
+                let responses = responses
+                    .into_iter()
+                    .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
+                    .collect::<Vec<JsonRpcResponse>>();
+                Ok(responses)
             }
-            _ => {}
+            _ => Err(()),
         }
     }
 
-    fn make_requests(&self, params: JsonRpcParams) -> Vec<Request<Body>> {
+    fn make_requests(
+        &self,
+        client: &HyperClient<HttpConnector>,
+        params: JsonRpcParams,
+    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
         let mut reqs = Vec::new();
         for url in self.url.as_slice() {
             let uri = Uri::from_str(url).unwrap();
             let mut req: Request<Body> = Request::new(Method::Post, uri);
             req.set_body(serde_json::to_string(&params).unwrap());
-
-            reqs.push(req);
+            let future: Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>> =
+                Box::new(client.request(req).and_then(|res| res.body().concat2()));
+            reqs.push(future);
         }
-        reqs
+        join_all(reqs)
     }
 }
 
@@ -138,4 +136,25 @@ pub enum ParamsValue {
     List(Vec<String>),
     /// Null parameters
     Null,
+}
+
+/// Jsonrpc response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonRpcResponse {
+    jsonrpc: String,
+    result: Option<ParamsValue>,
+    error: Option<ParamsValue>,
+    id: u64,
+}
+
+impl JsonRpcResponse {
+    /// Get result
+    pub fn result(&self) -> Option<ParamsValue> {
+        self.result.clone()
+    }
+
+    /// Get error
+    pub fn error(&self) -> Option<ParamsValue> {
+        self.error.clone()
+    }
 }
