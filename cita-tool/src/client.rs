@@ -1,6 +1,6 @@
 use tokio_core::reactor::Core;
 use std::{io, str, u64};
-use hyper::{self, Body, Client as HyperClient, Method, Request, Uri, client::HttpConnector};
+use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use std::{collections::HashMap, convert::Into, default::Default, str::FromStr};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
@@ -33,29 +33,19 @@ impl Client {
     }
 
     /// Send requests
-    pub fn send_requests(
+    pub fn send_request(
         &mut self,
         method: &str,
         params: JsonRpcParams,
     ) -> Result<Vec<JsonRpcResponse>, ()> {
         self.id = self.id.overflowing_add(1).0;
-        let client = HyperClient::new(&self.core.handle());
 
         let params = params.insert("id", ParamsValue::Int(self.id));
-        let reqs = self.make_requests(&client, params);
+        let reqs = self.make_requests_with_all_url(params);
 
-        self.send_request(method, reqs)
-    }
-
-    /// Send request
-    fn send_request(
-        &mut self,
-        method: &str,
-        future: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>>,
-    ) -> Result<Vec<JsonRpcResponse>, ()> {
         match method {
             CITA_BLOCK_BUMBER => {
-                let responses = self.core.run(future).unwrap();
+                let responses = self.core.run(reqs).unwrap();
                 let responses = responses
                     .into_iter()
                     .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
@@ -66,11 +56,11 @@ impl Client {
         }
     }
 
-    fn make_requests(
+    fn make_requests_with_all_url(
         &self,
-        client: &HyperClient<HttpConnector>,
         params: JsonRpcParams,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
+        let client = HyperClient::new(&self.core.handle());
         let mut reqs = Vec::new();
         for url in self.url.as_slice() {
             let uri = Uri::from_str(url).unwrap();
@@ -81,6 +71,29 @@ impl Client {
             reqs.push(future);
         }
         join_all(reqs)
+    }
+
+    #[allow(dead_code)]
+    fn make_requests_with_params_list<T: Iterator<Item = JsonRpcParams>>(
+        &self,
+        params: T,
+    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
+        let client = HyperClient::new(&self.core.handle());
+        let mut reqs = Vec::new();
+        if !self.url.is_empty() {
+            for params in params {
+                let uri = Uri::from_str(&self.url.as_slice()[0]).unwrap();
+                let mut req: Request<Body> = Request::new(Method::Post, uri);
+                req.set_body(serde_json::to_string(&params).unwrap());
+                let future: Box<
+                    Future<Item = hyper::Chunk, Error = hyper::error::Error>,
+                > = Box::new(client.request(req).and_then(|res| res.body().concat2()));
+                reqs.push(future);
+            }
+            join_all(reqs)
+        } else {
+            join_all(reqs)
+        }
     }
 }
 
@@ -138,23 +151,38 @@ pub enum ParamsValue {
     Null,
 }
 
+/// The value of response result or error
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ResponseValue {
+    /// Map result
+    Map(HashMap<String, ParamsValue>),
+    /// Singe result
+    Singe(ParamsValue),
+}
+
 /// Jsonrpc response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcResponse {
     jsonrpc: String,
-    result: Option<ParamsValue>,
-    error: Option<ParamsValue>,
+    result: Option<ResponseValue>,
+    error: Option<ResponseValue>,
     id: u64,
 }
 
 impl JsonRpcResponse {
     /// Get result
-    pub fn result(&self) -> Option<ParamsValue> {
+    pub fn result(&self) -> Option<ResponseValue> {
         self.result.clone()
     }
 
     /// Get error
-    pub fn error(&self) -> Option<ParamsValue> {
+    pub fn error(&self) -> Option<ResponseValue> {
         self.error.clone()
+    }
+
+    /// Determine if the query is normal
+    pub fn is_ok(&self) -> bool {
+        self.result.is_some()
     }
 }
