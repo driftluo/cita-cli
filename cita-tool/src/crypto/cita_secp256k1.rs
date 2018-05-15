@@ -1,0 +1,181 @@
+use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
+use super::{pubkey_to_address, CreateKey, Error, Message, PrivKey, PubKey};
+use types::{Address, H256};
+use rand::thread_rng;
+use std::{fmt, mem};
+use hex::encode;
+use std::ops::{Deref, DerefMut};
+
+lazy_static! {
+    pub static ref SECP256K1: Secp256k1 = Secp256k1::new();
+}
+
+/// key pair
+#[derive(Default)]
+pub struct KeyPair {
+    privkey: PrivKey,
+    pubkey: PubKey,
+}
+
+impl fmt::Display for KeyPair {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        writeln!(f, "privkey:  {}", encode(self.privkey.0.to_vec()))?;
+        writeln!(f, "pubkey:  {}", encode(self.pubkey.0.to_vec()))?;
+        write!(f, "address:  {}", encode(self.address().0.to_vec()))
+    }
+}
+
+impl CreateKey for KeyPair {
+    type PrivKey = PrivKey;
+    type PubKey = PubKey;
+    type Error = Error;
+
+    /// Create a pair from secret key
+    fn from_privkey(privkey: Self::PrivKey) -> Result<Self, Self::Error> {
+        let context = &SECP256K1;
+        let s: key::SecretKey = key::SecretKey::from_slice(context, &privkey.0[..])?;
+        let pubkey = key::PublicKey::from_secret_key(context, &s)?;
+        let serialized = pubkey.serialize_vec(context, false);
+
+        let mut pubkey = PubKey::default();
+        pubkey.0.copy_from_slice(&serialized[1..65]);
+
+        let keypair = KeyPair {
+            privkey: privkey,
+            pubkey: pubkey,
+        };
+
+        Ok(keypair)
+    }
+
+    fn gen_keypair() -> Self {
+        let context = &SECP256K1;
+        let (s, p) = context.generate_keypair(&mut thread_rng()).unwrap();
+        let serialized = p.serialize_vec(context, false);
+        let mut privkey = PrivKey::default();
+        privkey.0.copy_from_slice(&s[0..32]);
+        let mut pubkey = PubKey::default();
+        pubkey.0.copy_from_slice(&serialized[1..65]);
+        KeyPair {
+            privkey: privkey,
+            pubkey: pubkey,
+        }
+    }
+
+    fn privkey(&self) -> &Self::PrivKey {
+        &self.privkey
+    }
+
+    fn pubkey(&self) -> &Self::PubKey {
+        &self.pubkey
+    }
+
+    fn address(&self) -> Address {
+        pubkey_to_address(&self.pubkey)
+    }
+}
+
+/// Signature
+pub struct Signature(pub [u8; 65]);
+
+impl Signature {
+    /// Get a slice into the 'r' portion of the data.
+    pub fn r(&self) -> &[u8] {
+        &self.0[0..32]
+    }
+
+    /// Get a slice into the 's' portion of the data.
+    pub fn s(&self) -> &[u8] {
+        &self.0[32..64]
+    }
+
+    /// Get the recovery byte.
+    pub fn v(&self) -> u8 {
+        self.0[64]
+    }
+
+    /// Create a signature object from the sig.
+    pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
+        let mut sig = [0u8; 65];
+        sig[0..32].copy_from_slice(&r.0);
+        sig[32..64].copy_from_slice(&s.0);
+        sig[64] = v;
+        Signature(sig)
+    }
+
+    /// Check if this is a "low" signature.
+    pub fn is_low_s(&self) -> bool {
+        H256::from_slice(self.s())
+            <= "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0".into()
+    }
+
+    /// Check if each component of the signature is in range.
+    pub fn is_valid(&self) -> bool {
+        self.v() <= 1
+            && H256::from_slice(self.r())
+                < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()
+            && H256::from_slice(self.r()) >= 1.into()
+            && H256::from_slice(self.s())
+                < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()
+            && H256::from_slice(self.s()) >= 1.into()
+    }
+}
+
+/// Sign data
+pub fn sign(privkey: &PrivKey, message: &Message) -> Result<Signature, Error> {
+    let context = &SECP256K1;
+    // no way to create from raw byte array.
+    let sec: &SecretKey = unsafe { mem::transmute(privkey) };
+    let s = context.sign_recoverable(&SecpMessage::from_slice(&message.0[..])?, sec)?;
+    let (rec_id, data) = s.serialize_compact(context);
+    let mut data_arr = [0; 65];
+
+    // no need to check if s is low, it always is
+    data_arr[0..64].copy_from_slice(&data[0..64]);
+    data_arr[64] = rec_id.to_i32() as u8;
+    Ok(Signature(data_arr))
+}
+
+impl Deref for Signature {
+    type Target = [u8; 65];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Signature {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl PartialEq for Signature {
+    fn eq(&self, rhs: &Self) -> bool {
+        &self.0[..] == &rhs.0[..]
+    }
+}
+
+impl Eq for Signature {}
+
+impl fmt::Debug for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        f.debug_struct("Signature")
+            .field("r", &encode(self.0[0..32].to_vec()))
+            .field("s", &encode(self.0[32..64].to_vec()))
+            .field("v", &encode(self.0[64..65].to_vec()))
+            .finish()
+    }
+}
+
+impl fmt::Display for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", encode(self.to_vec()))
+    }
+}
+
+impl Default for Signature {
+    fn default() -> Self {
+        Signature([0; 65])
+    }
+}
