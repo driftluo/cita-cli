@@ -15,9 +15,11 @@ extern crate secp256k1;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 extern crate sha3;
 extern crate tokio_core;
+extern crate uuid;
 
 /// The Jsonrpc Client
 pub mod client;
@@ -25,8 +27,11 @@ pub mod client;
 pub mod protos;
 /// Encryption algorithm library
 pub mod crypto;
+/// Reqeust and Response type
+pub mod rpctypes;
 
-pub use client::{Client, JsonRpcParams, JsonRpcResponse, ParamsValue};
+pub use client::Client;
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use crypto::{pubkey_to_address, sign, CreateKey, Hashable, KeyPair, Message, PrivKey, PubKey,
                  Signature};
+pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};

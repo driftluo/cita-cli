@@ -1,21 +1,24 @@
 use tokio_core::reactor::Core;
 use std::{io, str, u64};
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
-use std::{collections::HashMap, convert::Into, default::Default, str::FromStr};
+use std::{convert::Into, str::FromStr};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{PrivKey, Transaction};
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, Transaction};
 use hex::{decode, encode};
 use protobuf::Message;
+use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
+const CITA_GET_META_DATA: &str = "cita_getMetaData";
 
-/// Jsonrpc client
+/// Jsonrpc client, Only to one chain
 #[derive(Debug)]
 pub struct Client {
     id: u64,
     url: Vec<String>,
     core: Core,
+    chain_id: Option<u32>,
 }
 
 impl Client {
@@ -26,6 +29,7 @@ impl Client {
             id: 0,
             url: Vec::new(),
             core: core,
+            chain_id: None,
         })
     }
 
@@ -48,6 +52,7 @@ impl Client {
 
         match method {
             CITA_BLOCK_BUMBER => Ok(self.run(reqs)),
+            CITA_GET_META_DATA => Ok(self.run(reqs)),
             _ => Err(()),
         }
     }
@@ -96,11 +101,12 @@ impl Client {
 
     /// Constructing a UnverifiedTransaction hex string
     pub fn generate_transaction(
+        &mut self,
         code: &str,
         address: String,
         pv: &PrivKey,
         current_height: u64,
-        chain_id: u32,
+        chain_id: Option<u32>,
     ) -> String {
         let data = decode(code).unwrap();
 
@@ -108,16 +114,49 @@ impl Client {
         tx.set_data(data);
         // Create a contract if the target address is empty
         tx.set_to(address);
-        tx.set_nonce("0".to_string());
+        tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(1000000);
-        tx.set_chain_id(chain_id);
+        tx.set_chain_id(chain_id.unwrap_or(self.get_chain_id()));
         encode(
             tx.sign(*pv)
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
         )
+    }
+
+    fn get_chain_id(&mut self) -> u32 {
+        if self.chain_id.is_some() {
+            self.chain_id.unwrap()
+        } else {
+            let params = JsonRpcParams::new()
+                .insert(
+                    "params",
+                    ParamsValue::List(vec![ParamsValue::String(String::from("latest"))]),
+                )
+                .insert(
+                    "method",
+                    ParamsValue::String(String::from("cita_getMetaData")),
+                );
+            if let Some(ResponseValue::Map(mut value)) =
+                self.send_request("cita_getMetaData", params)
+                    .unwrap()
+                    .pop()
+                    .unwrap()
+                    .result()
+            {
+                match value.remove("chainId").unwrap() {
+                    ParamsValue::Int(chain_id) => {
+                        self.chain_id = Some(chain_id as u32);
+                        return chain_id as u32;
+                    }
+                    _ => return 0,
+                }
+            } else {
+                0
+            }
+        }
     }
 
     /// Start run
@@ -130,95 +169,5 @@ impl Client {
             .into_iter()
             .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
             .collect::<Vec<JsonRpcResponse>>()
-    }
-}
-
-/// JsonRpc params
-#[derive(Serialize, Deserialize)]
-pub struct JsonRpcParams {
-    #[serde(flatten)] extra: HashMap<String, ParamsValue>,
-}
-
-impl JsonRpcParams {
-    /// Create a JsonRpc Params
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    /// Insert params
-    pub fn insert<T: Into<String>>(mut self, key: T, value: ParamsValue) -> Self {
-        self.extra.insert(key.into(), value);
-        self
-    }
-
-    /// Remove params
-    pub fn remove<T: Into<String>>(&mut self, key: T) -> Option<ParamsValue> {
-        self.extra.remove(&key.into())
-    }
-
-    /// Get params
-    pub fn get<T: Into<String>>(&self, key: T) -> Option<&ParamsValue> {
-        self.extra.get(&key.into())
-    }
-}
-
-impl Default for JsonRpcParams {
-    fn default() -> Self {
-        let mut extra = HashMap::new();
-        extra.insert(
-            String::from("jsonrpc"),
-            ParamsValue::String("2.0".to_string()),
-        );;
-        JsonRpcParams { extra: extra }
-    }
-}
-
-/// The params value of jsonrpc params
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum ParamsValue {
-    /// Single string parameter
-    String(String),
-    /// Singe int parameter
-    Int(u64),
-    /// Multiple parameters
-    List(Vec<String>),
-    /// Null parameters
-    Null,
-}
-
-/// The value of response result or error
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum ResponseValue {
-    /// Map result
-    Map(HashMap<String, ParamsValue>),
-    /// Singe result
-    Singe(ParamsValue),
-}
-
-/// Jsonrpc response
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JsonRpcResponse {
-    jsonrpc: String,
-    result: Option<ResponseValue>,
-    error: Option<ResponseValue>,
-    id: u64,
-}
-
-impl JsonRpcResponse {
-    /// Get result
-    pub fn result(&self) -> Option<ResponseValue> {
-        self.result.clone()
-    }
-
-    /// Get error
-    pub fn error(&self) -> Option<ResponseValue> {
-        self.error.clone()
-    }
-
-    /// Determine if the query is normal
-    pub fn is_ok(&self) -> bool {
-        self.result.is_some()
     }
 }

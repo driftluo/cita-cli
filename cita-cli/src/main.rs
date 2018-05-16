@@ -21,8 +21,9 @@ fn main() {
         "method",
         ParamsValue::String(String::from("cita_blockNumber")),
     );
+
     let responses = client.send_request("cita_blockNumber", params).unwrap();
     for response in responses {
-        println!("{:?}", response.result());
+        println!("{}", response);
     }
 }
