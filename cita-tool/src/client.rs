@@ -39,22 +39,24 @@ impl Client {
         self
     }
 
-    /// Send requests
-    pub fn send_request(
-        &mut self,
-        method: &str,
-        params: JsonRpcParams,
-    ) -> Result<Vec<JsonRpcResponse>, ()> {
+    /// Send requests to all url
+    pub fn send_request(&mut self, params: JsonRpcParams) -> Result<Vec<JsonRpcResponse>, ()> {
         self.id = self.id.overflowing_add(1).0;
 
         let params = params.insert("id", ParamsValue::Int(self.id));
         let reqs = self.make_requests_with_all_url(params);
 
-        match method {
-            CITA_BLOCK_BUMBER => Ok(self.run(reqs)),
-            CITA_GET_META_DATA => Ok(self.run(reqs)),
-            _ => Err(()),
-        }
+        Ok(self.run(reqs))
+    }
+
+    /// Send transaction to one url
+    pub fn send_transaction<T: Iterator<Item = JsonRpcParams>>(
+        &mut self,
+        params: T,
+    ) -> Result<Vec<JsonRpcResponse>, ()> {
+        let reqs = self.make_requests_with_params_list(params);
+
+        Ok(self.run(reqs))
     }
 
     fn make_requests_with_all_url(
@@ -74,7 +76,6 @@ impl Client {
         join_all(reqs)
     }
 
-    #[allow(dead_code)]
     fn make_requests_with_params_list<T: Iterator<Item = JsonRpcParams>>(
         &mut self,
         params: T,
@@ -126,7 +127,8 @@ impl Client {
         )
     }
 
-    fn get_chain_id(&mut self) -> u32 {
+    /// Get chain id
+    pub fn get_chain_id(&mut self) -> u32 {
         if self.chain_id.is_some() {
             self.chain_id.unwrap()
         } else {
@@ -137,14 +139,14 @@ impl Client {
                 )
                 .insert(
                     "method",
-                    ParamsValue::String(String::from("cita_getMetaData")),
+                    ParamsValue::String(String::from(CITA_GET_META_DATA)),
                 );
-            if let Some(ResponseValue::Map(mut value)) =
-                self.send_request("cita_getMetaData", params)
-                    .unwrap()
-                    .pop()
-                    .unwrap()
-                    .result()
+            if let Some(ResponseValue::Map(mut value)) = self.send_transaction(
+                vec![params].into_iter(),
+            ).unwrap()
+                .pop()
+                .unwrap()
+                .result()
             {
                 match value.remove("chainId").unwrap() {
                     ParamsValue::Int(chain_id) => {
@@ -159,6 +161,24 @@ impl Client {
         }
     }
 
+    /// Get current height
+    pub fn get_block_number(&mut self) -> Option<u64> {
+        let params = JsonRpcParams::new().insert(
+            "method",
+            ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
+        );
+        let result = self.send_transaction(vec![params].into_iter())
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        if let ResponseValue::Singe(ParamsValue::String(height)) = result.result().unwrap() {
+            Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
+        } else {
+            None
+        }
+    }
+
     /// Start run
     fn run(
         &mut self,
@@ -169,5 +189,14 @@ impl Client {
             .into_iter()
             .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
             .collect::<Vec<JsonRpcResponse>>()
+    }
+}
+
+fn remove_0x(hex: String) -> String {
+    let tmp = hex.as_bytes();
+    if tmp[..2] == b"0x"[..] {
+        String::from_utf8(tmp[2..].to_vec()).unwrap()
+    } else {
+        hex.clone()
     }
 }
