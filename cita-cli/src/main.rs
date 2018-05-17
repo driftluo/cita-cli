@@ -16,13 +16,13 @@ fn main() {
         .get_matches();
     let url = matches.value_of("url").unwrap();
 
-    let mut client = Client::new().unwrap().add_url(url);
+    let mut client = Client::new().unwrap();
     let params = JsonRpcParams::new().insert(
         "method",
         ParamsValue::String(String::from("cita_blockNumber")),
     );
 
-    let responses = client.send_request(params).unwrap();
+    let responses = client.send_request(vec![url.to_string()], params).unwrap();
     for response in responses {
         println!("{}", response);
     }

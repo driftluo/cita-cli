@@ -1,7 +1,7 @@
 use tokio_core::reactor::Core;
 use std::{io, str, u64};
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
-use std::{convert::Into, str::FromStr};
+use std::str::FromStr;
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
 use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, Transaction};
@@ -16,7 +16,6 @@ const CITA_GET_META_DATA: &str = "cita_getMetaData";
 #[derive(Debug)]
 pub struct Client {
     id: u64,
-    url: Vec<String>,
     core: Core,
     chain_id: Option<u32>,
     private_key: Option<PrivKey>,
@@ -28,22 +27,10 @@ impl Client {
         let core = Core::new()?;
         Ok(Client {
             id: 0,
-            url: Vec::new(),
             core: core,
             chain_id: None,
             private_key: None,
         })
-    }
-
-    /// Add node url
-    pub fn add_url<T: Into<String>>(mut self, url: T) -> Self {
-        self.url.push(url.into());
-        self
-    }
-
-    /// Get url
-    pub fn url(&self) -> &[String] {
-        self.url.as_slice()
     }
 
     /// Set chain id
@@ -58,32 +45,38 @@ impl Client {
         self
     }
 
-    /// Send requests to all url
-    pub fn send_request(&mut self, params: JsonRpcParams) -> Result<Vec<JsonRpcResponse>, ()> {
-        let reqs = self.make_requests_with_all_url(params);
+    /// Send requests
+    pub fn send_request(
+        &mut self,
+        urls: Vec<String>,
+        params: JsonRpcParams,
+    ) -> Result<Vec<JsonRpcResponse>, ()> {
+        let reqs = self.make_requests_with_all_url(urls, params);
 
         Ok(self.run(reqs))
     }
 
-    /// Send transaction to one url
-    pub fn send_transaction<T: Iterator<Item = JsonRpcParams>>(
+    /// Send multiple params to one node
+    pub fn send_request_with_multiple_params<T: Iterator<Item = JsonRpcParams>>(
         &mut self,
+        url: String,
         params: T,
     ) -> Result<Vec<JsonRpcResponse>, ()> {
-        let reqs = self.make_requests_with_params_list(params);
+        let reqs = self.make_requests_with_params_list(url, params);
 
         Ok(self.run(reqs))
     }
 
     fn make_requests_with_all_url(
         &mut self,
+        urls: Vec<String>,
         params: JsonRpcParams,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
         self.id = self.id.overflowing_add(1).0;
         let params = params.insert("id", ParamsValue::Int(self.id));
         let client = HyperClient::new(&self.core.handle());
         let mut reqs = Vec::new();
-        self.url.as_slice().iter().for_each(|url| {
+        urls.iter().for_each(|url| {
             let uri = Uri::from_str(url).unwrap();
             let mut req: Request<Body> = Request::new(Method::Post, uri);
             req.set_body(serde_json::to_string(&params).unwrap());
@@ -96,27 +89,26 @@ impl Client {
 
     fn make_requests_with_params_list<T: Iterator<Item = JsonRpcParams>>(
         &mut self,
+        url: String,
         params: T,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
-        let url = self.url.as_slice()[0].clone();
         let client = HyperClient::new(&self.core.handle());
         let mut reqs = Vec::new();
-        if !self.url.is_empty() {
-            params
-                .map(|param| {
-                    self.id = self.id.overflowing_add(1).0;
-                    param.insert("id", ParamsValue::Int(self.id))
-                })
-                .for_each(|param| {
-                    let uri = Uri::from_str(&url).unwrap();
-                    let mut req: Request<Body> = Request::new(Method::Post, uri);
-                    req.set_body(serde_json::to_string(&param).unwrap());
-                    let future: Box<
-                        Future<Item = hyper::Chunk, Error = hyper::error::Error>,
-                    > = Box::new(client.request(req).and_then(|res| res.body().concat2()));
-                    reqs.push(future);
-                });
-        }
+        params
+            .map(|param| {
+                self.id = self.id.overflowing_add(1).0;
+                param.insert("id", ParamsValue::Int(self.id))
+            })
+            .for_each(|param| {
+                let uri = Uri::from_str(&url).unwrap();
+                let mut req: Request<Body> = Request::new(Method::Post, uri);
+                req.set_body(serde_json::to_string(&param).unwrap());
+                let future: Box<
+                    Future<Item = hyper::Chunk, Error = hyper::error::Error>,
+                > = Box::new(client.request(req).and_then(|res| res.body().concat2()));
+                reqs.push(future);
+            });
+
         join_all(reqs)
     }
 
@@ -128,7 +120,6 @@ impl Client {
         address: String,
         pv: &PrivKey,
         current_height: u64,
-        chain_id: Option<u32>,
     ) -> String {
         let data = decode(code).unwrap();
 
@@ -139,7 +130,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(1000000);
-        tx.set_chain_id(chain_id.unwrap_or(self.get_chain_id()));
+        tx.set_chain_id(self.chain_id.expect("Please set chain id"));
         encode(
             tx.sign(*pv)
                 .take_transaction_with_sig()
@@ -149,11 +140,11 @@ impl Client {
     }
 
     /// Get chain id
-    pub fn get_chain_id(&mut self) -> u32 {
+    pub fn get_chain_id(&mut self, url: String) -> u32 {
         if self.chain_id.is_some() {
             self.chain_id.unwrap()
         } else {
-            if let Some(ResponseValue::Map(mut value)) = self.get_metadata().result() {
+            if let Some(ResponseValue::Map(mut value)) = self.get_metadata(url).result() {
                 match value.remove("chainId").unwrap() {
                     ParamsValue::Int(chain_id) => {
                         self.chain_id = Some(chain_id as u32);
@@ -168,7 +159,7 @@ impl Client {
     }
 
     /// Get metadata
-    pub fn get_metadata(&mut self) -> JsonRpcResponse {
+    pub fn get_metadata(&mut self, url: String) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "params",
@@ -178,22 +169,16 @@ impl Client {
                 "method",
                 ParamsValue::String(String::from(CITA_GET_META_DATA)),
             );
-        self.send_transaction(vec![params].into_iter())
-            .unwrap()
-            .pop()
-            .unwrap()
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
     /// Get current height
-    pub fn get_block_number(&mut self) -> Option<u64> {
+    pub fn get_block_number(&mut self, url: String) -> Option<u64> {
         let params = JsonRpcParams::new().insert(
             "method",
             ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
         );
-        let result = self.send_transaction(vec![params].into_iter())
-            .unwrap()
-            .pop()
-            .unwrap();
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
 
         if let ResponseValue::Singe(ParamsValue::String(height)) = result.result().unwrap() {
             Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
