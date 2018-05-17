@@ -52,6 +52,8 @@ pub enum ParamsValue {
     List(Vec<ParamsValue>),
     /// Map of values
     Map(HashMap<String, ParamsValue>),
+    /// bool
+    Bool(bool),
     /// Null parameters
     Null,
 }
@@ -136,6 +138,18 @@ pub struct ErrorResponse {
     /// Optional data
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<ParamsValue>,
+}
+
+impl ErrorResponse {
+    /// Get error message
+    pub fn message(&self) -> String {
+        self.message.clone()
+    }
+
+    /// Get error code
+    pub fn code(&self) -> i64 {
+        self.code
+    }
 }
 
 impl fmt::Debug for ErrorResponse {

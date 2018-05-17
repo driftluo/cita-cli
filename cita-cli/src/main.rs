@@ -1,5 +1,5 @@
-extern crate dotenv;
 extern crate clap;
+extern crate dotenv;
 
 extern crate cita_tool;
 
@@ -10,7 +10,6 @@ use std::iter::FromIterator;
 use dotenv::dotenv;
 
 use cita_tool::{Client, JsonRpcParams, ParamsValue};
-
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";

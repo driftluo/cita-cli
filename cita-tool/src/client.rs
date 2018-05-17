@@ -13,6 +13,12 @@ use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 const CITA_GET_META_DATA: &str = "cita_getMetaData";
+const CITA_SEND_TRANSACTION: &str = "cita_sendTransaction";
+const NET_PEER_COUNT: &str = "net_peerCount";
+const CITA_GET_BLOCK_BY_HASH: &str = "cita_getBlockByHash";
+const CITA_GET_BLOCK_BY_NUMBER: &str = "cita_getBlockByNumber";
+
+const ETH_GET_TRANSACTION_RECEIPT: &str = "eth_getTransactionReceipt";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -124,7 +130,7 @@ impl Client {
     pub fn generate_transaction(
         &mut self,
         code: &str,
-        address: String,
+        address: &str,
         current_height: u64,
     ) -> String {
         let data = decode(code).unwrap();
@@ -132,7 +138,7 @@ impl Client {
         let mut tx = Transaction::new();
         tx.set_data(data);
         // Create a contract if the target address is empty
-        tx.set_to(address);
+        tx.set_to(address.to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(1000000);
@@ -150,7 +156,7 @@ impl Client {
         if self.chain_id.is_some() {
             self.chain_id.unwrap()
         } else {
-            if let Some(ResponseValue::Map(mut value)) = self.get_metadata(url).result() {
+            if let Some(ResponseValue::Map(mut value)) = self.get_metadata(url, "latest").result() {
                 match value.remove("chainId").unwrap() {
                     ParamsValue::Int(chain_id) => {
                         self.chain_id = Some(chain_id as u32);
@@ -176,7 +182,6 @@ impl Client {
             .collect::<Vec<JsonRpcResponse>>()
     }
 }
-
 
 /// High level jsonrpc call
 ///
@@ -209,13 +214,29 @@ pub trait ClientExt {
     /// cita_blockNumber: Get current height
     fn get_block_number(&mut self, url: &str) -> Option<u64>;
     /// cita_sendTransaction: Send a transaction return transaction hash
-    fn send_transaction(&mut self, url: &str) -> Result<String, String>;
+    fn send_transaction(
+        &mut self,
+        url: &str,
+        code: &str,
+        address: &str,
+        current_height: u64,
+    ) -> Result<String, String>;
     /// cita_getBlockByHash: Get block by hash
-    fn get_block_by_hash(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_block_by_hash(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> JsonRpcResponse;
     /// cita_getBlockByNumber: Get block by number
-    fn get_block_by_number(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_block_by_number(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> JsonRpcResponse;
     /// eth_getTransactionReceipt: Get transaction receipt
-    fn get_transaction_receipt(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_transaction_receipt(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getLogs: Get logs
     fn get_logs(&mut self, url: &str) -> JsonRpcResponse;
     /// eth_call: (readonly, will not save state change)
@@ -243,12 +264,21 @@ pub trait ClientExt {
     /// cita_getTransactionProof: Get proof of a transaction
     fn get_transaction_proof(&mut self, url: &str) -> JsonRpcResponse;
     /// cita_getMetaData: Get metadata
-    fn get_metadata(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_metadata(&mut self, url: &str, height: &str) -> JsonRpcResponse;
 }
 
 impl ClientExt for Client {
-    fn get_net_peer_count(&mut self, _url: &str) -> u32 {
-        Default::default()
+    fn get_net_peer_count(&mut self, url: &str) -> u32 {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(NET_PEER_COUNT)));
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(count)) => {
+                u32::from_str_radix(&remove_0x(count), 16).unwrap()
+            }
+            _ => 0,
+        }
     }
 
     fn get_block_number(&mut self, url: &str) -> Option<u64> {
@@ -265,20 +295,93 @@ impl ClientExt for Client {
         }
     }
 
-    fn send_transaction(&mut self, _url: &str) -> Result<String, String> {
-        Ok(String::from("tx_hash"))
+    fn send_transaction(
+        &mut self,
+        url: &str,
+        code: &str,
+        address: &str,
+        current_height: u64,
+    ) -> Result<String, String> {
+        let byte_code = self.generate_transaction(code, address, current_height);
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_SEND_TRANSACTION)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(byte_code)]),
+            );
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        if let ResponseValue::Singe(ParamsValue::Map(mut value)) = result.result().unwrap() {
+            match value.remove("hash").unwrap() {
+                ParamsValue::String(hash) => Ok(hash),
+                _ => Err(String::from("Something wrong")),
+            }
+        } else {
+            let error = format!(
+                "Error code:{}, message: {}",
+                result.error().unwrap().code(),
+                result.error().unwrap().message()
+            );
+            Err(error)
+        }
     }
 
-    fn get_block_by_hash(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_block_by_hash(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_GET_BLOCK_BY_HASH)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(hash)),
+                    ParamsValue::Bool(transaction_info),
+                ]),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_block_by_number(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_block_by_number(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_GET_BLOCK_BY_NUMBER)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(hash)),
+                    ParamsValue::Bool(transaction_info),
+                ]),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_transaction_receipt(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_transaction_receipt(&mut self, url: &str, hash: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_GET_TRANSACTION_RECEIPT)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
     fn get_logs(&mut self, _url: &str) -> JsonRpcResponse {
@@ -333,11 +436,11 @@ impl ClientExt for Client {
         Default::default()
     }
 
-    fn get_metadata(&mut self, url: &str) -> JsonRpcResponse {
+    fn get_metadata(&mut self, url: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "params",
-                ParamsValue::List(vec![ParamsValue::String(String::from("latest"))]),
+                ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
             )
             .insert(
                 "method",
