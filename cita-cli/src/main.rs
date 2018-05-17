@@ -5,6 +5,7 @@ extern crate cita_tool;
 
 use std::env;
 use std::collections::HashMap;
+use std::iter::FromIterator;
 
 use dotenv::dotenv;
 
@@ -17,10 +18,7 @@ const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
 fn main() {
     dotenv().ok();
 
-    let mut env_map = HashMap::new();
-    for (key, value) in env::vars() {
-        env_map.insert(key, value);
-    }
+    let mut env_map: HashMap<String, String> = HashMap::from_iter(env::vars());
     let default_jsonrpc_url = env_map
         .remove(ENV_JSONRPC_URL)
         .unwrap_or(DEFAULT_JSONRPC_URL.to_owned());
