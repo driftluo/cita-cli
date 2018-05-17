@@ -162,8 +162,29 @@ impl Client {
         }
     }
 
+    /// Start run
+    fn run(
+        &mut self,
+        reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>>,
+    ) -> Vec<JsonRpcResponse> {
+        let responses = self.core.run(reqs).unwrap();
+        responses
+            .into_iter()
+            .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
+            .collect::<Vec<JsonRpcResponse>>()
+    }
+}
+
+/// High level jsonrpc call
+pub trait ClientExt {
     /// Get metadata
-    pub fn get_metadata(&mut self, url: String) -> JsonRpcResponse {
+    fn get_metadata(&mut self, url: String) -> JsonRpcResponse;
+    /// Get current height
+    fn get_block_number(&mut self, url: String) -> Option<u64>;
+}
+
+impl ClientExt for Client {
+    fn get_metadata(&mut self, url: String) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "params",
@@ -176,8 +197,7 @@ impl Client {
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    /// Get current height
-    pub fn get_block_number(&mut self, url: String) -> Option<u64> {
+    fn get_block_number(&mut self, url: String) -> Option<u64> {
         let params = JsonRpcParams::new().insert(
             "method",
             ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
@@ -189,18 +209,6 @@ impl Client {
         } else {
             None
         }
-    }
-
-    /// Start run
-    fn run(
-        &mut self,
-        reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>>,
-    ) -> Vec<JsonRpcResponse> {
-        let responses = self.core.run(reqs).unwrap();
-        responses
-            .into_iter()
-            .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
-            .collect::<Vec<JsonRpcResponse>>()
     }
 }
 
