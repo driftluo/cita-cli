@@ -5,7 +5,6 @@ authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 
 [dependencies]
 dotenv = "^0.11.0"
-dotenv_codegen = "^0.11.0"
 clap = "^2.31.2"
 cita-tool = { path = "../cita-tool" }
 
