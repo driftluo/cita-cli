@@ -1,7 +1,9 @@
-use tokio_core::reactor::Core;
-use std::{io, str, u64};
-use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use std::str::FromStr;
+use std::default::Default;
+use std::{io, str, u64};
+
+use tokio_core::reactor::Core;
+use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
 use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, Transaction};
@@ -53,7 +55,7 @@ impl Client {
     /// Send requests
     pub fn send_request(
         &mut self,
-        urls: Vec<String>,
+        urls: Vec<&str>,
         params: JsonRpcParams,
     ) -> Result<Vec<JsonRpcResponse>, ()> {
         let reqs = self.make_requests_with_all_url(urls, params);
@@ -64,7 +66,7 @@ impl Client {
     /// Send multiple params to one node
     pub fn send_request_with_multiple_params<T: Iterator<Item = JsonRpcParams>>(
         &mut self,
-        url: String,
+        url: &str,
         params: T,
     ) -> Result<Vec<JsonRpcResponse>, ()> {
         let reqs = self.make_requests_with_params_list(url, params);
@@ -74,7 +76,7 @@ impl Client {
 
     fn make_requests_with_all_url(
         &mut self,
-        urls: Vec<String>,
+        urls: Vec<&str>,
         params: JsonRpcParams,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
         self.id = self.id.overflowing_add(1).0;
@@ -94,7 +96,7 @@ impl Client {
 
     fn make_requests_with_params_list<T: Iterator<Item = JsonRpcParams>>(
         &mut self,
-        url: String,
+        url: &str,
         params: T,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
         let client = HyperClient::new(&self.core.handle());
@@ -144,7 +146,7 @@ impl Client {
     }
 
     /// Get chain id
-    pub fn get_chain_id(&mut self, url: String) -> u32 {
+    pub fn get_chain_id(&mut self, url: &str) -> u32 {
         if self.chain_id.is_some() {
             self.chain_id.unwrap()
         } else {
@@ -175,29 +177,81 @@ impl Client {
     }
 }
 
+
 /// High level jsonrpc call
+///
+/// [Documentation](https://cryptape.github.io/cita/zh/usage-guide/rpc/index.html)
+///
+/// JSONRPC methods:
+///   * net_peerCount
+///   * cita_blockNumber
+///   * cita_sendTransaction
+///   * cita_getBlockByHash
+///   * cita_getBlockByNumber
+///   * eth_getTransactionReceipt
+///   * eth_getLogs
+///   * eth_call
+///   * cita_getTransaction
+///   * eth_getTransactionCount
+///   * eth_getCode
+///   * eth_getAbi
+///   * eth_getBalance
+///   * eth_newFilter
+///   * eth_newBlockFilter
+///   * eth_uninstallFilter
+///   * eth_getFilterChanges
+///   * eth_getFilterLogs
+///   * cita_getTransactionProof
+///   * cita_getMetaData
 pub trait ClientExt {
-    /// Get metadata
-    fn get_metadata(&mut self, url: String) -> JsonRpcResponse;
-    /// Get current height
-    fn get_block_number(&mut self, url: String) -> Option<u64>;
+    /// net_peerCount: Get network peer count
+    fn get_net_peer_count(&mut self, url: &str) -> u32;
+    /// cita_blockNumber: Get current height
+    fn get_block_number(&mut self, url: &str) -> Option<u64>;
+    /// cita_sendTransaction: Send a transaction return transaction hash
+    fn send_transaction(&mut self, url: &str) -> Result<String, String>;
+    /// cita_getBlockByHash: Get block by hash
+    fn get_block_by_hash(&mut self, url: &str) -> JsonRpcResponse;
+    /// cita_getBlockByNumber: Get block by number
+    fn get_block_by_number(&mut self, url: &str) -> JsonRpcResponse;
+    /// eth_getTransactionReceipt: Get transaction receipt
+    fn get_transaction_receipt(&mut self, url: &str) -> JsonRpcResponse;
+    /// eth_getLogs: Get logs
+    fn get_logs(&mut self, url: &str) -> JsonRpcResponse;
+    /// eth_call: (readonly, will not save state change)
+    fn call(&mut self, url: &str) -> JsonRpcResponse;
+    /// cita_getTransaction: Get transaction by hash
+    fn get_transaction(&mut self, url: &str) -> JsonRpcResponse;
+    /// eth_getTransactionCount: Get transaction count of an account
+    fn get_transaction_count(&mut self, url: &str) -> u64;
+    /// eth_getCode: Get the code of a contract
+    fn get_code(&mut self, url: &str) -> String;
+    /// eth_getAbi: Get the ABI of a contract
+    fn get_abi(&mut self, url: &str) -> String;
+    /// eth_getBalance: Get the balance of a contract (TODO: return U256)
+    fn get_balance(&mut self, url: &str) -> u64;
+    /// eth_newFilter:
+    fn new_filter(&mut self, url: &str) -> u64;
+    /// eth_newBlockFilter:
+    fn new_block_filter(&mut self, url: &str) -> u64;
+    /// eth_uninstallFilter: Uninstall a filter by its id
+    fn uninstall_filter(&mut self, url: &str) -> bool;
+    /// eth_getFilterChanges: Get filter changes
+    fn get_filter_changes(&mut self, url: &str) -> JsonRpcResponse;
+    /// eth_getFilterLogs: Get filter logs
+    fn get_filter_logs(&mut self, url: &str) -> JsonRpcResponse;
+    /// cita_getTransactionProof: Get proof of a transaction
+    fn get_transaction_proof(&mut self, url: &str) -> JsonRpcResponse;
+    /// cita_getMetaData: Get metadata
+    fn get_metadata(&mut self, url: &str) -> JsonRpcResponse;
 }
 
 impl ClientExt for Client {
-    fn get_metadata(&mut self, url: String) -> JsonRpcResponse {
-        let params = JsonRpcParams::new()
-            .insert(
-                "params",
-                ParamsValue::List(vec![ParamsValue::String(String::from("latest"))]),
-            )
-            .insert(
-                "method",
-                ParamsValue::String(String::from(CITA_GET_META_DATA)),
-            );
-        self.send_request(vec![url], params).unwrap().pop().unwrap()
+    fn get_net_peer_count(&mut self, _url: &str) -> u32 {
+        Default::default()
     }
 
-    fn get_block_number(&mut self, url: String) -> Option<u64> {
+    fn get_block_number(&mut self, url: &str) -> Option<u64> {
         let params = JsonRpcParams::new().insert(
             "method",
             ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
@@ -209,6 +263,87 @@ impl ClientExt for Client {
         } else {
             None
         }
+    }
+
+    fn send_transaction(&mut self, _url: &str) -> Result<String, String> {
+        Ok(String::from("tx_hash"))
+    }
+
+    fn get_block_by_hash(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_block_by_number(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_transaction_receipt(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_logs(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn call(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_transaction(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_transaction_count(&mut self, _url: &str) -> u64 {
+        0
+    }
+
+    fn get_code(&mut self, _url: &str) -> String {
+        Default::default()
+    }
+
+    fn get_abi(&mut self, _url: &str) -> String {
+        Default::default()
+    }
+
+    fn get_balance(&mut self, _url: &str) -> u64 {
+        0
+    }
+
+    fn new_filter(&mut self, _url: &str) -> u64 {
+        0
+    }
+
+    fn new_block_filter(&mut self, _url: &str) -> u64 {
+        0
+    }
+
+    fn uninstall_filter(&mut self, _url: &str) -> bool {
+        false
+    }
+
+    fn get_filter_changes(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_filter_logs(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_transaction_proof(&mut self, _url: &str) -> JsonRpcResponse {
+        Default::default()
+    }
+
+    fn get_metadata(&mut self, url: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(String::from("latest"))]),
+            )
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_GET_META_DATA)),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 }
 

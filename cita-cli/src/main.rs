@@ -40,7 +40,7 @@ fn main() {
         ParamsValue::String(String::from("cita_blockNumber")),
     );
 
-    let responses = client.send_request(vec![url.to_string()], params).unwrap();
+    let responses = client.send_request(vec![url], params).unwrap();
     for response in responses {
         println!("{}", response);
     }

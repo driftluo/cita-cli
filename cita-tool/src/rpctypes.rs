@@ -91,7 +91,7 @@ impl fmt::Display for ResponseValue {
 }
 
 /// Jsonrpc response
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct JsonRpcResponse {
     jsonrpc: String,
     #[serde(skip_serializing_if = "Option::is_none")] result: Option<ResponseValue>,
