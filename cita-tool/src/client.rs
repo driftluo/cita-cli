@@ -45,6 +45,11 @@ impl Client {
         self
     }
 
+    /// Get private key
+    pub fn private_key(&self) -> &PrivKey {
+        self.private_key.as_ref().unwrap()
+    }
+
     /// Send requests
     pub fn send_request(
         &mut self,
@@ -118,7 +123,6 @@ impl Client {
         &mut self,
         code: &str,
         address: String,
-        pv: &PrivKey,
         current_height: u64,
     ) -> String {
         let data = decode(code).unwrap();
@@ -132,7 +136,7 @@ impl Client {
         tx.set_quota(1000000);
         tx.set_chain_id(self.chain_id.expect("Please set chain id"));
         encode(
-            tx.sign(*pv)
+            tx.sign(*self.private_key())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
