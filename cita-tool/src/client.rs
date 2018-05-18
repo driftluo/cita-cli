@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use std::default::Default;
 use std::{io, str, u64};
+use std::collections::HashMap;
 
 use tokio_core::reactor::Core;
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
@@ -17,8 +18,22 @@ const CITA_SEND_TRANSACTION: &str = "cita_sendTransaction";
 const NET_PEER_COUNT: &str = "net_peerCount";
 const CITA_GET_BLOCK_BY_HASH: &str = "cita_getBlockByHash";
 const CITA_GET_BLOCK_BY_NUMBER: &str = "cita_getBlockByNumber";
+const CITA_GET_TRANSACTION: &str = "cita_getTransaction";
+const CITA_GET_TRANSACTION_PROOF: &str = "cita_getTransactionProof";
 
 const ETH_GET_TRANSACTION_RECEIPT: &str = "eth_getTransactionReceipt";
+const ETH_GET_LOGS: &str = "eth_getLogs";
+const ETH_CALL: &str = "eth_call";
+const ETH_GET_TRANSACTION_COUNT: &str = "eth_getTransactionCount";
+const ETH_GET_CODE: &str = "eth_getCode";
+const ETH_GET_ABI: &str = "eth_getAbi";
+const ETH_GET_BALANCE: &str = "eth_getBalance";
+
+const ETH_NEW_FILTER: &str = "eth_newFilter";
+const ETH_NEW_BLOCK_FILTER: &str = "eth_newBlockFilter";
+const ETH_UNINSTALL_FILTER: &str = "eth_uninstallFilter";
+const ETH_GET_FILTER_CHANGES: &str = "eth_getFilterChanges";
+const ETH_GET_FILTER_LOGS: &str = "eth_getFilterLogs";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -238,31 +253,38 @@ pub trait ClientExt {
     /// eth_getTransactionReceipt: Get transaction receipt
     fn get_transaction_receipt(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getLogs: Get logs
-    fn get_logs(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
     /// eth_call: (readonly, will not save state change)
-    fn call(&mut self, url: &str) -> JsonRpcResponse;
+    fn call(
+        &mut self,
+        url: &str,
+        from: Option<&str>,
+        to: &str,
+        code: Option<&str>,
+        quantity: &str,
+    ) -> JsonRpcResponse;
     /// cita_getTransaction: Get transaction by hash
-    fn get_transaction(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_transaction(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getTransactionCount: Get transaction count of an account
-    fn get_transaction_count(&mut self, url: &str) -> u64;
+    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> u64;
     /// eth_getCode: Get the code of a contract
-    fn get_code(&mut self, url: &str) -> String;
+    fn get_code(&mut self, url: &str, address: &str, height: &str) -> String;
     /// eth_getAbi: Get the ABI of a contract
-    fn get_abi(&mut self, url: &str) -> String;
+    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> String;
     /// eth_getBalance: Get the balance of a contract (TODO: return U256)
-    fn get_balance(&mut self, url: &str) -> u64;
+    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> u64;
     /// eth_newFilter:
-    fn new_filter(&mut self, url: &str) -> u64;
+    fn new_filter(&mut self, url: &str, object: ParamsValue) -> String;
     /// eth_newBlockFilter:
-    fn new_block_filter(&mut self, url: &str) -> u64;
+    fn new_block_filter(&mut self, url: &str) -> String;
     /// eth_uninstallFilter: Uninstall a filter by its id
-    fn uninstall_filter(&mut self, url: &str) -> bool;
+    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> bool;
     /// eth_getFilterChanges: Get filter changes
-    fn get_filter_changes(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_filter_changes(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse;
     /// eth_getFilterLogs: Get filter logs
-    fn get_filter_logs(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_filter_logs(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse;
     /// cita_getTransactionProof: Get proof of a transaction
-    fn get_transaction_proof(&mut self, url: &str) -> JsonRpcResponse;
+    fn get_transaction_proof(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// cita_getMetaData: Get metadata
     fn get_metadata(&mut self, url: &str, height: &str) -> JsonRpcResponse;
 }
@@ -384,56 +406,242 @@ impl ClientExt for Client {
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_logs(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_GET_LOGS)))
+            .insert("params", object);
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn call(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn call(
+        &mut self,
+        url: &str,
+        from: Option<&str>,
+        to: &str,
+        data: Option<&str>,
+        quantity: &str,
+    ) -> JsonRpcResponse {
+        let mut object = HashMap::new();
+
+        object.insert(String::from("to"), ParamsValue::String(String::from(to)));
+        if from.is_some() {
+            object.insert(
+                String::from("from"),
+                ParamsValue::String(String::from(from.unwrap())),
+            );
+        }
+        if data.is_some() {
+            object.insert(
+                String::from("data"),
+                ParamsValue::String(String::from(data.unwrap())),
+            );
+        }
+
+        let param = ParamsValue::List(vec![
+            ParamsValue::String(String::from(quantity)),
+            ParamsValue::Map(object),
+        ]);
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_CALL)))
+            .insert("params", param);
+
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_transaction(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_transaction(&mut self, url: &str, hash: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_GET_TRANSACTION)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
+            );
+
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_transaction_count(&mut self, _url: &str) -> u64 {
-        0
+    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> u64 {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_GET_TRANSACTION_COUNT)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            );
+
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(count)) => {
+                u64::from_str_radix(&remove_0x(count), 16).unwrap()
+            }
+            _ => 0,
+        }
     }
 
-    fn get_code(&mut self, _url: &str) -> String {
-        Default::default()
+    fn get_code(&mut self, url: &str, address: &str, height: &str) -> String {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_GET_CODE)))
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            );
+
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(code)) => code,
+            _ => Default::default(),
+        }
     }
 
-    fn get_abi(&mut self, _url: &str) -> String {
-        Default::default()
+    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> String {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_GET_ABI)))
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            );
+
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(abi)) => abi,
+            _ => Default::default(),
+        }
     }
 
-    fn get_balance(&mut self, _url: &str) -> u64 {
-        0
+    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> u64 {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_GET_BALANCE)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            );
+
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(balance)) => {
+                u64::from_str_radix(&remove_0x(balance), 16).unwrap()
+            }
+            _ => 0,
+        }
     }
 
-    fn new_filter(&mut self, _url: &str) -> u64 {
-        0
+    fn new_filter(&mut self, url: &str, object: ParamsValue) -> String {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_NEW_FILTER)))
+            .insert("params", object);
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(id)) => {
+                id
+            }
+            _ => Default::default(),
+        }
     }
 
-    fn new_block_filter(&mut self, _url: &str) -> u64 {
-        0
+    fn new_block_filter(&mut self, url: &str) -> String {
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ETH_NEW_BLOCK_FILTER)));
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::String(id)) => {
+                id
+            }
+            _ => Default::default(),
+        }
     }
 
-    fn uninstall_filter(&mut self, _url: &str) -> bool {
-        false
+    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> bool {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_UNINSTALL_FILTER)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(filter_id)),
+                ]),
+            );
+
+        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        match result.result().unwrap() {
+            ResponseValue::Singe(ParamsValue::Bool(value)) => {
+                value
+            }
+            _ => false,
+        }
     }
 
-    fn get_filter_changes(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_filter_changes(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_GET_FILTER_CHANGES)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(filter_id)),
+                ]),
+            );
+
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_filter_logs(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_filter_logs(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(ETH_GET_FILTER_LOGS)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(filter_id)),
+                ]),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_transaction_proof(&mut self, _url: &str) -> JsonRpcResponse {
-        Default::default()
+    fn get_transaction_proof(&mut self, url: &str, hash: &str) -> JsonRpcResponse {
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(CITA_GET_TRANSACTION_PROOF)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(hash)),
+                ]),
+            );
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
     fn get_metadata(&mut self, url: &str, height: &str) -> JsonRpcResponse {
@@ -450,9 +658,20 @@ impl ClientExt for Client {
     }
 }
 
-fn remove_0x(hex: String) -> String {
+/// Remove hexadecimal prefix "0x" or "0X".
+/// Example:
+/// ```rust
+/// extern crate cita_tool;
+///
+/// use cita_tool::remove_0x;
+///
+/// let a = "0x0b";
+/// let b = remove_0x(a.to_string());
+/// println!("a = {}, b = {}", a, b);
+/// ```
+pub fn remove_0x(hex: String) -> String {
     let tmp = hex.as_bytes();
-    if tmp[..2] == b"0x"[..] {
+    if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
         String::from_utf8(tmp[2..].to_vec()).unwrap()
     } else {
         hex.clone()
