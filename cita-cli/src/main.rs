@@ -23,24 +23,43 @@ fn main() {
         .unwrap_or(DEFAULT_JSONRPC_URL.to_owned());
 
     let matches = clap::App::new("CITA CLI")
-        .arg(
-            clap::Arg::with_name("url")
-                .long("url")
-                .default_value(default_jsonrpc_url.as_str())
-                .takes_value(true)
-                .help(format!("JSONRPC server URL (dotenv: {})", ENV_JSONRPC_URL).as_str()),
+        .subcommand(
+            clap::SubCommand::with_name("call")
+                .subcommand(clap::SubCommand::with_name("net_peerCount"))
+                .subcommand(clap::SubCommand::with_name("cita_blockNumber"))
+                .arg(
+                    clap::Arg::with_name("url")
+                        .long("url")
+                        .default_value(default_jsonrpc_url.as_str())
+                        .takes_value(true)
+                        .multiple(true)
+                        .global(true)
+                        .help(format!("JSONRPC server URL (dotenv: {})", ENV_JSONRPC_URL).as_str()),
+                )
         )
         .get_matches();
-    let url = matches.value_of("url").unwrap();
 
-    let mut client = Client::new().unwrap();
-    let params = JsonRpcParams::new().insert(
-        "method",
-        ParamsValue::String(String::from("cita_blockNumber")),
-    );
+    match matches.subcommand() {
+        ("call", Some(sub_matches)) => {
+            let url = sub_matches.value_of("url").unwrap();
+            match sub_matches.subcommand() {
+                (name @ "net_peerCount", _) | (name @ "cita_blockNumber", _) => {
+                    let mut client = Client::new().unwrap();
+                    let params = JsonRpcParams::new().insert(
+                        "method",
+                        ParamsValue::String(String::from(name)),
+                    );
 
-    let responses = client.send_request(vec![url], params).unwrap();
-    for response in responses {
-        println!("{}", response);
+                    let responses = client.send_request(vec![url], params).unwrap();
+                    for response in responses {
+                        println!("{}", response);
+                    }
+                }
+                _ => unreachable!()
+            }
+        },
+        _ => {
+            println!("matches: {:#?}", matches);
+        }
     }
 }
