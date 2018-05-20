@@ -41,14 +41,15 @@ fn main() {
 
     match matches.subcommand() {
         ("rpc", Some(sub_matches)) => {
-            let url = sub_matches.value_of("url").unwrap();
             let mut client = Client::new().unwrap();
             match sub_matches.subcommand() {
-                (method @ "net_peerCount", _) => {
-                    println!("{}: {}", method, client.get_net_peer_count(url));
+                ("net_peerCount", Some(method_m)) => {
+                    let url = method_m.value_of("url").unwrap();
+                    println!("{}", client.get_net_peer_count(url));
                 },
-                (method @ "cita_blockNumber", _) => {
-                    println!("{}: {:?}", method, client.get_block_number(url).unwrap());
+                ("cita_blockNumber", Some(method_m)) => {
+                    let url = method_m.value_of("url").unwrap();
+                    println!("{}", client.get_block_number(url));
                 },
                 _ => unreachable!()
             }

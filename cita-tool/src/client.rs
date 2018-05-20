@@ -225,9 +225,9 @@ impl Client {
 ///   * cita_getMetaData
 pub trait ClientExt {
     /// net_peerCount: Get network peer count
-    fn get_net_peer_count(&mut self, url: &str) -> u32;
+    fn get_net_peer_count(&mut self, url: &str) -> JsonRpcResponse;
     /// cita_blockNumber: Get current height
-    fn get_block_number(&mut self, url: &str) -> Option<u64>;
+    fn get_block_number(&mut self, url: &str) -> JsonRpcResponse;
     /// cita_sendTransaction: Send a transaction return transaction hash
     fn send_transaction(
         &mut self,
@@ -235,7 +235,7 @@ pub trait ClientExt {
         code: &str,
         address: &str,
         current_height: u64,
-    ) -> Result<String, String>;
+    ) -> JsonRpcResponse;
     /// cita_getBlockByHash: Get block by hash
     fn get_block_by_hash(
         &mut self,
@@ -266,19 +266,19 @@ pub trait ClientExt {
     /// cita_getTransaction: Get transaction by hash
     fn get_transaction(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getTransactionCount: Get transaction count of an account
-    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> u64;
+    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_getCode: Get the code of a contract
-    fn get_code(&mut self, url: &str, address: &str, height: &str) -> String;
+    fn get_code(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_getAbi: Get the ABI of a contract
-    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> String;
+    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_getBalance: Get the balance of a contract (TODO: return U256)
-    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> u64;
+    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_newFilter:
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> String;
+    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
     /// eth_newBlockFilter:
-    fn new_block_filter(&mut self, url: &str) -> String;
+    fn new_block_filter(&mut self, url: &str) -> JsonRpcResponse;
     /// eth_uninstallFilter: Uninstall a filter by its id
-    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> bool;
+    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse;
     /// eth_getFilterChanges: Get filter changes
     fn get_filter_changes(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse;
     /// eth_getFilterLogs: Get filter logs
@@ -290,31 +290,31 @@ pub trait ClientExt {
 }
 
 impl ClientExt for Client {
-    fn get_net_peer_count(&mut self, url: &str) -> u32 {
+    fn get_net_peer_count(&mut self, url: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(NET_PEER_COUNT)));
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(count)) => {
-                u32::from_str_radix(&remove_0x(count), 16).unwrap()
-            }
-            _ => 0,
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(count)) => {
+        //         u32::from_str_radix(&remove_0x(count), 16).unwrap()
+        //     }
+        //     _ => 0,
+        // }
     }
 
-    fn get_block_number(&mut self, url: &str) -> Option<u64> {
+    fn get_block_number(&mut self, url: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new().insert(
             "method",
             ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
         );
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        if let ResponseValue::Singe(ParamsValue::String(height)) = result.result().unwrap() {
-            Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
-        } else {
-            None
-        }
+        // if let ResponseValue::Singe(ParamsValue::String(height)) = result.result().unwrap() {
+        //     Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
+        // } else {
+        //     None
+        // }
     }
 
     fn send_transaction(
@@ -323,7 +323,7 @@ impl ClientExt for Client {
         code: &str,
         address: &str,
         current_height: u64,
-    ) -> Result<String, String> {
+    ) -> JsonRpcResponse {
         let byte_code = self.generate_transaction(code, address, current_height);
         let params = JsonRpcParams::new()
             .insert(
@@ -334,21 +334,21 @@ impl ClientExt for Client {
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(byte_code)]),
             );
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        if let ResponseValue::Singe(ParamsValue::Map(mut value)) = result.result().unwrap() {
-            match value.remove("hash").unwrap() {
-                ParamsValue::String(hash) => Ok(hash),
-                _ => Err(String::from("Something wrong")),
-            }
-        } else {
-            let error = format!(
-                "Error code:{}, message: {}",
-                result.error().unwrap().code(),
-                result.error().unwrap().message()
-            );
-            Err(error)
-        }
+        // if let ResponseValue::Singe(ParamsValue::Map(mut value)) = result.result().unwrap() {
+        //     match value.remove("hash").unwrap() {
+        //         ParamsValue::String(hash) => Ok(hash),
+        //         _ => Err(String::from("Something wrong")),
+        //     }
+        // } else {
+        //     let error = format!(
+        //         "Error code:{}, message: {}",
+        //         result.error().unwrap().code(),
+        //         result.error().unwrap().message()
+        //     );
+        //     Err(error)
+        // }
     }
 
     fn get_block_by_hash(
@@ -462,7 +462,7 @@ impl ClientExt for Client {
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> u64 {
+    fn get_transaction_count(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -476,17 +476,17 @@ impl ClientExt for Client {
                 ]),
             );
 
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(count)) => {
-                u64::from_str_radix(&remove_0x(count), 16).unwrap()
-            }
-            _ => 0,
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(count)) => {
+        //         u64::from_str_radix(&remove_0x(count), 16).unwrap()
+        //     }
+        //     _ => 0,
+        // }
     }
 
-    fn get_code(&mut self, url: &str, address: &str, height: &str) -> String {
+    fn get_code(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_GET_CODE)))
             .insert(
@@ -497,15 +497,15 @@ impl ClientExt for Client {
                 ]),
             );
 
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(code)) => code,
-            _ => Default::default(),
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(code)) => code,
+        //     _ => Default::default(),
+        // }
     }
 
-    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> String {
+    fn get_abi(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_GET_ABI)))
             .insert(
@@ -516,15 +516,15 @@ impl ClientExt for Client {
                 ]),
             );
 
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(abi)) => abi,
-            _ => Default::default(),
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(abi)) => abi,
+        //     _ => Default::default(),
+        // }
     }
 
-    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> u64 {
+    fn get_balance(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -538,44 +538,44 @@ impl ClientExt for Client {
                 ]),
             );
 
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(balance)) => {
-                u64::from_str_radix(&remove_0x(balance), 16).unwrap()
-            }
-            _ => 0,
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(balance)) => {
+        //         u64::from_str_radix(&remove_0x(balance), 16).unwrap()
+        //     }
+        //     _ => 0,
+        // }
     }
 
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> String {
+    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_NEW_FILTER)))
             .insert("params", object);
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(id)) => {
-                id
-            }
-            _ => Default::default(),
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(id)) => {
+        //         id
+        //     }
+        //     _ => Default::default(),
+        // }
     }
 
-    fn new_block_filter(&mut self, url: &str) -> String {
+    fn new_block_filter(&mut self, url: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_NEW_BLOCK_FILTER)));
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::String(id)) => {
-                id
-            }
-            _ => Default::default(),
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::String(id)) => {
+        //         id
+        //     }
+        //     _ => Default::default(),
+        // }
     }
 
-    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> bool {
+    fn uninstall_filter(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -588,14 +588,14 @@ impl ClientExt for Client {
                 ]),
             );
 
-        let result = self.send_request(vec![url], params).unwrap().pop().unwrap();
+        self.send_request(vec![url], params).unwrap().pop().unwrap()
 
-        match result.result().unwrap() {
-            ResponseValue::Singe(ParamsValue::Bool(value)) => {
-                value
-            }
-            _ => false,
-        }
+        // match result.result().unwrap() {
+        //     ResponseValue::Singe(ParamsValue::Bool(value)) => {
+        //         value
+        //     }
+        //     _ => false,
+        // }
     }
 
     fn get_filter_changes(&mut self, url: &str, filter_id: &str) -> JsonRpcResponse {
