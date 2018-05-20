@@ -247,7 +247,7 @@ pub trait ClientExt {
     fn get_block_by_number(
         &mut self,
         url: &str,
-        hash: &str,
+        height: &str,
         transaction_info: bool,
     ) -> JsonRpcResponse;
     /// eth_getTransactionReceipt: Get transaction receipt
@@ -375,7 +375,7 @@ impl ClientExt for Client {
     fn get_block_by_number(
         &mut self,
         url: &str,
-        hash: &str,
+        height: &str,
         transaction_info: bool,
     ) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
@@ -386,7 +386,7 @@ impl ClientExt for Client {
             .insert(
                 "params",
                 ParamsValue::List(vec![
-                    ParamsValue::String(String::from(hash)),
+                    ParamsValue::String(String::from(height)),
                     ParamsValue::Bool(transaction_info),
                 ]),
             );
@@ -667,7 +667,11 @@ impl ClientExt for Client {
 ///
 /// let a = "0x0b";
 /// let b = remove_0x(a.to_string());
-/// println!("a = {}, b = {}", a, b);
+/// let c = "0X0b";
+/// let d = remove_0x(c.to_string());
+/// assert_eq!("0b".to_string(), b);
+/// assert_eq!("0b".to_string(), d);
+/// println!("a = {}, b = {}, c = {}, d= {}", a, b, c, d);
 /// ```
 pub fn remove_0x(hex: String) -> String {
     let tmp = hex.as_bytes();
