@@ -9,7 +9,7 @@ use std::iter::FromIterator;
 
 use dotenv::dotenv;
 
-use cita_tool::{Client, JsonRpcParams, ParamsValue};
+use cita_tool::{Client, ClientExt};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -24,7 +24,7 @@ fn main() {
 
     let matches = clap::App::new("CITA CLI")
         .subcommand(
-            clap::SubCommand::with_name("call")
+            clap::SubCommand::with_name("rpc")
                 .subcommand(clap::SubCommand::with_name("net_peerCount"))
                 .subcommand(clap::SubCommand::with_name("cita_blockNumber"))
                 .arg(
@@ -40,21 +40,16 @@ fn main() {
         .get_matches();
 
     match matches.subcommand() {
-        ("call", Some(sub_matches)) => {
+        ("rpc", Some(sub_matches)) => {
             let url = sub_matches.value_of("url").unwrap();
+            let mut client = Client::new().unwrap();
             match sub_matches.subcommand() {
-                (name @ "net_peerCount", _) | (name @ "cita_blockNumber", _) => {
-                    let mut client = Client::new().unwrap();
-                    let params = JsonRpcParams::new().insert(
-                        "method",
-                        ParamsValue::String(String::from(name)),
-                    );
-
-                    let responses = client.send_request(vec![url], params).unwrap();
-                    for response in responses {
-                        println!("{}", response);
-                    }
-                }
+                (method @ "net_peerCount", _) => {
+                    println!("{}: {}", method, client.get_net_peer_count(url));
+                },
+                (method @ "cita_blockNumber", _) => {
+                    println!("{}: {:?}", method, client.get_block_number(url).unwrap());
+                },
                 _ => unreachable!()
             }
         },
