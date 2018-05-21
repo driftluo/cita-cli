@@ -30,7 +30,7 @@ pub mod crypto;
 /// Reqeust and Response type
 pub mod rpctypes;
 
-pub use client::{Client, remove_0x, ClientExt};
+pub use client::{Client, ClientExt, remove_0x};
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use crypto::{pubkey_to_address, sign, CreateKey, Hashable, KeyPair, Message, PrivKey, PubKey,
                  Signature};

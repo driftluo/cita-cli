@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::default::Default;
 use std::{io, str, u64};
 use std::collections::HashMap;
 
@@ -526,10 +525,7 @@ impl ClientExt for Client {
 
     fn get_balance(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse {
         let params = JsonRpcParams::new()
-            .insert(
-                "method",
-                ParamsValue::String(String::from(ETH_GET_BALANCE)),
-            )
+            .insert("method", ParamsValue::String(String::from(ETH_GET_BALANCE)))
             .insert(
                 "params",
                 ParamsValue::List(vec![
@@ -563,8 +559,10 @@ impl ClientExt for Client {
     }
 
     fn new_block_filter(&mut self, url: &str) -> JsonRpcResponse {
-        let params = JsonRpcParams::new()
-            .insert("method", ParamsValue::String(String::from(ETH_NEW_BLOCK_FILTER)));
+        let params = JsonRpcParams::new().insert(
+            "method",
+            ParamsValue::String(String::from(ETH_NEW_BLOCK_FILTER)),
+        );
         self.send_request(vec![url], params).unwrap().pop().unwrap()
 
         // match result.result().unwrap() {
@@ -583,9 +581,7 @@ impl ClientExt for Client {
             )
             .insert(
                 "params",
-                ParamsValue::List(vec![
-                    ParamsValue::String(String::from(filter_id)),
-                ]),
+                ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
 
         self.send_request(vec![url], params).unwrap().pop().unwrap()
@@ -606,9 +602,7 @@ impl ClientExt for Client {
             )
             .insert(
                 "params",
-                ParamsValue::List(vec![
-                    ParamsValue::String(String::from(filter_id)),
-                ]),
+                ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
 
         self.send_request(vec![url], params).unwrap().pop().unwrap()
@@ -622,9 +616,7 @@ impl ClientExt for Client {
             )
             .insert(
                 "params",
-                ParamsValue::List(vec![
-                    ParamsValue::String(String::from(filter_id)),
-                ]),
+                ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
@@ -637,9 +629,7 @@ impl ClientExt for Client {
             )
             .insert(
                 "params",
-                ParamsValue::List(vec![
-                    ParamsValue::String(String::from(hash)),
-                ]),
+                ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
             );
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
