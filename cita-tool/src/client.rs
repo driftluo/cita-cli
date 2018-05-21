@@ -1,12 +1,13 @@
 use std::str::FromStr;
-use std::{io, str, u64};
+use std::{str, u64};
 use std::collections::HashMap;
 
 use tokio_core::reactor::Core;
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, Transaction};
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, ToolError,
+            Transaction};
 use hex::{decode, encode};
 use protobuf::Message;
 use uuid::Uuid;
@@ -45,8 +46,8 @@ pub struct Client {
 
 impl Client {
     /// Create a client for CITA
-    pub fn new() -> io::Result<Self> {
-        let core = Core::new()?;
+    pub fn new() -> Result<Self, ToolError> {
+        let core = Core::new().map_err(ToolError::Stdio)?;
         Ok(Client {
             id: 0,
             core: core,
@@ -68,8 +69,8 @@ impl Client {
     }
 
     /// Get private key
-    pub fn private_key(&self) -> &PrivKey {
-        self.private_key.as_ref().unwrap()
+    pub fn private_key(&self) -> Option<&PrivKey> {
+        self.private_key.as_ref()
     }
 
     /// Send requests
@@ -77,10 +78,10 @@ impl Client {
         &mut self,
         urls: Vec<&str>,
         params: JsonRpcParams,
-    ) -> Result<Vec<JsonRpcResponse>, ()> {
+    ) -> Result<Vec<JsonRpcResponse>, ToolError> {
         let reqs = self.make_requests_with_all_url(urls, params);
 
-        Ok(self.run(reqs))
+        self.run(reqs)
     }
 
     /// Send multiple params to one node
@@ -88,17 +89,17 @@ impl Client {
         &mut self,
         url: &str,
         params: T,
-    ) -> Result<Vec<JsonRpcResponse>, ()> {
+    ) -> Result<Vec<JsonRpcResponse>, ToolError> {
         let reqs = self.make_requests_with_params_list(url, params);
 
-        Ok(self.run(reqs))
+        self.run(reqs)
     }
 
     fn make_requests_with_all_url(
         &mut self,
         urls: Vec<&str>,
         params: JsonRpcParams,
-    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
+    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
         self.id = self.id.overflowing_add(1).0;
         let params = params.insert("id", ParamsValue::Int(self.id));
         let client = HyperClient::new(&self.core.handle());
@@ -107,8 +108,12 @@ impl Client {
             let uri = Uri::from_str(url).unwrap();
             let mut req: Request<Body> = Request::new(Method::Post, uri);
             req.set_body(serde_json::to_string(&params).unwrap());
-            let future: Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>> =
-                Box::new(client.request(req).and_then(|res| res.body().concat2()));
+            let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
+                client
+                    .request(req)
+                    .and_then(|res| res.body().concat2())
+                    .map_err(ToolError::Hyper),
+            );
             reqs.push(future);
         });
         join_all(reqs)
@@ -118,7 +123,7 @@ impl Client {
         &mut self,
         url: &str,
         params: T,
-    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>> {
+    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
         let client = HyperClient::new(&self.core.handle());
         let mut reqs = Vec::new();
         params
@@ -130,9 +135,12 @@ impl Client {
                 let uri = Uri::from_str(&url).unwrap();
                 let mut req: Request<Body> = Request::new(Method::Post, uri);
                 req.set_body(serde_json::to_string(&param).unwrap());
-                let future: Box<
-                    Future<Item = hyper::Chunk, Error = hyper::error::Error>,
-                > = Box::new(client.request(req).and_then(|res| res.body().concat2()));
+                let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
+                    client
+                        .request(req)
+                        .and_then(|res| res.body().concat2())
+                        .map_err(ToolError::Hyper),
+                );
                 reqs.push(future);
             });
 
@@ -158,7 +166,7 @@ impl Client {
         tx.set_quota(1000000);
         tx.set_chain_id(self.chain_id.expect("Please set chain id"));
         encode(
-            tx.sign(*self.private_key())
+            tx.sign(*self.private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
@@ -187,13 +195,17 @@ impl Client {
     /// Start run
     fn run(
         &mut self,
-        reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = hyper::error::Error>>>>,
-    ) -> Vec<JsonRpcResponse> {
-        let responses = self.core.run(reqs).unwrap();
-        responses
+        reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>>,
+    ) -> Result<Vec<JsonRpcResponse>, ToolError> {
+        let responses = self.core.run(reqs)?;
+        Ok(responses
             .into_iter()
-            .map(|response| serde_json::from_slice::<JsonRpcResponse>(&response).unwrap())
-            .collect::<Vec<JsonRpcResponse>>()
+            .map(|response| {
+                serde_json::from_slice::<JsonRpcResponse>(&response)
+                    .map_err(ToolError::SerdeJson)
+                    .unwrap()
+            })
+            .collect::<Vec<JsonRpcResponse>>())
     }
 }
 

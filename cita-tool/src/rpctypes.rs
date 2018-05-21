@@ -1,4 +1,5 @@
 use std::{fmt, collections::HashMap, convert::Into, default::Default};
+use serde_json;
 
 /// JsonRpc params
 #[derive(Serialize, Deserialize)]
@@ -35,7 +36,7 @@ impl Default for JsonRpcParams {
         extra.insert(
             String::from("jsonrpc"),
             ParamsValue::String("2.0".to_string()),
-        );;
+        );
         JsonRpcParams { extra: extra }
     }
 }
@@ -66,7 +67,7 @@ impl fmt::Debug for ParamsValue {
 
 impl fmt::Display for ParamsValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
@@ -88,7 +89,7 @@ impl fmt::Debug for ResponseValue {
 
 impl fmt::Display for ResponseValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
@@ -126,7 +127,7 @@ impl fmt::Debug for JsonRpcResponse {
 
 impl fmt::Display for JsonRpcResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
@@ -160,6 +161,6 @@ impl fmt::Debug for ErrorResponse {
 
 impl fmt::Display for ErrorResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }

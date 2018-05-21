@@ -18,3 +18,4 @@ cita-types = { git = "https://github.com/cryptape/cita-common", branch = "develo
 lazy_static = "^1.0"
 rand = "^0.4"
 uuid = { version = "0.6", features = ["serde", "v4"] }
+failure = "^0.1.1"
