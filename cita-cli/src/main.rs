@@ -16,7 +16,7 @@ use syntect::parsing::SyntaxSet;
 use syntect::highlighting::{ThemeSet, Style};
 use syntect::util::as_24_bit_terminal_escaped;
 
-use cita_tool::{Client, ClientExt, remove_0x, PrivKey};
+use cita_tool::{Client, ClientExt, PrivKey, remove_0x};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -58,12 +58,10 @@ fn main() {
                                 .long("height")
                                 .takes_value(true)
                                 .required(true)
-                                .validator( |height|
-                                    match parse_u64(height.as_ref() ) {
-                                        Ok(_) => Ok(()),
-                                        Err(err) => Err(err)
-                                    }
-                                )
+                                .validator(|height| match parse_u64(height.as_ref()) {
+                                    Ok(_) => Ok(()),
+                                    Err(err) => Err(err),
+                                })
                                 .help("Current chain height"),
                         )
                         .arg(
@@ -232,15 +230,11 @@ fn get_url<'a>(m: &'a clap::ArgMatches) -> &'a str {
 }
 
 fn parse_u64(height: &str) -> Result<u64, String> {
-    Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| {
-        format!("{}", err)
-    })?)
+    Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| format!("{}", err))?)
 }
 
 fn parse_privkey(hash: &str) -> Result<PrivKey, String> {
-    Ok(PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| {
-        format!("{}", err)
-    })?)
+    Ok(PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
 }
 
 fn highlight_json(content: &str) -> String {

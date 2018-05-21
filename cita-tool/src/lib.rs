@@ -4,6 +4,8 @@
 #![deny(missing_docs)]
 
 extern crate cita_types as types;
+#[macro_use]
+extern crate failure;
 extern crate futures;
 extern crate hex;
 extern crate hyper;
@@ -29,9 +31,12 @@ pub mod protos;
 pub mod crypto;
 /// Reqeust and Response type
 pub mod rpctypes;
+/// Error of cita tool
+pub mod error;
 
 pub use client::{Client, ClientExt, remove_0x};
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use crypto::{pubkey_to_address, sign, CreateKey, Hashable, KeyPair, Message, PrivKey, PubKey,
                  Signature};
 pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
+pub use error::ToolError;
