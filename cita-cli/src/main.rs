@@ -49,8 +49,8 @@ fn main() {
                                 .default_value("")
                                 .takes_value(true)
                                 .help(
-                                    "The address of the invoking contract, if it is empty, \
-                                     it is regarded as creating a contract",
+                                    "The address of the invoking contract, defalut is \
+                                     create contract",
                                 ),
                         )
                         .arg(
@@ -209,18 +209,19 @@ fn main() {
                         .arg(
                             clap::Arg::with_name("quantity")
                                 .long("quantity")
+                                .takes_value(true)
+                                .required(true)
                                 .help("The block number"),
                         ),
                 )
                 .subcommand(
-                    clap::SubCommand::with_name("cita_getTransactionProof")
-                        .arg(
-                            clap::Arg::with_name("hash")
-                                .long("hash")
-                                .required(true)
-                                .takes_value(true)
-                                .help("The hash of the transaction"),
-                        )
+                    clap::SubCommand::with_name("cita_getTransactionProof").arg(
+                        clap::Arg::with_name("hash")
+                            .long("hash")
+                            .required(true)
+                            .takes_value(true)
+                            .help("The hash of the transaction"),
+                    ),
                 )
                 .subcommand(
                     clap::SubCommand::with_name("cita_getMetaData").arg(
@@ -290,40 +291,32 @@ fn main() {
                     let hash = m.value_of("hash").unwrap();
                     client.get_transaction(get_url(m), hash)
                 }
-                ("eth_getCode", Some(m)) => {
-                    client.get_code(
-                        get_url(m),
-                        m.value_of("address").unwrap(),
-                        m.value_of("height").unwrap()
-                    )
-                }
-                ("eth_getAbi", Some(m)) => {
-                    client.get_abi(
-                        get_url(m),
-                        m.value_of("address").unwrap(),
-                        m.value_of("height").unwrap()
-                    )
-                }
-                ("eth_getBalance", Some(m)) => {
-                    client.get_balance(
-                        get_url(m),
-                        m.value_of("address").unwrap(),
-                        m.value_of("height").unwrap()
-                    )
-                }
+                ("eth_getCode", Some(m)) => client.get_code(
+                    get_url(m),
+                    m.value_of("address").unwrap(),
+                    m.value_of("height").unwrap(),
+                ),
+                ("eth_getAbi", Some(m)) => client.get_abi(
+                    get_url(m),
+                    m.value_of("address").unwrap(),
+                    m.value_of("height").unwrap(),
+                ),
+                ("eth_getBalance", Some(m)) => client.get_balance(
+                    get_url(m),
+                    m.value_of("address").unwrap(),
+                    m.value_of("height").unwrap(),
+                ),
                 ("eth_getTransactionReceipt", Some(m)) => {
                     let hash = m.value_of("hash").unwrap();
                     client.get_transaction_receipt(get_url(m), hash)
                 }
-                ("eth_call", Some(m)) => {
-                    client.call(
-                        get_url(m),
-                        m.value_of("from"),
-                        m.value_of("to").unwrap(),
-                        m.value_of("data"),
-                        m.value_of("quantity").unwrap(),
-                    )
-                }
+                ("eth_call", Some(m)) => client.call(
+                    get_url(m),
+                    m.value_of("from"),
+                    m.value_of("to").unwrap(),
+                    m.value_of("data"),
+                    m.value_of("quantity").unwrap(),
+                ),
                 ("cita_getTransactionProof", Some(m)) => {
                     client.get_transaction_proof(get_url(m), m.value_of("hash").unwrap())
                 }
