@@ -13,10 +13,10 @@ use std::str::FromStr;
 use dotenv::dotenv;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
-use syntect::highlighting::{ThemeSet, Style};
+use syntect::highlighting::{Style, ThemeSet};
 use syntect::util::as_24_bit_terminal_escaped;
 
-use cita_tool::{Client, ClientExt, PrivKey, remove_0x};
+use cita_tool::{Client, ClientExt, CreateKey, KeyPair, PrivKey, remove_0x};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -68,25 +68,23 @@ fn main() {
                             clap::Arg::with_name("chain-id")
                                 .long("chain-id")
                                 .takes_value(true)
-                                .validator(|chain_id| {
-                                    match chain_id.parse::<u32>() {
-                                        Ok(_) => Ok(()),
-                                        Err(err) => Err(format!("{:?}", err))
-                                    }
+                                .validator(|chain_id| match chain_id.parse::<u32>() {
+                                    Ok(_) => Ok(()),
+                                    Err(err) => Err(format!("{:?}", err)),
                                 })
-                                .help("The chain_id of transaction")
+                                .help("The chain_id of transaction"),
                         )
                         .arg(
                             clap::Arg::with_name("private-key")
                                 .long("private-key")
                                 .takes_value(true)
                                 .required(true)
-                                .validator( |privkey| match parse_privkey(privkey.as_ref() ) {
+                                .validator(|privkey| match parse_privkey(privkey.as_ref()) {
                                     Ok(_) => Ok(()),
-                                    Err(err) => Err(err)
+                                    Err(err) => Err(err),
                                 })
-                                .help("The private key of transaction")
-                        )
+                                .help("The private key of transaction"),
+                        ),
                 )
                 .subcommand(
                     clap::SubCommand::with_name("cita_getBlockByHash")
@@ -141,16 +139,12 @@ fn main() {
                         clap::Arg::with_name("height")
                             .long("height")
                             .default_value("latest")
-                            .validator(|s| {
-                                match s.as_str() {
-                                    "latest" | "earliest" => Ok(()),
-                                    _ => {
-                                        match s.parse::<u64>() {
-                                            Ok(_) => Ok(()),
-                                            Err(e) => Err(format!("{:?}", e))
-                                        }
-                                    }
-                                }
+                            .validator(|s| match s.as_str() {
+                                "latest" | "earliest" => Ok(()),
+                                _ => match s.parse::<u64>() {
+                                    Ok(_) => Ok(()),
+                                    Err(e) => Err(format!("{:?}", e)),
+                                },
                             })
                             .takes_value(true)
                             .help("The height or tag"),
@@ -172,18 +166,19 @@ fn main() {
         ("rpc", Some(sub_matches)) => {
             let mut client = Client::new().unwrap();
             let resp = match sub_matches.subcommand() {
-                ("net_peerCount", Some(m)) => {
-                    client.get_net_peer_count(get_url(m))
-                }
-                ("cita_blockNumber", Some(m)) => {
-                    client.get_block_number(get_url(m))
-                }
+                ("net_peerCount", Some(m)) => client.get_net_peer_count(get_url(m)),
+                ("cita_blockNumber", Some(m)) => client.get_block_number(get_url(m)),
                 ("cita_sendTransaction", Some(m)) => {
-                    if let Some(chain_id) = m
-                        .value_of("chain-id")
-                        .map(|s| s.parse::<u32>().unwrap())
+                    if let Some(chain_id) =
+                        m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap())
                     {
                         client.set_chain_id(chain_id);
+                    }
+                    if let Some(private_key) = m.value_of("private-key") {
+                        client.set_private_key(*KeyPair::from_privkey(
+                            parse_privkey(private_key).unwrap(),
+                        ).unwrap()
+                            .privkey());
                     }
                     let url = get_url(m);
                     let code = m.value_of("code").unwrap();
