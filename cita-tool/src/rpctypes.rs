@@ -1,5 +1,7 @@
 use std::{fmt, collections::HashMap, convert::Into, default::Default};
 
+use serde_json;
+
 /// JsonRpc params
 #[derive(Serialize, Deserialize)]
 pub struct JsonRpcParams {
@@ -82,7 +84,7 @@ pub enum ResponseValue {
 
 impl fmt::Debug for ResponseValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
@@ -120,7 +122,7 @@ impl JsonRpcResponse {
 
 impl fmt::Debug for JsonRpcResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 

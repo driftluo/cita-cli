@@ -56,13 +56,13 @@ impl Client {
     }
 
     /// Set chain id
-    pub fn set_chain_id(mut self, chain_id: u32) -> Self {
+    pub fn set_chain_id(&mut self, chain_id: u32) -> &mut Self {
         self.chain_id = Some(chain_id);
         self
     }
 
     /// Set private key
-    pub fn set_private_key(mut self, private_key: PrivKey) -> Self {
+    pub fn set_private_key(&mut self, private_key: PrivKey) -> &mut Self {
         self.private_key = Some(private_key);
         self
     }
@@ -377,6 +377,7 @@ impl ClientExt for Client {
         height: &str,
         transaction_info: bool,
     ) -> JsonRpcResponse {
+        println!("get_block_by_number(): height={}, txs={}", height, transaction_info);
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -664,10 +665,11 @@ impl ClientExt for Client {
 /// println!("a = {}, b = {}, c = {}, d= {}", a, b, c, d);
 /// ```
 pub fn remove_0x(hex: String) -> String {
-    let tmp = hex.as_bytes();
-    if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
-        String::from_utf8(tmp[2..].to_vec()).unwrap()
-    } else {
-        hex.clone()
+    {
+        let tmp = hex.as_bytes();
+        if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
+            return String::from_utf8(tmp[2..].to_vec()).unwrap();
+        }
     }
+    hex
 }
