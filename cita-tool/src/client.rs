@@ -151,6 +151,7 @@ impl Client {
     /// If you want to create a contract, set address to ""
     pub fn generate_transaction(
         &mut self,
+        url: &str,
         code: &str,
         address: &str,
         current_height: u64,
@@ -164,7 +165,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(1000000);
-        tx.set_chain_id(self.chain_id.expect("Please set chain id"));
+        tx.set_chain_id(self.get_chain_id(url));
         encode(
             tx.sign(*self.private_key().unwrap())
                 .take_transaction_with_sig()
@@ -335,7 +336,7 @@ impl ClientExt for Client {
         address: &str,
         current_height: u64,
     ) -> JsonRpcResponse {
-        let byte_code = self.generate_transaction(code, address, current_height);
+        let byte_code = self.generate_transaction(url, code, address, current_height);
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -389,7 +390,10 @@ impl ClientExt for Client {
         height: &str,
         transaction_info: bool,
     ) -> JsonRpcResponse {
-        println!("get_block_by_number(): height={}, txs={}", height, transaction_info);
+        println!(
+            "get_block_by_number(): height={}, txs={}",
+            height, transaction_info
+        );
         let params = JsonRpcParams::new()
             .insert(
                 "method",
