@@ -128,6 +128,57 @@ fn main() {
                     ),
                 )
                 .subcommand(
+                    clap::SubCommand::with_name("eth_getCode")
+                        .arg(
+                            clap::Arg::with_name("address")
+                                .long("address")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The address of the code"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("height")
+                                .long("height")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The number of the block"),
+                        ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getAbi")
+                        .arg(
+                            clap::Arg::with_name("address")
+                                .long("address")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The address of the abi data"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("height")
+                                .long("height")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The number of the block"),
+                        ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getBalance")
+                        .arg(
+                            clap::Arg::with_name("address")
+                                .long("address")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The address of the balance"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("height")
+                                .long("height")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The number of the block"),
+                        ),
+                )
+                .subcommand(
                     clap::SubCommand::with_name("eth_getTransactionReceipt").arg(
                         clap::Arg::with_name("hash")
                             .long("hash")
@@ -135,6 +186,43 @@ fn main() {
                             .takes_value(true)
                             .help("The hash of specific transaction"),
                     ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_call")
+                        .arg(
+                            clap::Arg::with_name("from")
+                                .long("from")
+                                .takes_value(true)
+                                .help("From address"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("to")
+                                .long("to")
+                                .takes_value(true)
+                                .required(true)
+                                .help("To address"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("data")
+                                .long("data")
+                                .takes_value(true)
+                                .help("The data"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("quantity")
+                                .long("quantity")
+                                .help("The block number"),
+                        ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("cita_getTransactionProof")
+                        .arg(
+                            clap::Arg::with_name("hash")
+                                .long("hash")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The hash of the transaction"),
+                        )
                 )
                 .subcommand(
                     clap::SubCommand::with_name("cita_getMetaData").arg(
@@ -207,9 +295,42 @@ fn main() {
                     let hash = m.value_of("hash").unwrap();
                     client.get_transaction(get_url(m), hash)
                 }
+                ("eth_getCode", Some(m)) => {
+                    client.get_code(
+                        get_url(m),
+                        m.value_of("address").unwrap(),
+                        m.value_of("height").unwrap()
+                    )
+                }
+                ("eth_getAbi", Some(m)) => {
+                    client.get_abi(
+                        get_url(m),
+                        m.value_of("address").unwrap(),
+                        m.value_of("height").unwrap()
+                    )
+                }
+                ("eth_getBalance", Some(m)) => {
+                    client.get_balance(
+                        get_url(m),
+                        m.value_of("address").unwrap(),
+                        m.value_of("height").unwrap()
+                    )
+                }
                 ("eth_getTransactionReceipt", Some(m)) => {
                     let hash = m.value_of("hash").unwrap();
                     client.get_transaction_receipt(get_url(m), hash)
+                }
+                ("eth_call", Some(m)) => {
+                    client.call(
+                        get_url(m),
+                        m.value_of("from"),
+                        m.value_of("to").unwrap(),
+                        m.value_of("data"),
+                        m.value_of("quantity").unwrap(),
+                    )
+                }
+                ("cita_getTransactionProof", Some(m)) => {
+                    client.get_transaction_proof(get_url(m), m.value_of("hash").unwrap())
                 }
                 ("cita_getMetaData", Some(m)) => {
                     let height = m.value_of("height").unwrap();
