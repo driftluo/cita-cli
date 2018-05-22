@@ -11,10 +11,6 @@ use std::u64;
 use std::str::FromStr;
 
 use dotenv::dotenv;
-use syntect::easy::HighlightLines;
-use syntect::parsing::SyntaxSet;
-use syntect::highlighting::{Style, ThemeSet};
-use syntect::util::as_24_bit_terminal_escaped;
 
 use cita_tool::{Client, ClientExt, CreateKey, KeyPair, PrivKey, remove_0x};
 
@@ -333,7 +329,7 @@ fn main() {
                 }
                 _ => unreachable!(),
             };
-            println!("{}", highlight_json(format!("{:?}", resp).as_str()));
+            println!("{}", format!("{:?}", resp).as_str());
         }
         _ => {
             println!("matches:\n {}", matches.usage());
@@ -351,15 +347,4 @@ fn parse_u64(height: &str) -> Result<u64, String> {
 
 fn parse_privkey(hash: &str) -> Result<PrivKey, String> {
     Ok(PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
-}
-
-fn highlight_json(content: &str) -> String {
-    // Load these once at the start of your program
-    let ps = SyntaxSet::load_defaults_nonewlines();
-    let ts = ThemeSet::load_defaults();
-
-    let syntax = ps.find_syntax_by_extension("json").unwrap();
-    let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
-    let ranges: Vec<(Style, &str)> = h.highlight(content);
-    as_24_bit_terminal_escaped(&ranges[..], true)
 }
