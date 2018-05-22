@@ -1,5 +1,5 @@
 use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
-use super::{pubkey_to_address, CreateKey, Error, Message, PrivKey, PubKey};
+use super::{sha3_pubkey_to_address, CreateKey, Error, Message, Sha3PrivKey, Sha3PubKey};
 use types::{Address, H256};
 use rand::thread_rng;
 use std::{fmt, mem};
@@ -10,14 +10,14 @@ lazy_static! {
     pub static ref SECP256K1: Secp256k1 = Secp256k1::new();
 }
 
-/// key pair
+/// Sha3 key pair
 #[derive(Default)]
-pub struct KeyPair {
-    privkey: PrivKey,
-    pubkey: PubKey,
+pub struct Sha3KeyPair {
+    privkey: Sha3PrivKey,
+    pubkey: Sha3PubKey,
 }
 
-impl fmt::Display for KeyPair {
+impl fmt::Display for Sha3KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         writeln!(f, "privkey:  {}", encode(self.privkey.0.to_vec()))?;
         writeln!(f, "pubkey:  {}", encode(self.pubkey.0.to_vec()))?;
@@ -25,9 +25,9 @@ impl fmt::Display for KeyPair {
     }
 }
 
-impl CreateKey for KeyPair {
-    type PrivKey = PrivKey;
-    type PubKey = PubKey;
+impl CreateKey for Sha3KeyPair {
+    type PrivKey = Sha3PrivKey;
+    type PubKey = Sha3PubKey;
     type Error = Error;
 
     /// Create a pair from secret key
@@ -37,10 +37,10 @@ impl CreateKey for KeyPair {
         let pubkey = key::PublicKey::from_secret_key(context, &s)?;
         let serialized = pubkey.serialize_vec(context, false);
 
-        let mut pubkey = PubKey::default();
+        let mut pubkey = Sha3PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
 
-        let keypair = KeyPair {
+        let keypair = Sha3KeyPair {
             privkey: privkey,
             pubkey: pubkey,
         };
@@ -52,11 +52,11 @@ impl CreateKey for KeyPair {
         let context = &SECP256K1;
         let (s, p) = context.generate_keypair(&mut thread_rng()).unwrap();
         let serialized = p.serialize_vec(context, false);
-        let mut privkey = PrivKey::default();
+        let mut privkey = Sha3PrivKey::default();
         privkey.0.copy_from_slice(&s[0..32]);
-        let mut pubkey = PubKey::default();
+        let mut pubkey = Sha3PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
-        KeyPair {
+        Sha3KeyPair {
             privkey: privkey,
             pubkey: pubkey,
         }
@@ -71,7 +71,7 @@ impl CreateKey for KeyPair {
     }
 
     fn address(&self) -> Address {
-        pubkey_to_address(&self.pubkey)
+        sha3_pubkey_to_address(&self.pubkey)
     }
 }
 
@@ -121,8 +121,8 @@ impl Signature {
     }
 }
 
-/// Sign data
-pub fn sign(privkey: &PrivKey, message: &Message) -> Result<Signature, Error> {
+/// Sign data with Sha3
+pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Signature, Error> {
     let context = &SECP256K1;
     // no way to create from raw byte array.
     let sec: &SecretKey = unsafe { mem::transmute(privkey) };

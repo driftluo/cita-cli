@@ -6,7 +6,7 @@ use tokio_core::reactor::Core;
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, ToolError,
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, Sha3PrivKey, ResponseValue, ToolError,
             Transaction};
 use hex::{decode, encode};
 use protobuf::Message;
@@ -41,7 +41,7 @@ pub struct Client {
     id: u64,
     core: Core,
     chain_id: Option<u32>,
-    private_key: Option<PrivKey>,
+    private_key: Option<Sha3PrivKey>,
 }
 
 impl Client {
@@ -63,13 +63,13 @@ impl Client {
     }
 
     /// Set private key
-    pub fn set_private_key(&mut self, private_key: PrivKey) -> &mut Self {
+    pub fn set_private_key(&mut self, private_key: Sha3PrivKey) -> &mut Self {
         self.private_key = Some(private_key);
         self
     }
 
     /// Get private key
-    pub fn private_key(&self) -> Option<&PrivKey> {
+    pub fn private_key(&self) -> Option<&Sha3PrivKey> {
         self.private_key.as_ref()
     }
 
@@ -167,7 +167,7 @@ impl Client {
         tx.set_quota(1000000);
         tx.set_chain_id(self.get_chain_id(url));
         encode(
-            tx.sign(*self.private_key().unwrap())
+            tx.sha3_sign(*self.private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),

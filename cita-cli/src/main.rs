@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 use dotenv::dotenv;
 
-use cita_tool::{Client, ClientExt, CreateKey, KeyPair, PrivKey, remove_0x};
+use cita_tool::{Client, ClientExt, CreateKey, Sha3KeyPair, Sha3PrivKey, remove_0x};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -260,7 +260,7 @@ fn main() {
                         client.set_chain_id(chain_id);
                     }
                     if let Some(private_key) = m.value_of("private-key") {
-                        client.set_private_key(*KeyPair::from_privkey(
+                        client.set_private_key(*Sha3KeyPair::from_privkey(
                             parse_privkey(private_key).unwrap(),
                         ).unwrap()
                             .privkey());
@@ -338,6 +338,6 @@ fn parse_u64(height: &str) -> Result<u64, String> {
     Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| format!("{}", err))?)
 }
 
-fn parse_privkey(hash: &str) -> Result<PrivKey, String> {
-    Ok(PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
+fn parse_privkey(hash: &str) -> Result<Sha3PrivKey, String> {
+    Ok(Sha3PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
 }
