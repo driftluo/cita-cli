@@ -6,11 +6,13 @@ use tokio_core::reactor::Core;
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, Sha3PrivKey, ResponseValue, ToolError,
-            Transaction};
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
+            ToolError, Transaction};
 use hex::{decode, encode};
 use protobuf::Message;
 use uuid::Uuid;
+#[cfg(feature = "blake2b_hash")]
+use super::Blake2bPrivKey;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 const CITA_GET_META_DATA: &str = "cita_getMetaData";
@@ -41,7 +43,8 @@ pub struct Client {
     id: u64,
     core: Core,
     chain_id: Option<u32>,
-    private_key: Option<Sha3PrivKey>,
+    sha3_private_key: Option<Sha3PrivKey>,
+    #[cfg(feature = "blake2b_hash")] blake2b_private_key: Option<Blake2bPrivKey>,
 }
 
 impl Client {
@@ -52,7 +55,9 @@ impl Client {
             id: 0,
             core: core,
             chain_id: None,
-            private_key: None,
+            sha3_private_key: None,
+            #[cfg(feature = "blake2b_hash")]
+            blake2b_private_key: None,
         })
     }
 
@@ -63,14 +68,29 @@ impl Client {
     }
 
     /// Set private key
-    pub fn set_private_key(&mut self, private_key: Sha3PrivKey) -> &mut Self {
-        self.private_key = Some(private_key);
+    pub fn set_private_key(&mut self, private_key: PrivateKey) -> &mut Self {
+        match private_key {
+            PrivateKey::Sha3(sha3_private_key) => {
+                self.sha3_private_key = Some(sha3_private_key);
+            }
+            #[cfg(feature = "blake2b_hash")]
+            PrivateKey::Blake2b(blake2b_private_key) => {
+                self.blake2b_private_key = Some(blake2b_private_key)
+            }
+            PrivateKey::Null => {}
+        }
         self
     }
 
     /// Get private key
-    pub fn private_key(&self) -> Option<&Sha3PrivKey> {
-        self.private_key.as_ref()
+    #[cfg(feature = "blake2b_hash")]
+    pub fn blake2b_private_key(&self) -> Option<&Blake2bPrivKey> {
+        self.blake2b_private_key.as_ref()
+    }
+
+    /// Get private key
+    pub fn sha3_private_key(&self) -> Option<&Sha3PrivKey> {
+        self.sha3_private_key.as_ref()
     }
 
     /// Send requests
@@ -167,7 +187,35 @@ impl Client {
         tx.set_quota(1000000);
         tx.set_chain_id(self.get_chain_id(url));
         encode(
-            tx.sha3_sign(*self.private_key().unwrap())
+            tx.sha3_sign(*self.sha3_private_key().unwrap())
+                .take_transaction_with_sig()
+                .write_to_bytes()
+                .unwrap(),
+        )
+    }
+
+    /// Constructing a UnverifiedTransaction hex string
+    /// If you want to create a contract, set address to ""
+    #[cfg(feature = "blake2b_hash")]
+    pub fn generate_trasaction_by_blake2b(
+        &mut self,
+        url: &str,
+        code: &str,
+        address: &str,
+        current_height: u64,
+    ) -> String {
+        let data = decode(code).unwrap();
+
+        let mut tx = Transaction::new();
+        tx.set_data(data);
+        // Create a contract if the target address is empty
+        tx.set_to(address.to_string());
+        tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
+        tx.set_valid_until_block(current_height + 88);
+        tx.set_quota(1000000);
+        tx.set_chain_id(self.get_chain_id(url));
+        encode(
+            tx.blake2b_sign(*self.blake2b_private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
@@ -247,6 +295,7 @@ pub trait ClientExt {
         code: &str,
         address: &str,
         current_height: u64,
+        blake2b: bool,
     ) -> JsonRpcResponse;
     /// cita_getBlockByHash: Get block by hash
     fn get_block_by_hash(
@@ -335,8 +384,17 @@ impl ClientExt for Client {
         code: &str,
         address: &str,
         current_height: u64,
+        blake2b: bool,
     ) -> JsonRpcResponse {
-        let byte_code = self.generate_transaction(url, code, address, current_height);
+        let byte_code = if !blake2b {
+            self.generate_transaction(url, code, address, current_height)
+        } else {
+            #[cfg(feature = "blake2b_hash")]
+            let code = self.generate_trasaction_by_blake2b(url, code, address, current_height);
+            #[cfg(not(feature = "blake2b_hash"))]
+            let code = String::from("");
+            code
+        };
         let params = JsonRpcParams::new()
             .insert(
                 "method",

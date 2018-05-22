@@ -8,3 +8,7 @@ dotenv = "^0.11.0"
 clap = "^2.31.2"
 syntect = "^2.0.1"
 cita-tool = { path = "../cita-tool" }
+
+[features]
+default = []
+blake2b_hash = ["cita-tool/blake2b_hash"]

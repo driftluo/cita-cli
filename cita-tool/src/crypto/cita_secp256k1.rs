@@ -1,5 +1,5 @@
 use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
-use super::{sha3_pubkey_to_address, CreateKey, Error, Message, Sha3PrivKey, Sha3PubKey};
+use super::{CreateKey, Error, Message, Sha3PrivKey, Sha3PubKey, sha3_pubkey_to_address};
 use types::{Address, H256};
 use rand::thread_rng;
 use std::{fmt, mem};

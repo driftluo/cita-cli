@@ -8,11 +8,10 @@ use std::env;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::u64;
-use std::str::FromStr;
 
 use dotenv::dotenv;
 
-use cita_tool::{Client, ClientExt, CreateKey, Sha3KeyPair, Sha3PrivKey, remove_0x};
+use cita_tool::{Client, ClientExt, PrivateKey, remove_0x};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -80,7 +79,10 @@ fn main() {
                                     Err(err) => Err(err),
                                 })
                                 .help("The private key of transaction"),
-                        ),
+                        )
+                        .arg(clap::Arg::with_name("blake2b").long("blake2b").help(
+                            "Use blake2b encryption algorithm, must build with feature blake2b",
+                        )),
                 )
                 .subcommand(
                     clap::SubCommand::with_name("cita_getBlockByHash")
@@ -254,16 +256,16 @@ fn main() {
                 ("net_peerCount", Some(m)) => client.get_net_peer_count(get_url(m)),
                 ("cita_blockNumber", Some(m)) => client.get_block_number(get_url(m)),
                 ("cita_sendTransaction", Some(m)) => {
+                    #[cfg(feature = "blake2b_hash")]
+                    let blake2b = m.is_present("blake2b");
+
                     if let Some(chain_id) =
                         m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap())
                     {
                         client.set_chain_id(chain_id);
                     }
                     if let Some(private_key) = m.value_of("private-key") {
-                        client.set_private_key(*Sha3KeyPair::from_privkey(
-                            parse_privkey(private_key).unwrap(),
-                        ).unwrap()
-                            .privkey());
+                        client.set_private_key(parse_privkey(private_key).unwrap());
                     }
                     let url = get_url(m);
                     let code = m.value_of("code").unwrap();
@@ -271,7 +273,13 @@ fn main() {
                     let current_height = m.value_of("height")
                         .map(|s| s.parse::<u64>().unwrap())
                         .unwrap();
-                    client.send_transaction(url, code, address, current_height)
+                    #[cfg(not(feature = "blake2b_hash"))]
+                    let response =
+                        client.send_transaction(url, code, address, current_height, false);
+                    #[cfg(feature = "blake2b_hash")]
+                    let response =
+                        client.send_transaction(url, code, address, current_height, blake2b);
+                    response
                 }
                 ("cita_getBlockByHash", Some(m)) => {
                     let hash = m.value_of("hash").unwrap();
@@ -338,6 +346,6 @@ fn parse_u64(height: &str) -> Result<u64, String> {
     Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| format!("{}", err))?)
 }
 
-fn parse_privkey(hash: &str) -> Result<Sha3PrivKey, String> {
-    Ok(Sha3PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
+fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
+    Ok(PrivateKey::from_privkey(&remove_0x(hash.to_string()))?)
 }

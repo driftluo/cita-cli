@@ -1,9 +1,9 @@
-use super::{blake2b_pubkey_to_address, CreateKey, Error, Message, Blake2bPubKey, Blake2bPrivKey};
-use types::{Address};
+use super::{Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, blake2b_pubkey_to_address};
+use types::Address;
 use std::fmt;
 use hex::encode;
-use sodiumoxide::crypto::sign::{gen_keypair, keypair_from_privkey, SecretKey, sign_detached};
-
+use sodiumoxide::crypto::sign::{gen_keypair, keypair_from_privkey, sign_detached, SecretKey};
+use std::ops::{Deref, DerefMut};
 
 /// Blake2b key pair
 #[derive(Default)]
@@ -78,8 +78,25 @@ impl PartialEq for Blake2bSignature {
     }
 }
 
+impl Deref for Blake2bSignature {
+    type Target = [u8; 96];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Blake2bSignature {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Sign data with blake2b
-pub fn blake2b_sign(privkey: &Blake2bPrivKey, message: &Message) -> Result<Blake2bSignature, Error> {
+pub fn blake2b_sign(
+    privkey: &Blake2bPrivKey,
+    message: &Message,
+) -> Result<Blake2bSignature, Error> {
     let keypair = Blake2bKeyPair::from_privkey(*privkey)?;
     let secret_key = SecretKey::from_slice(privkey.as_ref()).unwrap();
     let pubkey = keypair.pubkey();
