@@ -272,7 +272,7 @@ pub trait ClientExt {
         url: &str,
         from: Option<&str>,
         to: &str,
-        code: Option<&str>,
+        data: Option<&str>,
         quantity: &str,
     ) -> JsonRpcResponse;
     /// cita_getTransaction: Get transaction by hash
@@ -454,8 +454,8 @@ impl ClientExt for Client {
         }
 
         let param = ParamsValue::List(vec![
-            ParamsValue::String(String::from(quantity)),
             ParamsValue::Map(object),
+            ParamsValue::String(String::from(quantity)),
         ]);
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_CALL)))
