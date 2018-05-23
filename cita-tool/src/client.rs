@@ -174,9 +174,10 @@ impl Client {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
+        let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -197,14 +198,15 @@ impl Client {
     /// Constructing a UnverifiedTransaction hex string
     /// If you want to create a contract, set address to ""
     #[cfg(feature = "blake2b_hash")]
-    pub fn generate_trasaction_by_blake2b(
+    pub fn generate_transaction_by_blake2b(
         &mut self,
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
+        let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -239,6 +241,21 @@ impl Client {
                 0
             }
         }
+    }
+
+    /// Get block height
+    pub fn get_current_height(&mut self, url: &str) -> Option<u64> {
+        let params = JsonRpcParams::new().insert(
+            "method",
+            ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
+        );
+        let response = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+         if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
+             Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
+         } else {
+             None
+         }
     }
 
     /// Start run
@@ -294,7 +311,7 @@ pub trait ClientExt {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
         blake2b: bool,
     ) -> JsonRpcResponse;
     /// cita_getBlockByHash: Get block by hash
@@ -383,7 +400,7 @@ impl ClientExt for Client {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
         blake2b: bool,
     ) -> JsonRpcResponse {
         let byte_code = if !blake2b {

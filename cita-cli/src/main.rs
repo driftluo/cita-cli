@@ -52,7 +52,6 @@ fn main() {
                             clap::Arg::with_name("height")
                                 .long("height")
                                 .takes_value(true)
-                                .required(true)
                                 .validator(|height| match parse_u64(height.as_ref()) {
                                     Ok(_) => Ok(()),
                                     Err(err) => Err(err),
@@ -271,8 +270,7 @@ fn main() {
                     let code = m.value_of("code").unwrap();
                     let address = m.value_of("address").unwrap();
                     let current_height = m.value_of("height")
-                        .map(|s| s.parse::<u64>().unwrap())
-                        .unwrap();
+                        .map(|s| s.parse::<u64>().unwrap());
                     #[cfg(not(feature = "blake2b_hash"))]
                     let response =
                         client.send_transaction(url, code, address, current_height, false);
