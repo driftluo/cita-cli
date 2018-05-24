@@ -412,7 +412,7 @@ impl ClientExt for Client {
         } else {
             #[cfg(feature = "blake2b_hash")]
             let code =
-                self.generate_trasaction_by_blake2b(url, code, address, current_height, quota);
+                self.generate_transaction_by_blake2b(url, code, address, current_height, quota);
             #[cfg(not(feature = "blake2b_hash"))]
             let code = String::from("");
             code

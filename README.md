@@ -32,8 +32,9 @@ If you want to support both the blake2b and sha3 algorithms, first install the S
 
 ```bash
 $ git clone git@github.com:driftluo/cita-cli.git
-$ cd cita-cli
+$ cd cita-cli/cita-cli
 $ cargo build --features blake2b_hash
+$ cd ..
 ```
 
 2. use example
