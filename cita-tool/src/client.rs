@@ -175,6 +175,7 @@ impl Client {
         code: &str,
         address: &str,
         current_height: Option<u64>,
+        quota: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
         let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
@@ -185,7 +186,7 @@ impl Client {
         tx.set_to(address.to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(1000000);
+        tx.set_quota(quota.unwrap_or(1_000_000));
         tx.set_chain_id(self.get_chain_id(url));
         encode(
             tx.sha3_sign(*self.sha3_private_key().unwrap())
@@ -204,6 +205,7 @@ impl Client {
         code: &str,
         address: &str,
         current_height: Option<u64>,
+        quota: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
         let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
@@ -214,7 +216,7 @@ impl Client {
         tx.set_to(address.to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(1000000);
+        tx.set_quota(quota.unwrap_or(1_000_000));
         tx.set_chain_id(self.get_chain_id(url));
         encode(
             tx.blake2b_sign(*self.blake2b_private_key().unwrap())
@@ -251,11 +253,11 @@ impl Client {
         );
         let response = self.send_request(vec![url], params).unwrap().pop().unwrap();
 
-         if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
-             Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
-         } else {
-             None
-         }
+        if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
+            Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
+        } else {
+            None
+        }
     }
 
     /// Start run
@@ -312,6 +314,7 @@ pub trait ClientExt {
         code: &str,
         address: &str,
         current_height: Option<u64>,
+        quota: Option<u64>,
         blake2b: bool,
     ) -> JsonRpcResponse;
     /// cita_getBlockByHash: Get block by hash
@@ -339,7 +342,7 @@ pub trait ClientExt {
         from: Option<&str>,
         to: &str,
         data: Option<&str>,
-        quantity: &str,
+        height: &str,
     ) -> JsonRpcResponse;
     /// cita_getTransaction: Get transaction by hash
     fn get_transaction(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
@@ -401,13 +404,15 @@ impl ClientExt for Client {
         code: &str,
         address: &str,
         current_height: Option<u64>,
+        quota: Option<u64>,
         blake2b: bool,
     ) -> JsonRpcResponse {
         let byte_code = if !blake2b {
-            self.generate_transaction(url, code, address, current_height)
+            self.generate_transaction(url, code, address, current_height, quota)
         } else {
             #[cfg(feature = "blake2b_hash")]
-            let code = self.generate_trasaction_by_blake2b(url, code, address, current_height);
+            let code =
+                self.generate_trasaction_by_blake2b(url, code, address, current_height, quota);
             #[cfg(not(feature = "blake2b_hash"))]
             let code = String::from("");
             code
@@ -510,7 +515,7 @@ impl ClientExt for Client {
         from: Option<&str>,
         to: &str,
         data: Option<&str>,
-        quantity: &str,
+        height: &str,
     ) -> JsonRpcResponse {
         let mut object = HashMap::new();
 
@@ -530,7 +535,7 @@ impl ClientExt for Client {
 
         let param = ParamsValue::List(vec![
             ParamsValue::Map(object),
-            ParamsValue::String(String::from(quantity)),
+            ParamsValue::String(String::from(height)),
         ]);
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_CALL)))

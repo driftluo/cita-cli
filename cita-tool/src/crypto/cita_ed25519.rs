@@ -1,4 +1,4 @@
-use super::{Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, blake2b_pubkey_to_address};
+use super::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
 use types::Address;
 use std::fmt;
 use hex::encode;
@@ -53,7 +53,7 @@ impl CreateKey for Blake2bKeyPair {
     }
 
     fn address(&self) -> Address {
-        blake2b_pubkey_to_address(&self.pubkey)
+        pubkey_to_address(&PubKey::Blake2b(self.pubkey))
     }
 }
 

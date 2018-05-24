@@ -1,5 +1,5 @@
 use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
-use super::{CreateKey, Error, Message, Sha3PrivKey, Sha3PubKey, sha3_pubkey_to_address};
+use super::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
 use types::{Address, H256};
 use rand::thread_rng;
 use std::{fmt, mem};
@@ -71,7 +71,7 @@ impl CreateKey for Sha3KeyPair {
     }
 
     fn address(&self) -> Address {
-        sha3_pubkey_to_address(&self.pubkey)
+        pubkey_to_address(&PubKey::Sha3(self.pubkey))
     }
 }
 

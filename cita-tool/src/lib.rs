@@ -40,10 +40,10 @@ pub mod error;
 
 pub use client::{Client, ClientExt, remove_0x};
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
-pub use crypto::{CreateKey, Hashable, Message, PrivateKey, Sha3KeyPair, Sha3PrivKey, Sha3PubKey,
-                 Signature, sha3_pubkey_to_address, sha3_sign};
+pub use crypto::{pubkey_to_address, CreateKey, Hashable, KeyPair, Message, PrivateKey, PubKey,
+                 Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature, sha3_sign};
 pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 pub use error::ToolError;
 #[cfg(feature = "blake2b_hash")]
-pub use crypto::{Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature,
-                 blake2b_pubkey_to_address, blake2b_sign};
+pub use crypto::{Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature, blake2b_sign};
+pub use types::traits::LowerHex;
