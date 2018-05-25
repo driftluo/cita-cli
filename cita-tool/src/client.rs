@@ -254,7 +254,7 @@ impl Client {
         let response = self.send_request(vec![url], params).unwrap().pop().unwrap();
 
         if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
-            Some(u64::from_str_radix(&remove_0x(height), 16).unwrap())
+            Some(u64::from_str_radix(remove_0x(&height), 16).unwrap())
         } else {
             None
         }
@@ -334,7 +334,14 @@ pub trait ClientExt {
     /// eth_getTransactionReceipt: Get transaction receipt
     fn get_transaction_receipt(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getLogs: Get logs
-    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
+    fn get_logs(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse;
     /// eth_call: (readonly, will not save state change)
     fn call(
         &mut self,
@@ -355,7 +362,14 @@ pub trait ClientExt {
     /// eth_getBalance: Get the balance of a contract (TODO: return U256)
     fn get_balance(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_newFilter:
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
+    fn new_filter(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse;
     /// eth_newBlockFilter:
     fn new_block_filter(&mut self, url: &str) -> JsonRpcResponse;
     /// eth_uninstallFilter: Uninstall a filter by its id
@@ -502,10 +516,35 @@ impl ClientExt for Client {
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
+    fn get_logs(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse {
+        let mut object = HashMap::new();
+        object.insert(
+            String::from("fromBlock"),
+            ParamsValue::String(String::from(from.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("toBlock"),
+            ParamsValue::String(String::from(to.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("topic"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
+        );
+        object.insert(
+            String::from("address"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&address).unwrap()).unwrap(),
+        );
+
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_GET_LOGS)))
-            .insert("params", object);
+            .insert("params", ParamsValue::List(vec![ParamsValue::Map(object)]));
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
@@ -641,10 +680,35 @@ impl ClientExt for Client {
         // }
     }
 
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
+    fn new_filter(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse {
+        let mut object = HashMap::new();
+        object.insert(
+            String::from("fromBlock"),
+            ParamsValue::String(String::from(from.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("toBlock"),
+            ParamsValue::String(String::from(to.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("topic"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
+        );
+        object.insert(
+            String::from("address"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&address).unwrap()).unwrap(),
+        );
+
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_NEW_FILTER)))
-            .insert("params", object);
+            .insert("params", ParamsValue::List(vec![ParamsValue::Map(object)]));
         self.send_request(vec![url], params).unwrap().pop().unwrap()
 
         // match result.result().unwrap() {
@@ -760,11 +824,11 @@ impl ClientExt for Client {
 /// assert_eq!("0b".to_string(), d);
 /// println!("a = {}, b = {}, c = {}, d= {}", a, b, c, d);
 /// ```
-pub fn remove_0x(hex: String) -> String {
+pub fn remove_0x(hex: &str) -> &str {
     {
         let tmp = hex.as_bytes();
         if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
-            return String::from_utf8(tmp[2..].to_vec()).unwrap();
+            return str::from_utf8(&tmp[2..]).unwrap();
         }
     }
     hex

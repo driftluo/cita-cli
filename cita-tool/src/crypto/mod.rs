@@ -51,7 +51,7 @@ pub enum PrivateKey {
 impl PrivateKey {
     /// Create private key
     pub fn from_str(hex: &str) -> Result<Self, String> {
-        if hex.len() > 300 {
+        if hex.len() > 65 {
             #[cfg(feature = "blake2b_hash")]
             let private_key = PrivateKey::Blake2b(Blake2bPrivKey::from_str(hex)
                 .map_err(|err| format!("{}", err))?);
@@ -91,7 +91,7 @@ pub enum PubKey {
 impl PubKey {
     /// Create pubkey key
     pub fn from_str(hex: &str) -> Result<Self, String> {
-        if hex.len() < 300 {
+        if hex.len() < 65 {
             #[cfg(feature = "blake2b_hash")]
             let private_key =
                 PubKey::Blake2b(Blake2bPubKey::from_str(hex).map_err(|err| format!("{}", err))?);

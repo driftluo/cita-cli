@@ -275,11 +275,9 @@ fn main() {
                             .long("pubkey")
                             .takes_value(true)
                             .required(true)
-                            .validator(|pubkey| {
-                                match PubKey::from_str(&remove_0x(pubkey.to_string())) {
-                                    Ok(_) => Ok(()),
-                                    Err(err) => Err(err),
-                                }
+                            .validator(|pubkey| match PubKey::from_str(remove_0x(&pubkey)) {
+                                Ok(_) => Ok(()),
+                                Err(err) => Err(err),
                             })
                             .help("Pubkey"),
                     ),
@@ -388,9 +386,9 @@ fn main() {
                     key_pair.address()
                 );
             }
-            ("from_private_key", Some(m)) => {
+            ("from-private-key", Some(m)) => {
                 let private_key = m.value_of("private-key").unwrap();
-                let key_pair = KeyPair::from_str(private_key).unwrap();
+                let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
 
                 println!(
                     "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
@@ -401,8 +399,7 @@ fn main() {
             }
             ("pub-to-address", Some(m)) => {
                 let pubkey = m.value_of("pubkey").unwrap();
-                let address =
-                    pubkey_to_address(&PubKey::from_str(&remove_0x(pubkey.to_string())).unwrap());
+                let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
                 println!("address: 0x{:#x}", address);
             }
             _ => unreachable!(),
@@ -418,9 +415,9 @@ fn get_url<'a>(m: &'a clap::ArgMatches) -> &'a str {
 }
 
 fn parse_u64(height: &str) -> Result<u64, String> {
-    Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| format!("{}", err))?)
+    Ok(u64::from_str_radix(remove_0x(height), 16).map_err(|err| format!("{}", err))?)
 }
 
 fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
-    Ok(PrivateKey::from_str(&remove_0x(hash.to_string()))?)
+    Ok(PrivateKey::from_str(remove_0x(hash))?)
 }
