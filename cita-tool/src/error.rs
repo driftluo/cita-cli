@@ -1,5 +1,5 @@
-use serde_json;
 use hyper;
+use serde_json;
 
 /// Error summary information
 #[derive(Debug, Fail)]

@@ -29,21 +29,21 @@ extern crate uuid;
 
 /// The Jsonrpc Client
 pub mod client;
-/// Transaction protobuf code
-pub mod protos;
 /// Encryption algorithm library
 pub mod crypto;
-/// Reqeust and Response type
-pub mod rpctypes;
 /// Error of cita tool
 pub mod error;
+/// Transaction protobuf code
+pub mod protos;
+/// Reqeust and Response type
+pub mod rpctypes;
 
 pub use client::{Client, ClientExt, remove_0x};
-pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
-pub use crypto::{pubkey_to_address, CreateKey, Hashable, KeyPair, Message, PrivateKey, PubKey,
-                 Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature, sha3_sign};
-pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
-pub use error::ToolError;
 #[cfg(feature = "blake2b_hash")]
 pub use crypto::{Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature, blake2b_sign};
+pub use crypto::{pubkey_to_address, CreateKey, Hashable, KeyPair, Message, PrivateKey, PubKey,
+                 Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature, sha3_sign};
+pub use error::ToolError;
+pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
+pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 pub use types::traits::LowerHex;

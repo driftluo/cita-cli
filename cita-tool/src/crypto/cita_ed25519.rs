@@ -1,9 +1,9 @@
 use super::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
-use types::Address;
-use std::fmt;
 use hex::encode;
 use sodiumoxide::crypto::sign::{gen_keypair, keypair_from_privkey, sign_detached, SecretKey};
+use std::fmt;
 use std::ops::{Deref, DerefMut};
+use types::Address;
 
 /// Blake2b key pair
 #[derive(Default)]

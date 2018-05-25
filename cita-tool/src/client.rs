@@ -1,18 +1,18 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::{str, u64};
-use std::collections::HashMap;
 
-use tokio_core::reactor::Core;
-use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
-use serde_json;
-use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
-            ToolError, Transaction};
-use hex::{decode, encode};
-use protobuf::Message;
-use uuid::Uuid;
 #[cfg(feature = "blake2b_hash")]
 use super::Blake2bPrivKey;
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
+            ToolError, Transaction};
+use futures::{Future, Stream, future::JoinAll, future::join_all};
+use hex::{decode, encode};
+use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
+use protobuf::Message;
+use serde_json;
+use tokio_core::reactor::Core;
+use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 const CITA_GET_META_DATA: &str = "cita_getMetaData";
@@ -44,7 +44,8 @@ pub struct Client {
     core: Core,
     chain_id: Option<u32>,
     sha3_private_key: Option<Sha3PrivKey>,
-    #[cfg(feature = "blake2b_hash")] blake2b_private_key: Option<Blake2bPrivKey>,
+    #[cfg(feature = "blake2b_hash")]
+    blake2b_private_key: Option<Blake2bPrivKey>,
 }
 
 impl Client {
@@ -484,10 +485,6 @@ impl ClientExt for Client {
         height: &str,
         transaction_info: bool,
     ) -> JsonRpcResponse {
-        println!(
-            "get_block_by_number(): height={}, txs={}",
-            height, transaction_info
-        );
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -533,10 +530,17 @@ impl ClientExt for Client {
             String::from("toBlock"),
             ParamsValue::String(String::from(to.unwrap_or("latest"))),
         );
-        object.insert(
-            String::from("topic"),
-            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
-        );
+
+        if topic.is_some() {
+            object.insert(
+                String::from("topics"),
+                serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap())
+                    .unwrap(),
+            );
+        } else {
+            object.insert(String::from("topics"), ParamsValue::List(Vec::new()));
+        }
+
         object.insert(
             String::from("address"),
             serde_json::from_str::<ParamsValue>(&serde_json::to_string(&address).unwrap()).unwrap(),

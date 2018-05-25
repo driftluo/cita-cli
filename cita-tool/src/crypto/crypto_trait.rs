@@ -1,8 +1,8 @@
-use std::{fmt, marker};
-use types::{Address, H256};
-use sha3::sha3_256;
 #[cfg(feature = "blake2b_hash")]
 use blake2b::blake2b;
+use sha3::sha3_256;
+use std::{fmt, marker};
+use types::{Address, H256};
 
 #[cfg(feature = "blake2b_hash")]
 const BLAKE2BKEY: &str = "CryptapeCryptape";

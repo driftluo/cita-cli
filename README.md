@@ -86,7 +86,7 @@ $ ./target/debug/cita-cli rpc eth_getTransactionReceipt --hash "0x16251c374ee87e
 
 - Call contract function
 ```bash
-$ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" --address "73552bc4e960a1d53013b40074569ea05b950b4d" --code "60fe47b10000000000000000000000000000000000000000000000000000000000000001" --url http://121.196.200.225:1337 --height 111251
+$ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" --address "73552bc4e960a1d53013b40074569ea05b950b4d" --code "60fe47b10000000000000000000000000000000000000000000000000000000000000001" --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": {
@@ -99,7 +99,7 @@ $ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e4
 
 - Get eth-call result
 ```bash
-$ ./target/debug/cita-cli rpc eth_call --url http://121.196.200.225:1337 --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 --data 0x6d4ce63c --quantity latest
+$ ./target/debug/cita-cli rpc eth_call --url http://121.196.200.225:1337 --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 --data 0x6d4ce63c --height latest
 {
   "jsonrpc": "2.0",
   "result": "0x0000000000000000000000000000000000000000000000000000000000000001",
