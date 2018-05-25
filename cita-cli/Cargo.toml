@@ -9,3 +9,7 @@ clap = "^2.31.2"
 ansi_term = "^0.10.0"
 syntect = "^2.0.1"
 cita-tool = { path = "../cita-tool" }
+
+[features]
+default = []
+blake2b_hash = ["cita-tool/blake2b_hash"]

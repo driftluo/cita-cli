@@ -11,11 +11,17 @@ serde_json = "^1.0.17"
 serde = "^1.0.53"
 serde_derive = "^1.0.53"
 protobuf = "=1.4.4"
-eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", rev = "db81cfea59014b4d176f10f86ed52e1a130b6822" }
 hex = "^0.3.2"
 sha3 = { git = "https://github.com/cryptape/cita-common", branch = "develop" }
+eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", rev = "db81cfea59014b4d176f10f86ed52e1a130b6822" }
+blake2b  = { git = "https://github.com/cryptape/cita-common", branch = "develop", optional = true }
+sodiumoxide = { git = "https://github.com/cryptape/sodiumoxide.git", rev = "c324e11a2db461ec6878c55bd6616f75b2e4d16a", optional = true }
 cita-types = { git = "https://github.com/cryptape/cita-common", branch = "develop" }
 lazy_static = "^1.0"
 rand = "^0.4"
 uuid = { version = "0.6", features = ["serde", "v4"] }
 failure = "^0.1.1"
+
+[features]
+default = []
+blake2b_hash = ["blake2b", "sodiumoxide"]

@@ -1,6 +1,11 @@
 use std::{fmt, marker};
 use types::{Address, H256};
 use sha3::sha3_256;
+#[cfg(feature = "blake2b_hash")]
+use blake2b::blake2b;
+
+#[cfg(feature = "blake2b_hash")]
+const BLAKE2BKEY: &str = "CryptapeCryptape";
 
 /// Create secret Key
 pub trait CreateKey
@@ -29,25 +34,50 @@ where
 /// Hashable for some type
 pub trait Hashable {
     /// Calculate crypt HASH of this object.
-    fn crypt_hash(&self) -> H256 {
+    fn crypt_hash(&self, blake2b: bool) -> H256 {
         let mut result = [0u8; 32];
-        self.crypt_hash_into(&mut result);
+        if blake2b {
+            #[cfg(feature = "blake2b_hash")]
+            self.blake2b_crypt_hash_into(&mut result);
+        } else {
+            self.sha3_crypt_hash_into(&mut result);
+        }
         H256(result)
     }
 
-    /// Calculate crypt HASH of this object and place result into dest.
-    fn crypt_hash_into(&self, dest: &mut [u8]);
+    /// Calculate crypt HASH of this object and place result into dest, use sha3
+    fn sha3_crypt_hash_into(&self, dest: &mut [u8]);
+
+    /// Calculate crypt HASH of this object and place result into dest, use blake2b
+    #[cfg(feature = "blake2b_hash")]
+    fn blake2b_crypt_hash_into(&self, dest: &mut [u8]);
 }
 
 impl<T> Hashable for T
 where
     T: AsRef<[u8]>,
 {
-    fn crypt_hash_into(&self, dest: &mut [u8]) {
+    fn sha3_crypt_hash_into(&self, dest: &mut [u8]) {
         let input: &[u8] = self.as_ref();
 
         unsafe {
             sha3_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
+        }
+    }
+
+    #[cfg(feature = "blake2b_hash")]
+    fn blake2b_crypt_hash_into(&self, dest: &mut [u8]) {
+        let input: &[u8] = self.as_ref();
+
+        unsafe {
+            blake2b(
+                dest.as_mut_ptr(),
+                dest.len(),
+                input.as_ptr(),
+                input.len(),
+                BLAKE2BKEY.as_bytes().as_ptr(),
+                BLAKE2BKEY.len(),
+            );
         }
     }
 }

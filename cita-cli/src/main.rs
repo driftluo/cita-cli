@@ -7,12 +7,11 @@ extern crate syntect;
 use std::collections::HashMap;
 use std::env;
 use std::iter::FromIterator;
-use std::str::FromStr;
 use std::u64;
 
 use dotenv::dotenv;
 
-use cita_tool::{Client, ClientExt, CreateKey, KeyPair, PrivKey, remove_0x};
+use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
 
 mod highlight;
 
@@ -47,7 +46,7 @@ fn main() {
                                 .default_value("")
                                 .takes_value(true)
                                 .help(
-                                    "The address of the invoking contract, defalut is \
+                                    "The address of the invoking contract, defalut is empty to \
                                      create contract",
                                 ),
                         )
@@ -55,12 +54,11 @@ fn main() {
                             clap::Arg::with_name("height")
                                 .long("height")
                                 .takes_value(true)
-                                .required(true)
                                 .validator(|height| match parse_u64(height.as_ref()) {
                                     Ok(_) => Ok(()),
                                     Err(err) => Err(err),
                                 })
-                                .help("Current chain height"),
+                                .help("Current chain height, default query to the chain"),
                         )
                         .arg(
                             clap::Arg::with_name("chain-id")
@@ -82,6 +80,16 @@ fn main() {
                                     Err(err) => Err(err),
                                 })
                                 .help("The private key of transaction"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("quota")
+                                .long("quota")
+                                .takes_value(true)
+                                .validator(|quota| match parse_u64(quota.as_ref()) {
+                                    Ok(_) => Ok(()),
+                                    Err(err) => Err(err),
+                                })
+                                .help("Transaction quota costs, default is 1_000_000"),
                         ),
                 )
                 .subcommand(
@@ -205,8 +213,8 @@ fn main() {
                                 .help("The data"),
                         )
                         .arg(
-                            clap::Arg::with_name("quantity")
-                                .long("quantity")
+                            clap::Arg::with_name("height")
+                                .long("height")
                                 .takes_value(true)
                                 .required(true)
                                 .help("The block number"),
@@ -247,6 +255,42 @@ fn main() {
                         .help(format!("JSONRPC server URL (dotenv: {})", ENV_JSONRPC_URL).as_str()),
                 ),
         )
+        .subcommand(
+            clap::SubCommand::with_name("key")
+                .subcommand(clap::SubCommand::with_name("create"))
+                .subcommand(
+                    clap::SubCommand::with_name("from-private-key").arg(
+                        clap::Arg::with_name("private-key")
+                            .long("private-key")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|privkey| match parse_privkey(privkey.as_ref()) {
+                                Ok(_) => Ok(()),
+                                Err(err) => Err(err),
+                            })
+                            .help("The private key of transaction"),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("pub-to-address").arg(
+                        clap::Arg::with_name("pubkey")
+                            .long("pubkey")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|pubkey| match PubKey::from_str(remove_0x(&pubkey)) {
+                                Ok(_) => Ok(()),
+                                Err(err) => Err(err),
+                            })
+                            .help("Pubkey"),
+                    ),
+                ),
+        )
+        .arg(
+            clap::Arg::with_name("blake2b")
+                .long("blake2b")
+                .global(true)
+                .help("Use blake2b encryption algorithm, must build with feature blake2b"),
+        )
         .arg(
             clap::Arg::with_name("no-color")
                 .long("no-color")
@@ -262,24 +306,29 @@ fn main() {
                 ("net_peerCount", Some(m)) => client.get_net_peer_count(get_url(m)),
                 ("cita_blockNumber", Some(m)) => client.get_block_number(get_url(m)),
                 ("cita_sendTransaction", Some(m)) => {
+                    #[cfg(feature = "blake2b_hash")]
+                    let blake2b = m.is_present("blake2b");
+
                     if let Some(chain_id) =
                         m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap())
                     {
                         client.set_chain_id(chain_id);
                     }
                     if let Some(private_key) = m.value_of("private-key") {
-                        client.set_private_key(*KeyPair::from_privkey(
-                            parse_privkey(private_key).unwrap(),
-                        ).unwrap()
-                            .privkey());
+                        client.set_private_key(parse_privkey(private_key).unwrap());
                     }
                     let url = get_url(m);
                     let code = m.value_of("code").unwrap();
                     let address = m.value_of("address").unwrap();
-                    let current_height = m.value_of("height")
-                        .map(|s| s.parse::<u64>().unwrap())
-                        .unwrap();
-                    client.send_transaction(url, code, address, current_height)
+                    let current_height = m.value_of("height").map(|s| s.parse::<u64>().unwrap());
+                    let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+                    #[cfg(not(feature = "blake2b_hash"))]
+                    let response =
+                        client.send_transaction(url, code, address, current_height, quota, false);
+                    #[cfg(feature = "blake2b_hash")]
+                    let response =
+                        client.send_transaction(url, code, address, current_height, quota, blake2b);
+                    response
                 }
                 ("cita_getBlockByHash", Some(m)) => {
                     let hash = m.value_of("hash").unwrap();
@@ -319,7 +368,7 @@ fn main() {
                     m.value_of("from"),
                     m.value_of("to").unwrap(),
                     m.value_of("data"),
-                    m.value_of("quantity").unwrap(),
+                    m.value_of("height").unwrap(),
                 ),
                 ("cita_getTransactionProof", Some(m)) => {
                     client.get_transaction_proof(get_url(m), m.value_of("hash").unwrap())
@@ -336,6 +385,37 @@ fn main() {
             }
             println!("{}", content);
         }
+        ("key", Some(sub_matches)) => match sub_matches.subcommand() {
+            ("create", Some(m)) => {
+                let blake2b = m.is_present("blake2b");
+
+                let key_pair = KeyPair::new(blake2b);
+
+                println!(
+                    "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                    key_pair.privkey(),
+                    key_pair.pubkey(),
+                    key_pair.address()
+                );
+            }
+            ("from-private-key", Some(m)) => {
+                let private_key = m.value_of("private-key").unwrap();
+                let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
+
+                println!(
+                    "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                    key_pair.privkey(),
+                    key_pair.pubkey(),
+                    key_pair.address()
+                );
+            }
+            ("pub-to-address", Some(m)) => {
+                let pubkey = m.value_of("pubkey").unwrap();
+                let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
+                println!("address: 0x{:#x}", address);
+            }
+            _ => unreachable!(),
+        },
         _ => {
             println!("matches:\n {}", matches.usage());
         }
@@ -347,9 +427,9 @@ fn get_url<'a>(m: &'a clap::ArgMatches) -> &'a str {
 }
 
 fn parse_u64(height: &str) -> Result<u64, String> {
-    Ok(u64::from_str_radix(&remove_0x(height.to_string()), 16).map_err(|err| format!("{}", err))?)
+    Ok(u64::from_str_radix(remove_0x(height), 16).map_err(|err| format!("{}", err))?)
 }
 
-fn parse_privkey(hash: &str) -> Result<PrivKey, String> {
-    Ok(PrivKey::from_str(&remove_0x(hash.to_string())).map_err(|err| format!("{}", err))?)
+fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
+    Ok(PrivateKey::from_str(remove_0x(hash))?)
 }

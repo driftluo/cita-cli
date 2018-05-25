@@ -6,11 +6,13 @@ use tokio_core::reactor::Core;
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use serde_json;
 use futures::{Future, Stream, future::JoinAll, future::join_all};
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivKey, ResponseValue, ToolError,
-            Transaction};
+use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
+            ToolError, Transaction};
 use hex::{decode, encode};
 use protobuf::Message;
 use uuid::Uuid;
+#[cfg(feature = "blake2b_hash")]
+use super::Blake2bPrivKey;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 const CITA_GET_META_DATA: &str = "cita_getMetaData";
@@ -41,7 +43,8 @@ pub struct Client {
     id: u64,
     core: Core,
     chain_id: Option<u32>,
-    private_key: Option<PrivKey>,
+    sha3_private_key: Option<Sha3PrivKey>,
+    #[cfg(feature = "blake2b_hash")] blake2b_private_key: Option<Blake2bPrivKey>,
 }
 
 impl Client {
@@ -52,7 +55,9 @@ impl Client {
             id: 0,
             core: core,
             chain_id: None,
-            private_key: None,
+            sha3_private_key: None,
+            #[cfg(feature = "blake2b_hash")]
+            blake2b_private_key: None,
         })
     }
 
@@ -63,14 +68,29 @@ impl Client {
     }
 
     /// Set private key
-    pub fn set_private_key(&mut self, private_key: PrivKey) -> &mut Self {
-        self.private_key = Some(private_key);
+    pub fn set_private_key(&mut self, private_key: PrivateKey) -> &mut Self {
+        match private_key {
+            PrivateKey::Sha3(sha3_private_key) => {
+                self.sha3_private_key = Some(sha3_private_key);
+            }
+            #[cfg(feature = "blake2b_hash")]
+            PrivateKey::Blake2b(blake2b_private_key) => {
+                self.blake2b_private_key = Some(blake2b_private_key)
+            }
+            PrivateKey::Null => {}
+        }
         self
     }
 
     /// Get private key
-    pub fn private_key(&self) -> Option<&PrivKey> {
-        self.private_key.as_ref()
+    #[cfg(feature = "blake2b_hash")]
+    pub fn blake2b_private_key(&self) -> Option<&Blake2bPrivKey> {
+        self.blake2b_private_key.as_ref()
+    }
+
+    /// Get private key
+    pub fn sha3_private_key(&self) -> Option<&Sha3PrivKey> {
+        self.sha3_private_key.as_ref()
     }
 
     /// Send requests
@@ -154,9 +174,11 @@ impl Client {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
+        quota: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
+        let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -164,10 +186,40 @@ impl Client {
         tx.set_to(address.to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(1000000);
+        tx.set_quota(quota.unwrap_or(1_000_000));
         tx.set_chain_id(self.get_chain_id(url));
         encode(
-            tx.sign(*self.private_key().unwrap())
+            tx.sha3_sign(*self.sha3_private_key().unwrap())
+                .take_transaction_with_sig()
+                .write_to_bytes()
+                .unwrap(),
+        )
+    }
+
+    /// Constructing a UnverifiedTransaction hex string
+    /// If you want to create a contract, set address to ""
+    #[cfg(feature = "blake2b_hash")]
+    pub fn generate_transaction_by_blake2b(
+        &mut self,
+        url: &str,
+        code: &str,
+        address: &str,
+        current_height: Option<u64>,
+        quota: Option<u64>,
+    ) -> String {
+        let data = decode(code).unwrap();
+        let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
+
+        let mut tx = Transaction::new();
+        tx.set_data(data);
+        // Create a contract if the target address is empty
+        tx.set_to(address.to_string());
+        tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
+        tx.set_valid_until_block(current_height + 88);
+        tx.set_quota(quota.unwrap_or(1_000_000));
+        tx.set_chain_id(self.get_chain_id(url));
+        encode(
+            tx.blake2b_sign(*self.blake2b_private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
@@ -190,6 +242,21 @@ impl Client {
             } else {
                 0
             }
+        }
+    }
+
+    /// Get block height
+    pub fn get_current_height(&mut self, url: &str) -> Option<u64> {
+        let params = JsonRpcParams::new().insert(
+            "method",
+            ParamsValue::String(String::from(CITA_BLOCK_BUMBER)),
+        );
+        let response = self.send_request(vec![url], params).unwrap().pop().unwrap();
+
+        if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
+            Some(u64::from_str_radix(remove_0x(&height), 16).unwrap())
+        } else {
+            None
         }
     }
 
@@ -246,7 +313,9 @@ pub trait ClientExt {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
+        quota: Option<u64>,
+        blake2b: bool,
     ) -> JsonRpcResponse;
     /// cita_getBlockByHash: Get block by hash
     fn get_block_by_hash(
@@ -265,7 +334,14 @@ pub trait ClientExt {
     /// eth_getTransactionReceipt: Get transaction receipt
     fn get_transaction_receipt(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
     /// eth_getLogs: Get logs
-    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
+    fn get_logs(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse;
     /// eth_call: (readonly, will not save state change)
     fn call(
         &mut self,
@@ -273,7 +349,7 @@ pub trait ClientExt {
         from: Option<&str>,
         to: &str,
         data: Option<&str>,
-        quantity: &str,
+        height: &str,
     ) -> JsonRpcResponse;
     /// cita_getTransaction: Get transaction by hash
     fn get_transaction(&mut self, url: &str, hash: &str) -> JsonRpcResponse;
@@ -286,7 +362,14 @@ pub trait ClientExt {
     /// eth_getBalance: Get the balance of a contract (TODO: return U256)
     fn get_balance(&mut self, url: &str, address: &str, height: &str) -> JsonRpcResponse;
     /// eth_newFilter:
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse;
+    fn new_filter(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse;
     /// eth_newBlockFilter:
     fn new_block_filter(&mut self, url: &str) -> JsonRpcResponse;
     /// eth_uninstallFilter: Uninstall a filter by its id
@@ -334,9 +417,20 @@ impl ClientExt for Client {
         url: &str,
         code: &str,
         address: &str,
-        current_height: u64,
+        current_height: Option<u64>,
+        quota: Option<u64>,
+        blake2b: bool,
     ) -> JsonRpcResponse {
-        let byte_code = self.generate_transaction(url, code, address, current_height);
+        let byte_code = if !blake2b {
+            self.generate_transaction(url, code, address, current_height, quota)
+        } else {
+            #[cfg(feature = "blake2b_hash")]
+            let code =
+                self.generate_transaction_by_blake2b(url, code, address, current_height, quota);
+            #[cfg(not(feature = "blake2b_hash"))]
+            let code = String::from("");
+            code
+        };
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -422,10 +516,35 @@ impl ClientExt for Client {
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
-    fn get_logs(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
+    fn get_logs(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse {
+        let mut object = HashMap::new();
+        object.insert(
+            String::from("fromBlock"),
+            ParamsValue::String(String::from(from.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("toBlock"),
+            ParamsValue::String(String::from(to.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("topic"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
+        );
+        object.insert(
+            String::from("address"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&address).unwrap()).unwrap(),
+        );
+
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_GET_LOGS)))
-            .insert("params", object);
+            .insert("params", ParamsValue::List(vec![ParamsValue::Map(object)]));
         self.send_request(vec![url], params).unwrap().pop().unwrap()
     }
 
@@ -435,7 +554,7 @@ impl ClientExt for Client {
         from: Option<&str>,
         to: &str,
         data: Option<&str>,
-        quantity: &str,
+        height: &str,
     ) -> JsonRpcResponse {
         let mut object = HashMap::new();
 
@@ -455,7 +574,7 @@ impl ClientExt for Client {
 
         let param = ParamsValue::List(vec![
             ParamsValue::Map(object),
-            ParamsValue::String(String::from(quantity)),
+            ParamsValue::String(String::from(height)),
         ]);
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_CALL)))
@@ -561,10 +680,35 @@ impl ClientExt for Client {
         // }
     }
 
-    fn new_filter(&mut self, url: &str, object: ParamsValue) -> JsonRpcResponse {
+    fn new_filter(
+        &mut self,
+        url: &str,
+        topic: Option<Vec<&str>>,
+        address: Option<Vec<&str>>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> JsonRpcResponse {
+        let mut object = HashMap::new();
+        object.insert(
+            String::from("fromBlock"),
+            ParamsValue::String(String::from(from.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("toBlock"),
+            ParamsValue::String(String::from(to.unwrap_or("latest"))),
+        );
+        object.insert(
+            String::from("topic"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
+        );
+        object.insert(
+            String::from("address"),
+            serde_json::from_str::<ParamsValue>(&serde_json::to_string(&address).unwrap()).unwrap(),
+        );
+
         let params = JsonRpcParams::new()
             .insert("method", ParamsValue::String(String::from(ETH_NEW_FILTER)))
-            .insert("params", object);
+            .insert("params", ParamsValue::List(vec![ParamsValue::Map(object)]));
         self.send_request(vec![url], params).unwrap().pop().unwrap()
 
         // match result.result().unwrap() {
@@ -680,11 +824,11 @@ impl ClientExt for Client {
 /// assert_eq!("0b".to_string(), d);
 /// println!("a = {}, b = {}, c = {}, d= {}", a, b, c, d);
 /// ```
-pub fn remove_0x(hex: String) -> String {
+pub fn remove_0x(hex: &str) -> &str {
     {
         let tmp = hex.as_bytes();
         if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
-            return String::from_utf8(tmp[2..].to_vec()).unwrap();
+            return str::from_utf8(&tmp[2..]).unwrap();
         }
     }
     hex
