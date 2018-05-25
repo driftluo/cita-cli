@@ -1,18 +1,20 @@
+extern crate ansi_term;
+extern crate cita_tool;
 extern crate clap;
 extern crate dotenv;
 extern crate syntect;
 
-extern crate cita_tool;
-
-use std::env;
 use std::collections::HashMap;
+use std::env;
 use std::iter::FromIterator;
-use std::u64;
 use std::str::FromStr;
+use std::u64;
 
 use dotenv::dotenv;
 
 use cita_tool::{Client, ClientExt, CreateKey, KeyPair, PrivKey, remove_0x};
+
+mod highlight;
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -245,6 +247,12 @@ fn main() {
                         .help(format!("JSONRPC server URL (dotenv: {})", ENV_JSONRPC_URL).as_str()),
                 ),
         )
+        .arg(
+            clap::Arg::with_name("no-color")
+                .long("no-color")
+                .global(true)
+                .help("Do not highlight(color) output json"),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -322,7 +330,11 @@ fn main() {
                 }
                 _ => unreachable!(),
             };
-            println!("{}", format!("{:?}", resp).as_str());
+            let mut content = format!("{:?}", resp);
+            if !sub_matches.is_present("no-color") {
+                content = highlight::highlight(content.as_str(), "json")
+            }
+            println!("{}", content);
         }
         _ => {
             println!("matches:\n {}", matches.usage());
