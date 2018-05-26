@@ -58,11 +58,11 @@ pub fn as_terminal_escaped(
     style.paint(text).to_string()
 }
 
-pub fn highlight(content: &str, languange: &str) -> String {
+pub fn highlight(content: &str, language: &str) -> String {
     let mut syntax_set: SyntaxSet = from_binary(include_bytes!("../assets/syntaxes.bin"));
     syntax_set.link_syntaxes();
     let theme_set: ThemeSet = from_binary(include_bytes!("../assets/themes.bin"));
-    let syntax = syntax_set.find_syntax_by_token(languange).unwrap();
+    let syntax = syntax_set.find_syntax_by_token(language).unwrap();
     let theme = theme_set.themes.get("Default").unwrap();
 
     let mut highlighter = HighlightLines::new(syntax, theme);

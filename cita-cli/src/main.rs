@@ -307,6 +307,37 @@ fn main() {
                                 .help("The height of chain, hex string or tag 'latest'"),
                         ),
                 )
+                .subcommand(clap::SubCommand::with_name("eth_newBlockFilter"))
+                .subcommand(
+                    clap::SubCommand::with_name("eth_uninstallFilter").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getFilterChanges").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getFilterLogs").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
+                    ),
+                )
                 .arg(
                     clap::Arg::with_name("url")
                         .long("url")
@@ -454,6 +485,16 @@ fn main() {
                     let address = m.value_of("address").unwrap();
                     let height = m.value_of("height").unwrap();
                     client.get_transaction_count(get_url(m), address, height)
+                }
+                ("eth_newBlockFilter", Some(m)) => client.new_block_filter(get_url(m)),
+                ("eth_uninstallFilter", Some(m)) => {
+                    client.uninstall_filter(get_url(m), m.value_of("id").unwrap())
+                }
+                ("eth_getFilterChanges", Some(m)) => {
+                    client.get_filter_changes(get_url(m), m.value_of("id").unwrap())
+                }
+                ("eth_getFilterLogs", Some(m)) => {
+                    client.get_filter_logs(get_url(m), m.value_of("id").unwrap())
                 }
                 _ => unreachable!(),
             };

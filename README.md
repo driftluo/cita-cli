@@ -39,6 +39,9 @@ $ cd ..
 
 2. use example
 
+If you think that the url specified on the command line is too complex, you can write the env file directly, 
+or the corresponding environment variable cli will get it automatically.
+
 - Get chain height
 ```bash
 $ ./target/debug/cita-cli rpc cita_blockNumber --url http://121.196.200.225:1337
@@ -113,4 +116,12 @@ $ ./target/debug/cita-cli key create
 private key: 0x8ee6aa885d9598f9c4e010b659aeecfc3f113beb646166414756568ab656f0f9
 pubkey: 0xe407bef7ef0a0e21395c46cc2e1ed324119783d0f4f47b676d95b23991f9065db1aa7a9099e2193160243a02168feb70c62eb8442e45c4b3542a4b3c8c8ac5bd
 address: 0xeea5c3cbb32fec85bc9b9bffa65fc027e4b1c6d5
+```
+
+- Generate public keys and addresses based on private keys
+```bash
+./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
+private key: 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
+pubkey: 0xa3cadf91b0ad021eb05eaa1fc2bb66109b3d004808c5cc2a1fb251a881aa12615394bde17dfaea4fb84372344d28a1bd2c4a9b4ab3f5d34ae524e2431ce494b6
+address: 0x9dcd6b234e2772c5451fd4ccf7582f4283140697
 ```
