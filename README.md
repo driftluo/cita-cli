@@ -13,14 +13,14 @@ Just like the relationship between redis_cli and redis.
 ## Todo
 
 - ~Send transaction, support sha3hash and blake2b~
+- Init cita
 - Kill cita process
 - Start cita process
 - Monitoring status
-- Init cita
 
 ## Usage
 
-1. clone and build
+### clone and build
 
 ```bash
 $ git clone git@github.com:driftluo/cita-cli.git
@@ -31,13 +31,15 @@ $ cargo build
 If you want to support both the blake2b and sha3 algorithms, first install the Sodium library, and then
 
 ```bash
+$ sudo apt install libsodium*
+
 $ git clone git@github.com:driftluo/cita-cli.git
 $ cd cita-cli/cita-cli
 $ cargo build --features blake2b_hash
 $ cd ..
 ```
 
-2. use example
+### Examples
 
 - Get chain height
 ```bash
@@ -51,7 +53,11 @@ $ ./target/debug/cita-cli rpc cita_blockNumber --url http://121.196.200.225:1337
 
 - Send transaction
 ```bash
-$ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" --code "606060405234156100105760006000fd5b610015565b60e0806100236000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604b5780636d4ce63c14606c576045565b60006000fd5b341560565760006000fd5b606a60048080359060200190919050506093565b005b341560775760006000fd5b607d60a3565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060b1565b905600a165627a7a72305820942223976c6dd48a3aa1d4749f45ad270915cfacd9c0bf3583c018d4c86f9da20029" --height 111146 --url http://121.196.200.225:1337
+$ ./target/debug/cita-cli rpc cita_sendTransaction \
+    --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
+    --code "606060405234156100105760006000fd5b610015565b60e0806100236000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604b5780636d4ce63c14606c576045565b60006000fd5b341560565760006000fd5b606a60048080359060200190919050506093565b005b341560775760006000fd5b607d60a3565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060b1565b905600a165627a7a72305820942223976c6dd48a3aa1d4749f45ad270915cfacd9c0bf3583c018d4c86f9da20029" \
+    --height 111146 \
+    --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": {
@@ -64,7 +70,9 @@ $ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e4
 
 - Get transaction receipt
 ```bash
-$ ./target/debug/cita-cli rpc eth_getTransactionReceipt --hash "0x16251c374ee87eae41cbd9203eea481b861738a19c19df9d3c6603b9fbe84478" --url http://121.196.200.225:1337
+$ ./target/debug/cita-cli rpc eth_getTransactionReceipt \
+    --hash "0x16251c374ee87eae41cbd9203eea481b861738a19c19df9d3c6603b9fbe84478" \
+    --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": {
@@ -86,7 +94,12 @@ $ ./target/debug/cita-cli rpc eth_getTransactionReceipt --hash "0x16251c374ee87e
 
 - Call contract function
 ```bash
-$ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" --address "73552bc4e960a1d53013b40074569ea05b950b4d" --code "60fe47b10000000000000000000000000000000000000000000000000000000000000001" --url http://121.196.200.225:1337 --height 111251
+$ ./target/debug/cita-cli rpc cita_sendTransaction \
+    --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
+    --address "73552bc4e960a1d53013b40074569ea05b950b4d" \
+    --code "60fe47b10000000000000000000000000000000000000000000000000000000000000001" \
+    --height 111251 \
+    --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": {
@@ -99,7 +112,11 @@ $ ./target/debug/cita-cli rpc cita_sendTransaction --private-key "352416e1c910e4
 
 - Get eth-call result
 ```bash
-$ ./target/debug/cita-cli rpc eth_call --url http://121.196.200.225:1337 --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 --data 0x6d4ce63c --quantity latest
+$ ./target/debug/cita-cli rpc eth_call \
+    --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 \
+    --data 0x6d4ce63c \
+    --quantity latest \
+    --url http://121.196.200.225:1337 
 {
   "jsonrpc": "2.0",
   "result": "0x0000000000000000000000000000000000000000000000000000000000000001",
