@@ -1,10 +1,10 @@
-use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
 use super::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
-use types::{Address, H256};
-use rand::thread_rng;
-use std::{fmt, mem};
 use hex::encode;
+use rand::thread_rng;
+use secp256k1::{Message as SecpMessage, Secp256k1, key::{self, SecretKey}};
 use std::ops::{Deref, DerefMut};
+use std::{fmt, mem};
+use types::{Address, H256};
 
 lazy_static! {
     pub static ref SECP256K1: Secp256k1 = Secp256k1::new();

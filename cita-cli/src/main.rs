@@ -230,6 +230,42 @@ fn main() {
                     ),
                 )
                 .subcommand(
+                    clap::SubCommand::with_name("eth_getLogs")
+                        .arg(
+                            clap::Arg::with_name("topic")
+                                .long("topic")
+                                .takes_value(true)
+                                .multiple(true)
+                                .validator(|topic| is_hex(topic.as_ref()))
+                                .help(
+                                    "Array of 32 Bytes DATA topics. Topics are order-dependent. \
+                                     Each topic can also be an array of DATA with 'or' options.",
+                                ),
+                        )
+                        .arg(
+                            clap::Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .multiple(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("List of contract address"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("from")
+                                .long("from")
+                                .takes_value(true)
+                                .validator(|from| is_hex(from.as_ref()))
+                                .help("Block height hex string, default is latest"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("to")
+                                .long("to")
+                                .takes_value(true)
+                                .validator(|to| is_hex(to.as_ref()))
+                                .help("Block height hex string, default is latest"),
+                        ),
+                )
+                .subcommand(
                     clap::SubCommand::with_name("cita_getMetaData").arg(
                         clap::Arg::with_name("height")
                             .long("height")
@@ -243,6 +279,63 @@ fn main() {
                             })
                             .takes_value(true)
                             .help("The height or tag"),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("cita_getTransaction").arg(
+                        clap::Arg::with_name("hash")
+                            .long("hash")
+                            .required(true)
+                            .takes_value(true)
+                            .help("The hash of the transaction"),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("cita_getTransactionCount")
+                        .arg(
+                            clap::Arg::with_name("address")
+                                .long("address")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The hash of the account"),
+                        )
+                        .arg(
+                            clap::Arg::with_name("height")
+                                .long("height")
+                                .required(true)
+                                .takes_value(true)
+                                .help("The height of chain, hex string or tag 'latest'"),
+                        ),
+                )
+                .subcommand(clap::SubCommand::with_name("eth_newBlockFilter"))
+                .subcommand(
+                    clap::SubCommand::with_name("eth_uninstallFilter").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getFilterChanges").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
+                    ),
+                )
+                .subcommand(
+                    clap::SubCommand::with_name("eth_getFilterLogs").arg(
+                        clap::Arg::with_name("id")
+                            .long("id")
+                            .required(true)
+                            .takes_value(true)
+                            .validator(|id| is_hex(id.as_ref()))
+                            .help("The filter id."),
                     ),
                 )
                 .arg(
@@ -377,6 +470,32 @@ fn main() {
                     let height = m.value_of("height").unwrap();
                     client.get_metadata(get_url(m), height)
                 }
+                ("eth_getLogs", Some(m)) => client.get_logs(
+                    get_url(m),
+                    m.values_of("topic").map(|value| value.collect()),
+                    m.values_of("address").map(|value| value.collect()),
+                    m.value_of("from"),
+                    m.value_of("to"),
+                ),
+                ("cita_getTransaction", Some(m)) => {
+                    let hash = m.value_of("hash").unwrap();
+                    client.get_transaction(get_url(m), hash)
+                }
+                ("cita_getTransactionCount", Some(m)) => {
+                    let address = m.value_of("address").unwrap();
+                    let height = m.value_of("height").unwrap();
+                    client.get_transaction_count(get_url(m), address, height)
+                }
+                ("eth_newBlockFilter", Some(m)) => client.new_block_filter(get_url(m)),
+                ("eth_uninstallFilter", Some(m)) => {
+                    client.uninstall_filter(get_url(m), m.value_of("id").unwrap())
+                }
+                ("eth_getFilterChanges", Some(m)) => {
+                    client.get_filter_changes(get_url(m), m.value_of("id").unwrap())
+                }
+                ("eth_getFilterLogs", Some(m)) => {
+                    client.get_filter_logs(get_url(m), m.value_of("id").unwrap())
+                }
                 _ => unreachable!(),
             };
             let mut content = format!("{:?}", resp);
@@ -432,4 +551,13 @@ fn parse_u64(height: &str) -> Result<u64, String> {
 
 fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
     Ok(PrivateKey::from_str(remove_0x(hash))?)
+}
+
+fn is_hex(hex: &str) -> Result<(), String> {
+    let tmp = hex.as_bytes();
+    if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
+        Ok(())
+    } else {
+        Err("Must hex string".to_string())
+    }
 }

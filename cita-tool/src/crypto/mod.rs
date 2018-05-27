@@ -1,17 +1,17 @@
-mod crypto_trait;
-mod cita_secp256k1;
 #[cfg(feature = "blake2b_hash")]
 mod cita_ed25519;
+mod cita_secp256k1;
+mod crypto_trait;
 
-use std::str::FromStr;
-use std::fmt;
 use hex::encode;
+use std::fmt;
+use std::str::FromStr;
 
-pub use self::crypto_trait::{CreateKey, Error, Hashable};
-pub use self::cita_secp256k1::{Sha3KeyPair, Signature, sha3_sign};
-use types::{Address, H256, H512};
 #[cfg(feature = "blake2b_hash")]
 pub use self::cita_ed25519::{Blake2bKeyPair, Blake2bSignature, blake2b_sign};
+pub use self::cita_secp256k1::{Sha3KeyPair, Signature, sha3_sign};
+pub use self::crypto_trait::{CreateKey, Error, Hashable};
+use types::{Address, H256, H512};
 
 /// Sha3 Private key
 pub type Sha3PrivKey = H256;
@@ -27,7 +27,7 @@ pub type Blake2bPrivKey = H512;
 #[cfg(feature = "blake2b_hash")]
 pub type Blake2bPubKey = H256;
 
-/// Generate Address from public key, sha3
+/// Generate Address from public key
 pub fn pubkey_to_address(pubkey: &PubKey) -> Address {
     match pubkey {
         PubKey::Sha3(pubkey) => Address::from(pubkey.crypt_hash(false)),
@@ -53,14 +53,12 @@ impl PrivateKey {
     pub fn from_str(hex: &str) -> Result<Self, String> {
         if hex.len() > 65 {
             #[cfg(feature = "blake2b_hash")]
-            let private_key = PrivateKey::Blake2b(Blake2bPrivKey::from_str(hex)
-                .map_err(|err| format!("{}", err))?);
+            let private_key = PrivateKey::Blake2b(Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?);
             #[cfg(not(feature = "blake2b_hash"))]
             let private_key = PrivateKey::Null;
             Ok(private_key)
         } else {
-            Ok(PrivateKey::Sha3(Sha3PrivKey::from_str(hex)
-                .map_err(|err| format!("{}", err))?))
+            Ok(PrivateKey::Sha3(Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?))
         }
     }
 }
@@ -99,8 +97,7 @@ impl PubKey {
             let private_key = PubKey::Null;
             Ok(private_key)
         } else {
-            Ok(PubKey::Sha3(Sha3PubKey::from_str(hex)
-                .map_err(|err| format!("{}", err))?))
+            Ok(PubKey::Sha3(Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?))
         }
     }
 }
@@ -147,12 +144,14 @@ impl KeyPair {
     /// New from private key
     pub fn from_str(private_key: &str) -> Result<Self, String> {
         match PrivateKey::from_str(private_key)? {
-            PrivateKey::Sha3(private) => Ok(KeyPair::Sha3(Sha3KeyPair::from_privkey(private)
-                .map_err(|err| format!("{}", err))?)),
+            PrivateKey::Sha3(private) => Ok(
+                KeyPair::Sha3(Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?),
+            ),
             #[cfg(feature = "blake2b_hash")]
             PrivateKey::Blake2b(private) => {
-                Ok(KeyPair::Blake2b(Blake2bKeyPair::from_privkey(private)
-                    .map_err(|err| format!("{}", err))?))
+                Ok(
+                    KeyPair::Blake2b(Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?),
+                )
             }
             PrivateKey::Null => Ok(KeyPair::Null),
         }

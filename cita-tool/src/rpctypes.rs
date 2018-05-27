@@ -5,7 +5,8 @@ use serde_json;
 /// JsonRpc params
 #[derive(Serialize, Deserialize)]
 pub struct JsonRpcParams {
-    #[serde(flatten)] extra: HashMap<String, ParamsValue>,
+    #[serde(flatten)]
+    extra: HashMap<String, ParamsValue>,
 }
 
 impl JsonRpcParams {
@@ -98,8 +99,10 @@ impl fmt::Display for ResponseValue {
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct JsonRpcResponse {
     jsonrpc: String,
-    #[serde(skip_serializing_if = "Option::is_none")] result: Option<ResponseValue>,
-    #[serde(skip_serializing_if = "Option::is_none")] error: Option<ErrorResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<ResponseValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<ErrorResponse>,
     id: u64,
 }
 
