@@ -13,6 +13,7 @@ Just like the relationship between redis_cli and redis.
 ## Todo
 
 - ~Send transaction, support sha3hash and blake2b~
+- Support interactive command line
 - Init cita
 - Kill cita process
 - Start cita process
@@ -136,7 +137,7 @@ address: 0xeea5c3cbb32fec85bc9b9bffa65fc027e4b1c6d5
 
 - Generate public keys and addresses based on private keys
 ```bash
-./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
+$ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 private key: 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 pubkey: 0xa3cadf91b0ad021eb05eaa1fc2bb66109b3d004808c5cc2a1fb251a881aa12615394bde17dfaea4fb84372344d28a1bd2c4a9b4ab3f5d34ae524e2431ce494b6
 address: 0x9dcd6b234e2772c5451fd4ccf7582f4283140697

@@ -187,3 +187,42 @@ impl KeyPair {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use KeyPair;
+
+    #[test]
+    fn generate_from_private_key() {
+        let key_pair = KeyPair::from_str(
+            "8ee6aa885d9598f9c4e010b659aeecfc3f113beb646166414756568ab656f0f9",
+        ).unwrap();
+
+        assert_eq!(
+            format!("{}", key_pair.pubkey()).as_str(),
+            "e407bef7ef0a0e21395c46cc2e1ed324119783d0f4f47b676d95b23991f9065db1aa7a9099e2193160243a02168feb70c62eb8442e45c4b3542a4b3c8c8ac5bd"
+        );
+
+        assert_eq!(
+            format!("{:#x}", key_pair.address()).as_str(),
+            "eea5c3cbb32fec85bc9b9bffa65fc027e4b1c6d5"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "blake2b_hash")]
+    fn blake2b_generate_from_private_key() {
+        let key_pair =
+            KeyPair::from_str("87c8f34545181d38666aadaeee4924e811263e05f6e2d87d75fac27ab5075915456fdf394a9c4397ec29f1a72c16d601b4ee7f08160c784877cb6941a0e177a1").unwrap();
+
+        assert_eq!(
+            format!("{}", key_pair.pubkey()).as_str(),
+            "456fdf394a9c4397ec29f1a72c16d601b4ee7f08160c784877cb6941a0e177a1"
+        );
+
+        assert_eq!(
+            format!("{:#x}", key_pair.address()).as_str(),
+            "5ae200f77d5c7df715f6ccb182fc5073dab1cfe9"
+        );
+    }
+}
