@@ -2,12 +2,17 @@
 name = "cita-cli"
 version = "0.1.0"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
 dotenv = "^0.11.0"
 clap = "^2.31.2"
 ansi_term = "^0.10.0"
 syntect = "^2.0.1"
+cita-tool = { path = "../cita-tool" }
+
+[build-dependencies]
+clap = "^2.31.2"
 cita-tool = { path = "../cita-tool" }
 
 [features]
