@@ -3,16 +3,18 @@ extern crate cita_tool;
 extern crate clap;
 extern crate dotenv;
 extern crate syntect;
+extern crate linefeed;
 
 mod cli;
 mod highlight;
+mod interactive;
 
 use std::u64;
-
-use dotenv::dotenv;
 use std::collections::HashMap;
 use std::env;
 use std::iter::FromIterator;
+
+use dotenv::dotenv;
 
 use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PubKey, remove_0x};
 use cli::{build_cli, get_url, parse_privkey};
