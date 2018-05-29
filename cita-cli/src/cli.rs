@@ -17,6 +17,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
             ),
         )
         .subcommand(key_command())
+        .subcommand(abi_command())
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -46,6 +47,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         )
         .subcommand(rpc_command())
         .subcommand(key_command())
+        .subcommand(abi_command())
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -57,6 +59,49 @@ pub fn build_interactive() -> App<'static, 'static> {
                 .long("no-color")
                 .global(true)
                 .help("Do not highlight(color) output json"),
+        )
+}
+
+
+/// Ethereum abi sub command
+pub fn abi_command() -> App<'static, 'static> {
+    let param_arg = Arg::with_name("param")
+        .long("param")
+        .short("p")
+        .takes_value(true)
+        .multiple(true)
+        .number_of_values(2)
+        .help("Function parameters");
+    let no_lenient_flag = Arg::with_name("no-lenient")
+        .long("no-lenient")
+        .help("Don't allow short representation of input params");
+
+    App::new("abi")
+        .setting(AppSettings::NoBinaryName)
+        .subcommand(
+            SubCommand::with_name("encode")
+                .subcommand(
+                    SubCommand::with_name("function")
+                        .arg(
+                            Arg::with_name("file")
+                                .required(true)
+                                .index(1)
+                                .help("ABI json file path")
+                        )
+                        .arg(
+                            Arg::with_name("name")
+                                .required(true)
+                                .index(2)
+                                .help("function name")
+                        )
+                        .arg(param_arg.clone().number_of_values(1))
+                        .arg(no_lenient_flag.clone())
+                )
+                .subcommand(
+                    SubCommand::with_name("params")
+                        .arg(param_arg)
+                        .arg(no_lenient_flag)
+                )
         )
 }
 

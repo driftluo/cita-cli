@@ -2,10 +2,13 @@ extern crate ansi_term;
 extern crate cita_tool;
 extern crate clap;
 extern crate dotenv;
+extern crate rustc_hex as hex;
 extern crate linefeed;
 extern crate syntect;
+extern crate ethabi;
 
 mod cli;
+mod abi;
 mod highlight;
 mod interactive;
 
@@ -19,6 +22,7 @@ use dotenv::dotenv;
 
 use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PubKey, remove_0x};
 use cli::{build_cli, build_interactive, get_url, parse_privkey};
+use abi::{encode_input, encode_params};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -147,7 +151,40 @@ fn main() {
                 content = highlight::highlight(content.as_str(), "json")
             }
             println!("{}", content);
-        }
+        },
+        ("abi", Some(sub_matches)) => match sub_matches.subcommand() {
+            ("encode", Some(em)) => match em.subcommand() {
+                ("function", Some(m)) => {
+                    let file = m.value_of("file").unwrap();
+                    let name = m.value_of("name").unwrap();
+                    let lenient = !m.is_present("no-lenient");
+                    let values: Vec<String> = m.values_of("param")
+                        .unwrap()
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<String>>();
+                    println!("{}", encode_input(file, name, &values, lenient).unwrap());
+                },
+                ("params", Some(m)) => {
+                    let lenient = !m.is_present("no-lenient");
+                    let mut types: Vec<String> = Vec::new();
+                    let mut values: Vec<String> = Vec::new();
+                    let mut param_iter = m.values_of("param").unwrap().peekable();
+                    while param_iter.peek().is_some() {
+                        types.push(param_iter.next().unwrap().to_owned());
+                        values.push(param_iter.next().unwrap().to_owned());
+                    }
+                    println!("{}", encode_params(&types, &values, lenient).unwrap());
+                },
+                _ => {
+                    println!("{}", em.usage());
+                    process::exit(1);
+                }
+            }
+            _ => {
+                println!("{}", sub_matches.usage());
+                process::exit(1);
+            }
+        },
         ("key", Some(sub_matches)) => match sub_matches.subcommand() {
             ("create", Some(m)) => {
                 let blake2b = m.is_present("blake2b");
