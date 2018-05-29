@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use cita_tool::{PrivateKey, PubKey, remove_0x};
 
@@ -16,6 +16,35 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
                     .help("JSONRPC server URL (dotenv: JSONRPC_URL)"),
             ),
         )
+        .subcommand(key_command())
+        .arg(
+            Arg::with_name("blake2b")
+                .long("blake2b")
+                .global(true)
+                .help("Use blake2b encryption algorithm, must build with feature blake2b"),
+        )
+        .arg(
+            Arg::with_name("no-color")
+                .long("no-color")
+                .global(true)
+                .help("Do not highlight(color) output json"),
+        )
+}
+
+/// Interactive parser
+pub fn build_interactive() -> App<'static, 'static> {
+    App::new("interactive")
+        .setting(AppSettings::NoBinaryName)
+        .subcommand(
+            SubCommand::with_name("switch").arg(
+                Arg::with_name("host")
+                    .long("host")
+                    .takes_value(true)
+                    .required(true)
+                    .help("Switch url"),
+            ),
+        )
+        .subcommand(rpc_command())
         .subcommand(key_command())
         .arg(
             Arg::with_name("blake2b")
