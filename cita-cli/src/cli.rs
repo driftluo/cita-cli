@@ -88,10 +88,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
-                        .validator(|height| match parse_u64(height.as_ref()) {
-                            Ok(_) => Ok(()),
-                            Err(err) => Err(err),
-                        })
+                        .validator(|height| parse_u64(height.as_ref()).map(|_| ()))
                         .help("Current chain height, default query to the chain"),
                 )
                 .arg(
@@ -109,20 +106,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("private-key")
                         .takes_value(true)
                         .required(true)
-                        .validator(|privkey| match parse_privkey(privkey.as_ref()) {
-                            Ok(_) => Ok(()),
-                            Err(err) => Err(err),
-                        })
+                        .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
                         .help("The private key of transaction"),
                 )
                 .arg(
                     Arg::with_name("quota")
                         .long("quota")
                         .takes_value(true)
-                        .validator(|quota| match parse_u64(quota.as_ref()) {
-                            Ok(_) => Ok(()),
-                            Err(err) => Err(err),
-                        })
+                        .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
                         .help("Transaction quota costs, default is 1_000_000"),
                 ),
         )

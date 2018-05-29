@@ -19,7 +19,6 @@ use dotenv::dotenv;
 
 use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PubKey, remove_0x};
 use cli::{build_cli, build_interactive, get_url, parse_privkey};
-use interactive::interactive;
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
 const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
@@ -184,7 +183,7 @@ fn main() {
             }
         },
         _ => {
-            let _ = interactive(&default_jsonrpc_url);
+            let _ = interactive::start(&default_jsonrpc_url);
         }
     }
 }

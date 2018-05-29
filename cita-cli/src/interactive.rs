@@ -6,7 +6,7 @@ use linefeed::{Interface, Prompter, ReadResult};
 use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PubKey, remove_0x};
 
 /// Interactive command line
-pub fn interactive(url: &str) -> io::Result<()> {
+pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
     let mut url = url.to_string();
 
