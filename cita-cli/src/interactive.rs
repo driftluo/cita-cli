@@ -20,31 +20,24 @@ pub fn start(url: &str) -> io::Result<()> {
         }
         let cli = line.split_whitespace().collect::<Vec<&str>>();
 
-        match parser.clone().get_matches_from_safe(cli) {
+        if let Err(err) = match parser.clone().get_matches_from_safe(cli) {
             Ok(args) => match args.subcommand() {
                 ("switch", Some(m)) => {
                     let host = m.value_of("host").unwrap();
                     interface.set_prompt(&(host.to_owned() + "> "));
                     url = host.to_string();
+                    Ok(())
                 }
-                ("rpc", Some(sub_matches)) => {
-                    if let Err(err) = rpc_processor(sub_matches, Some(url.as_str())) {
-                        println!("{}", err);
-                    }
-                }
-                ("abi", Some(sub_matches)) => {
-                    if let Err(err) = abi_processor(sub_matches) {
-                        println!("{}", err);
-                    }
-                }
-                ("key", Some(sub_matches)) => {
-                    if let Err(err) = key_processor(sub_matches) {
-                        println!("{}", err);
-                    }
-                }
-                _ => {}
+                ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str())),
+                ("abi", Some(m)) => abi_processor(m),
+                ("key", Some(m)) => key_processor(m),
+                _ => Ok(())
             },
-            Err(err) => println!("{}", err),
+            Err(err) => Err(format!("{}", err)),
+        } {
+            println!("{}", err);
+        } else {
+            interface.add_history_unique(line.clone());
         }
     }
 
