@@ -1,7 +1,8 @@
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use abi;
 use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
+
+use abi;
 use highlight;
 
 /// Generate cli
@@ -602,11 +603,14 @@ pub fn key_processor(sub_matches: &ArgMatches) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
             let blake2b = m.is_present("blake2b");
-
             let key_pair = KeyPair::new(blake2b);
 
             println!(
-                "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                concat!(
+                    "[private key]: 0x{}\n",
+                    "[public key] : 0x{}\n",
+                    "[address]    : 0x{:#x}"
+                ),
                 key_pair.privkey(),
                 key_pair.pubkey(),
                 key_pair.address()
@@ -617,7 +621,11 @@ pub fn key_processor(sub_matches: &ArgMatches) -> Result<(), String> {
             let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
 
             println!(
-                "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                concat!(
+                    "[private key]: 0x{}\n",
+                    "[public key] : 0x{}\n",
+                    "[address]    : 0x{:#x}"
+                ),
                 key_pair.privkey(),
                 key_pair.pubkey(),
                 key_pair.address()

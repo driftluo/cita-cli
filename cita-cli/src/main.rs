@@ -5,6 +5,7 @@ extern crate dotenv;
 extern crate ethabi;
 extern crate linefeed;
 extern crate rustc_hex as hex;
+extern crate shell_words;
 extern crate syntect;
 
 mod abi;
