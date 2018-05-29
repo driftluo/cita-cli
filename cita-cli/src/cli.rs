@@ -1,6 +1,8 @@
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{PrivateKey, PubKey, remove_0x};
+use abi;
+use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
+use highlight;
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
@@ -62,7 +64,6 @@ pub fn build_interactive() -> App<'static, 'static> {
         )
 }
 
-
 /// Ethereum abi sub command
 pub fn abi_command() -> App<'static, 'static> {
     let param_arg = Arg::with_name("param")
@@ -76,33 +77,70 @@ pub fn abi_command() -> App<'static, 'static> {
         .long("no-lenient")
         .help("Don't allow short representation of input params");
 
-    App::new("abi")
-        .setting(AppSettings::NoBinaryName)
-        .subcommand(
-            SubCommand::with_name("encode")
-                .subcommand(
-                    SubCommand::with_name("function")
-                        .arg(
-                            Arg::with_name("file")
-                                .required(true)
-                                .index(1)
-                                .help("ABI json file path")
-                        )
-                        .arg(
-                            Arg::with_name("name")
-                                .required(true)
-                                .index(2)
-                                .help("function name")
-                        )
-                        .arg(param_arg.clone().number_of_values(1))
-                        .arg(no_lenient_flag.clone())
-                )
-                .subcommand(
-                    SubCommand::with_name("params")
-                        .arg(param_arg)
-                        .arg(no_lenient_flag)
-                )
-        )
+    App::new("abi").subcommand(
+        SubCommand::with_name("encode")
+            .subcommand(
+                SubCommand::with_name("function")
+                    .arg(
+                        Arg::with_name("file")
+                            .required(true)
+                            .index(1)
+                            .help("ABI json file path"),
+                    )
+                    .arg(
+                        Arg::with_name("name")
+                            .required(true)
+                            .index(2)
+                            .help("function name"),
+                    )
+                    .arg(param_arg.clone().number_of_values(1))
+                    .arg(no_lenient_flag.clone()),
+            )
+            .subcommand(
+                SubCommand::with_name("params")
+                    .arg(param_arg)
+                    .arg(no_lenient_flag),
+            ),
+    )
+}
+
+/// ABI processor
+pub fn abi_processor(sub_matches: &ArgMatches) -> Result<(), String> {
+    match sub_matches.subcommand() {
+        ("encode", Some(em)) => match em.subcommand() {
+            ("function", Some(m)) => {
+                let file = m.value_of("file").unwrap();
+                let name = m.value_of("name").unwrap();
+                let lenient = !m.is_present("no-lenient");
+                let values: Vec<String> = m.values_of("param")
+                    .unwrap()
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<String>>();
+                println!(
+                    "{}",
+                    abi::encode_input(file, name, &values, lenient).unwrap()
+                );
+            }
+            ("params", Some(m)) => {
+                let lenient = !m.is_present("no-lenient");
+                let mut types: Vec<String> = Vec::new();
+                let mut values: Vec<String> = Vec::new();
+                let mut param_iter = m.values_of("param").unwrap().peekable();
+                while param_iter.peek().is_some() {
+                    types.push(param_iter.next().unwrap().to_owned());
+                    values.push(param_iter.next().unwrap().to_owned());
+                }
+                println!("{}", abi::encode_params(&types, &values, lenient).unwrap());
+            }
+            _ => {
+                return Err(em.usage().to_owned());
+            }
+        },
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    }
+    Ok(())
 }
 
 /// Generate rpc sub command
@@ -410,6 +448,123 @@ pub fn rpc_command() -> App<'static, 'static> {
         )
 }
 
+/// RPC processor
+pub fn rpc_processor(sub_matches: &ArgMatches, url: Option<&str>) -> Result<(), String> {
+    let mut client = Client::new().unwrap();
+    let resp = match sub_matches.subcommand() {
+        ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
+        ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
+        ("cita_sendTransaction", Some(m)) => {
+            #[cfg(feature = "blake2b_hash")]
+            let blake2b = m.is_present("blake2b");
+
+            if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
+                client.set_chain_id(chain_id);
+            }
+            if let Some(private_key) = m.value_of("private-key") {
+                client.set_private_key(parse_privkey(private_key).unwrap());
+            }
+            let url = url.unwrap_or_else(|| get_url(m));
+            let code = m.value_of("code").unwrap();
+            let address = m.value_of("address").unwrap();
+            let current_height = m.value_of("height").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            #[cfg(not(feature = "blake2b_hash"))]
+            let response =
+                client.send_transaction(url, code, address, current_height, quota, false);
+            #[cfg(feature = "blake2b_hash")]
+            let response =
+                client.send_transaction(url, code, address, current_height, quota, blake2b);
+            response
+        }
+        ("cita_getBlockByHash", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            let with_txs = m.is_present("with-txs");
+            client.get_block_by_hash(url.unwrap_or_else(|| get_url(m)), hash, with_txs)
+        }
+        ("cita_getBlockByNumber", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            let with_txs = m.is_present("with-txs");
+            client.get_block_by_number(url.unwrap_or_else(|| get_url(m)), height, with_txs)
+        }
+        ("eth_getTransaction", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash)
+        }
+        ("eth_getCode", Some(m)) => client.get_code(
+            url.unwrap_or_else(|| get_url(m)),
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("eth_getAbi", Some(m)) => client.get_abi(
+            url.unwrap_or_else(|| get_url(m)),
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("eth_getBalance", Some(m)) => client.get_balance(
+            url.unwrap_or_else(|| get_url(m)),
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("eth_getTransactionReceipt", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            client.get_transaction_receipt(url.unwrap_or_else(|| get_url(m)), hash)
+        }
+        ("eth_call", Some(m)) => client.call(
+            url.unwrap_or_else(|| get_url(m)),
+            m.value_of("from"),
+            m.value_of("to").unwrap(),
+            m.value_of("data"),
+            m.value_of("height").unwrap(),
+        ),
+        ("cita_getTransactionProof", Some(m)) => client.get_transaction_proof(
+            url.unwrap_or_else(|| get_url(m)),
+            m.value_of("hash").unwrap(),
+        ),
+        ("cita_getMetaData", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            client.get_metadata(url.unwrap_or_else(|| get_url(m)), height)
+        }
+        ("eth_getLogs", Some(m)) => client.get_logs(
+            url.unwrap_or_else(|| get_url(m)),
+            m.values_of("topic").map(|value| value.collect()),
+            m.values_of("address").map(|value| value.collect()),
+            m.value_of("from"),
+            m.value_of("to"),
+        ),
+        ("cita_getTransaction", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash)
+        }
+        ("cita_getTransactionCount", Some(m)) => {
+            let address = m.value_of("address").unwrap();
+            let height = m.value_of("height").unwrap();
+            client.get_transaction_count(url.unwrap_or_else(|| get_url(m)), address, height)
+        }
+        ("eth_newBlockFilter", Some(m)) => {
+            client.new_block_filter(url.unwrap_or_else(|| get_url(m)))
+        }
+        ("eth_uninstallFilter", Some(m)) => {
+            client.uninstall_filter(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
+        }
+        ("eth_getFilterChanges", Some(m)) => {
+            client.get_filter_changes(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
+        }
+        ("eth_getFilterLogs", Some(m)) => {
+            client.get_filter_logs(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
+        }
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    };
+    let mut content = format!("{:?}", resp);
+    if !sub_matches.is_present("no-color") {
+        content = highlight::highlight(content.as_str(), "json")
+    }
+    println!("{}", content);
+    Ok(())
+}
+
 /// Key related commands
 pub fn key_command() -> App<'static, 'static> {
     App::new("key")
@@ -440,6 +595,44 @@ pub fn key_command() -> App<'static, 'static> {
                     .help("Pubkey"),
             ),
         )
+}
+
+/// Key processor
+pub fn key_processor(sub_matches: &ArgMatches) -> Result<(), String> {
+    match sub_matches.subcommand() {
+        ("create", Some(m)) => {
+            let blake2b = m.is_present("blake2b");
+
+            let key_pair = KeyPair::new(blake2b);
+
+            println!(
+                "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                key_pair.privkey(),
+                key_pair.pubkey(),
+                key_pair.address()
+            );
+        }
+        ("from-private-key", Some(m)) => {
+            let private_key = m.value_of("private-key").unwrap();
+            let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
+
+            println!(
+                "private key: 0x{}\npubkey: 0x{}\naddress: 0x{:#x}",
+                key_pair.privkey(),
+                key_pair.pubkey(),
+                key_pair.address()
+            );
+        }
+        ("pub-to-address", Some(m)) => {
+            let pubkey = m.value_of("pubkey").unwrap();
+            let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
+            println!("address: 0x{:#x}", address);
+        }
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    }
+    Ok(())
 }
 
 /// Get url from arg match
