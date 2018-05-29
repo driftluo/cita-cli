@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::io;
+use std::sync::Arc;
 
 use linefeed::{Interface, Prompter, ReadResult};
 

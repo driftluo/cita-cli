@@ -2,17 +2,18 @@ extern crate ansi_term;
 extern crate cita_tool;
 extern crate clap;
 extern crate dotenv;
-extern crate syntect;
 extern crate linefeed;
+extern crate syntect;
 
 mod cli;
 mod highlight;
 mod interactive;
 
-use std::u64;
 use std::collections::HashMap;
 use std::env;
 use std::iter::FromIterator;
+use std::process;
+use std::u64;
 
 use dotenv::dotenv;
 
@@ -136,7 +137,10 @@ fn main() {
                 ("eth_getFilterLogs", Some(m)) => {
                     client.get_filter_logs(get_url(m), m.value_of("id").unwrap())
                 }
-                _ => unreachable!(),
+                _ => {
+                    println!("{}", sub_matches.usage());
+                    process::exit(1);
+                }
             };
             let mut content = format!("{:?}", resp);
             if !sub_matches.is_present("no-color") {
@@ -173,10 +177,13 @@ fn main() {
                 let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
                 println!("address: 0x{:#x}", address);
             }
-            _ => unreachable!(),
+            _ => {
+                println!("{}", sub_matches.usage());
+                process::exit(1);
+            }
         },
         _ => {
-            println!("matches:\n {}", matches.usage());
+            println!("{}", matches.usage());
         }
     }
 }

@@ -1,5 +1,6 @@
-use cita_tool::{PrivateKey, PubKey, remove_0x};
 use clap::{App, Arg, ArgMatches, SubCommand};
+
+use cita_tool::{PrivateKey, PubKey, remove_0x};
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
