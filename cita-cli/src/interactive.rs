@@ -25,11 +25,7 @@ pub fn start(url: &str) -> io::Result<()> {
 
     interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
     interface.set_prompt(
-        format!(
-            "[{}]\n{} ",
-            Yellow.paint(url.to_owned()),
-            Red.bold().paint(">")
-        ).as_str(),
+        format!("{} ", Red.bold().paint(">")).as_str(),
     );
 
     if let Err(e) = interface.load_history(history_file) {
@@ -43,6 +39,7 @@ pub fn start(url: &str) -> io::Result<()> {
         }
     }
 
+    println!("[{}]", Yellow.paint(url.clone()));
     while let ReadResult::Input(line) = interface.read_line()? {
         let args = shell_words::split(line.as_str()).unwrap();
 
@@ -52,11 +49,7 @@ pub fn start(url: &str) -> io::Result<()> {
                     let host = m.value_of("host").unwrap();
                     url = host.to_string();
                     interface.set_prompt(
-                        format!(
-                            "[{}]\n{} ",
-                            Yellow.paint(host.clone()),
-                            Red.bold().paint(">")
-                        ).as_str(),
+                        format!("{} ", Red.bold().paint(">")).as_str(),
                     );
                     Ok(())
                 }
@@ -75,6 +68,7 @@ pub fn start(url: &str) -> io::Result<()> {
         if let Err(err) = interface.save_history(history_file) {
             println!("Save command history failed: {}", err);
         };
+        println!("[{}]", Yellow.paint(url.clone()));
     }
 
     Ok(())
