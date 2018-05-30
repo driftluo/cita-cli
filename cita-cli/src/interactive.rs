@@ -49,8 +49,12 @@ pub fn start(url: &str) -> io::Result<()> {
             Ok(matches) => match matches.subcommand() {
                 ("switch", Some(m)) => {
                     let host = m.value_of("host").unwrap();
-                    interface.set_prompt(&(host.to_owned() + "> "));
                     url = host.to_string();
+                    interface.set_prompt(format!(
+                        "[{}]\n{} ",
+                        Yellow.paint(host.clone()),
+                        Red.bold().paint(">")
+                    ).as_str());
                     Ok(())
                 }
                 ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str())),
@@ -166,11 +170,31 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
     {
         let line = prompter.buffer();
         let args = shell_words::split(&line[..start]).unwrap();
-        if let Some(current_app) = Self::find_subcommand(
-            &self.clap_app,
-            args.iter().map(|s| s.as_str()).peekable()
-        ) {
+        let current_app = if args.is_empty() {
+            Some(&self.clap_app)
+        } else {
+            Self::find_subcommand(
+                &self.clap_app,
+                args.iter().map(|s| s.as_str()).peekable()
+            )
+        };
+        if let Some(current_app) = current_app {
             let strings = get_complete_strings(current_app);
+            let mut target: Option<String> = None;
+            if &strings
+                .iter()
+                .filter(|s| {
+                    let matched = s.to_lowercase().contains(&word.to_lowercase());
+                    if matched {
+                        target = Some(s.to_string());
+                    }
+                    matched
+                })
+                .count() == &1
+            {
+                return Some(vec![Completion::simple(target.unwrap())]);
+            }
+
             if !strings.is_empty() {
                 return Some(
                     strings
