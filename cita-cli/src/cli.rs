@@ -8,6 +8,8 @@ use highlight;
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
     App::new("cita-cli")
+        .global_setting(AppSettings::ColoredHelp)
+        .global_setting(AppSettings::DeriveDisplayOrder)
         .subcommand(
             rpc_command().arg(
                 Arg::with_name("url")
@@ -39,6 +41,9 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
 pub fn build_interactive() -> App<'static, 'static> {
     App::new("interactive")
         .setting(AppSettings::NoBinaryName)
+        .global_setting(AppSettings::ColoredHelp)
+        .global_setting(AppSettings::DeriveDisplayOrder)
+        .global_setting(AppSettings::DisableVersion)
         .subcommand(
             SubCommand::with_name("switch").arg(
                 Arg::with_name("host")
