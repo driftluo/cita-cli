@@ -1,3 +1,4 @@
+use std::env;
 use std::io;
 use std::sync::Arc;
 
@@ -11,9 +12,24 @@ pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
     let mut url = url.to_string();
 
+    let mut history_file = env::home_dir().unwrap();
+    history_file.push(".cita-cli.history");
+    let history_file = history_file.to_str().unwrap();
+
     interface.set_prompt(&(url.to_owned() + "> "));
 
-    let parser = build_interactive();
+    if let Err(e) = interface.load_history(history_file) {
+        if e.kind() == io::ErrorKind::NotFound {
+            println!(
+                "History file {} doesn't exist, not loading history.",
+                history_file
+            );
+        } else {
+            eprintln!("Could not load history file {}: {}", history_file, e);
+        }
+    }
+
+    let mut parser = build_interactive();
 
     while let ReadResult::Input(line) = interface.read_line()? {
         if line.trim() == "quite" || line.trim() == "exit" {
@@ -21,7 +37,7 @@ pub fn start(url: &str) -> io::Result<()> {
         }
         let args = shell_words::split(line.as_str()).unwrap();
 
-        if let Err(err) = match parser.clone().get_matches_from_safe(args) {
+        if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
             Ok(matches) => match matches.subcommand() {
                 ("switch", Some(m)) => {
                     let host = m.value_of("host").unwrap();
@@ -37,9 +53,12 @@ pub fn start(url: &str) -> io::Result<()> {
             Err(err) => Err(format!("{}", err)),
         } {
             println!("{}", err);
-        } else {
-            interface.add_history_unique(line.clone());
         }
+
+        interface.add_history_unique(line.clone());
+        if let Err(err) = interface.save_history(history_file) {
+            println!("Save command history failed: {}", err);
+        };
     }
 
     Ok(())
