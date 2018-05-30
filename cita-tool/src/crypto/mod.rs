@@ -8,8 +8,8 @@ use std::fmt;
 use std::str::FromStr;
 
 #[cfg(feature = "blake2b_hash")]
-pub use self::cita_ed25519::{Blake2bKeyPair, Blake2bSignature, blake2b_sign};
-pub use self::cita_secp256k1::{Sha3KeyPair, Signature, sha3_sign};
+pub use self::cita_ed25519::{blake2b_sign, Blake2bKeyPair, Blake2bSignature};
+pub use self::cita_secp256k1::{sha3_sign, Sha3KeyPair, Signature};
 pub use self::crypto_trait::{CreateKey, Error, Hashable};
 use types::{Address, H256, H512};
 

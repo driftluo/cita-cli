@@ -7,6 +7,8 @@ extern crate linefeed;
 extern crate rustc_hex as hex;
 extern crate shell_words;
 extern crate syntect;
+#[macro_use]
+extern crate lazy_static;
 
 mod abi;
 mod cli;

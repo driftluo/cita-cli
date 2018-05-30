@@ -38,11 +38,11 @@ pub mod protos;
 /// Reqeust and Response type
 pub mod rpctypes;
 
-pub use client::{Client, ClientExt, remove_0x};
+pub use client::{remove_0x, Client, ClientExt};
 #[cfg(feature = "blake2b_hash")]
-pub use crypto::{Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature, blake2b_sign};
-pub use crypto::{pubkey_to_address, CreateKey, Hashable, KeyPair, Message, PrivateKey, PubKey,
-                 Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature, sha3_sign};
+pub use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature};
+pub use crypto::{pubkey_to_address, sha3_sign, CreateKey, Hashable, KeyPair, Message, PrivateKey,
+                 PubKey, Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature};
 pub use error::ToolError;
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};

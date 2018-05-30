@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
+use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
 
 use abi;
 use highlight;
@@ -48,6 +48,7 @@ pub fn build_interactive() -> App<'static, 'static> {
                     .help("Switch url"),
             ),
         )
+        .subcommand(SubCommand::with_name("exit").alias("quite"))
         .subcommand(rpc_command())
         .subcommand(key_command())
         .subcommand(abi_command())

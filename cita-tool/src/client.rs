@@ -6,7 +6,7 @@ use std::{str, u64};
 use super::Blake2bPrivKey;
 use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
             ToolError, Transaction};
-use futures::{Future, Stream, future::JoinAll, future::join_all};
+use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
 use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
 use protobuf::Message;

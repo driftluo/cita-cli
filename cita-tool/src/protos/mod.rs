@@ -2,8 +2,8 @@ pub mod transaction;
 
 pub use self::transaction::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 #[cfg(feature = "blake2b_hash")]
-use super::{Blake2bKeyPair, Blake2bPrivKey, blake2b_sign};
-use super::{CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey, sha3_sign};
+use super::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
+use super::{sha3_sign, CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey};
 use protobuf::Message as MessageTrait;
 
 impl Transaction {
