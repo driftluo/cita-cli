@@ -1,7 +1,7 @@
 use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
+use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
 
 use abi;
 use highlight;

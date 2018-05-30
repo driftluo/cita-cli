@@ -12,7 +12,6 @@ use shell_words;
 
 use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
 
-
 /// Interactive command line
 pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
@@ -25,11 +24,13 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut parser = build_interactive();
 
     interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
-    interface.set_prompt(format!(
-        "[{}]\n{} ",
-        Yellow.paint(url.to_owned()),
-        Red.bold().paint(">")
-    ).as_str());
+    interface.set_prompt(
+        format!(
+            "[{}]\n{} ",
+            Yellow.paint(url.to_owned()),
+            Red.bold().paint(">")
+        ).as_str(),
+    );
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -50,11 +51,13 @@ pub fn start(url: &str) -> io::Result<()> {
                 ("switch", Some(m)) => {
                     let host = m.value_of("host").unwrap();
                     url = host.to_string();
-                    interface.set_prompt(format!(
-                        "[{}]\n{} ",
-                        Yellow.paint(host.clone()),
-                        Red.bold().paint(">")
-                    ).as_str());
+                    interface.set_prompt(
+                        format!(
+                            "[{}]\n{} ",
+                            Yellow.paint(host.clone()),
+                            Red.bold().paint(">")
+                        ).as_str(),
+                    );
                     Ok(())
                 }
                 ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str())),
@@ -77,15 +80,20 @@ pub fn start(url: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
+fn get_complete_strings<'a, 'b, 'p>(
+    app: &'p clap::App<'a, 'b>,
+    filter: Vec<&String>,
+) -> Vec<String> {
     let mut strings: Vec<String> = vec![];
     strings.extend(
-        app.p.subcommands()
+        app.p
+            .subcommands()
             .map(|app| app.p.meta.name.clone())
-            .collect::<Vec<String>>()
+            .collect::<Vec<String>>(),
     );
     strings.extend(
-        app.p.flags()
+        app.p
+            .flags()
             .map(|a| {
                 let mut strings = vec![];
                 a.s.short.map(|s| strings.push(format!("-{}", s)));
@@ -95,10 +103,11 @@ fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
             .fold(vec![], |mut all, part| {
                 all.extend(part);
                 all
-            })
+            }),
     );
     strings.extend(
-        app.p.opts()
+        app.p
+            .opts()
             .map(|a| {
                 let mut strings = vec![];
                 a.s.short.map(|s| strings.push(format!("-{}", s)));
@@ -108,9 +117,12 @@ fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
             .fold(vec![], |mut all, part| {
                 all.extend(part);
                 all
-            })
+            }),
     );
     strings
+        .into_iter()
+        .filter(|s| !filter.contains(&s))
+        .collect()
 }
 
 fn _get_command_chain(matches: &ArgMatches) -> Vec<String> {
@@ -128,19 +140,20 @@ fn _get_command_chain(matches: &ArgMatches) -> Vec<String> {
 }
 
 struct CitaCompleter<'a, 'b>
-where 'a: 'b
+where
+    'a: 'b,
 {
-    clap_app: clap::App<'a, 'b>
+    clap_app: clap::App<'a, 'b>,
 }
 
 impl<'a, 'b> CitaCompleter<'a, 'b> {
     fn new(clap_app: clap::App<'a, 'b>) -> Self {
-        CitaCompleter{ clap_app }
+        CitaCompleter { clap_app }
     }
 
-    fn find_subcommand<'s, 'p, Iter: iter::Iterator<Item=&'s str>>(
+    fn find_subcommand<'s, 'p, Iter: iter::Iterator<Item = &'s str>>(
         app: &'p clap::App<'a, 'b>,
-        mut prefix_names: iter::Peekable<Iter>
+        mut prefix_names: iter::Peekable<Iter>,
     ) -> Option<&'p clap::App<'a, 'b>> {
         if let Some(name) = prefix_names.next() {
             for inner_app in &(app.p.subcommands) {
@@ -165,21 +178,27 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
         word: &str,
         prompter: &Prompter<Term>,
         start: usize,
-        _end: usize
-    ) -> Option<Vec<Completion>>
-    {
+        _end: usize,
+    ) -> Option<Vec<Completion>> {
         let line = prompter.buffer();
-        let args = shell_words::split(&line[..start]).unwrap();
+        let mut args = shell_words::split(&line[..start]).unwrap();
+        let root = args.clone();
+        let filter = root.iter()
+            .filter(|s| s.starts_with("-"))
+            .collect::<Vec<&String>>();
+        if let Some(cmd) = root.first() {
+            match cmd.as_str() {
+                "abi" => args.truncate(3),
+                _ => args.truncate(2),
+            }
+        }
         let current_app = if args.is_empty() {
             Some(&self.clap_app)
         } else {
-            Self::find_subcommand(
-                &self.clap_app,
-                args.iter().map(|s| s.as_str()).peekable()
-            )
+            Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable())
         };
         if let Some(current_app) = current_app {
-            let strings = get_complete_strings(current_app);
+            let strings = get_complete_strings(current_app, filter);
             let mut target: Option<String> = None;
             if &strings
                 .iter()
@@ -207,8 +226,8 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
                             }
                         })
                         .map(|s| Completion::simple(s))
-                        .collect::<Vec<Completion>>()
-                )
+                        .collect::<Vec<Completion>>(),
+                );
             }
         }
         None
