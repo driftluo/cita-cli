@@ -1,6 +1,7 @@
+use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
+use cita_tool::{pubkey_to_address, Client, ClientExt, KeyPair, PrivateKey, PubKey, remove_0x};
 
 use abi;
 use highlight;
@@ -604,43 +605,35 @@ pub fn key_command() -> App<'static, 'static> {
         )
 }
 
+fn print_keypair(key_pair: &KeyPair) {
+    println!(
+        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
+        Yellow.paint("[private key]:"),
+        key_pair.privkey(),
+        Yellow.paint("[public key ]:"),
+        key_pair.pubkey(),
+        Yellow.paint("[  address  ]:"),
+        key_pair.address()
+    );
+}
+
 /// Key processor
 pub fn key_processor(sub_matches: &ArgMatches) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
             let blake2b = m.is_present("blake2b");
             let key_pair = KeyPair::new(blake2b);
-
-            println!(
-                concat!(
-                    "[private key]: 0x{}\n",
-                    "[public key] : 0x{}\n",
-                    "[address]    : 0x{:#x}"
-                ),
-                key_pair.privkey(),
-                key_pair.pubkey(),
-                key_pair.address()
-            );
+            print_keypair(&key_pair);
         }
         ("from-private-key", Some(m)) => {
             let private_key = m.value_of("private-key").unwrap();
             let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
-
-            println!(
-                concat!(
-                    "[private key]: 0x{}\n",
-                    "[public key] : 0x{}\n",
-                    "[address]    : 0x{:#x}"
-                ),
-                key_pair.privkey(),
-                key_pair.pubkey(),
-                key_pair.address()
-            );
+            print_keypair(&key_pair);
         }
         ("pub-to-address", Some(m)) => {
             let pubkey = m.value_of("pubkey").unwrap();
             let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
-            println!("address: 0x{:#x}", address);
+            println!("{} 0x{:#x}", Yellow.paint("[address]:"), address);
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

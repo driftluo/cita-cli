@@ -2,6 +2,7 @@ use std::env;
 use std::io;
 use std::sync::Arc;
 
+use ansi_term::Colour::Red;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
@@ -24,7 +25,7 @@ pub fn start(url: &str) -> io::Result<()> {
 
     interface.set_completer(Arc::new(CITACompletion));
 
-    interface.set_prompt(&(url.to_owned() + "> "));
+    interface.set_prompt(format!("{}{} ", url.to_owned(), Red.bold().paint(">")).as_str());
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -185,7 +186,8 @@ impl<'a> CITACompleter<'a> {
     }
 
     fn cmd_contain(&self, command: &str) -> bool {
-        self.root.contains(&command) || self.rpc.contains(&command) || self.key.contains(&command) || self.abi.contains(&command) || self.sub_abi.contains(&command)
+        self.root.contains(&command) || self.rpc.contains(&command) || self.key.contains(&command)
+            || self.abi.contains(&command) || self.sub_abi.contains(&command)
     }
 }
 
@@ -203,7 +205,9 @@ impl<Term: Terminal> Completer<Term> for CITACompletion {
 
         let mut args = shell_words::split(line).unwrap();
 
-        if args.is_empty() || (args.len() == 1 && args[0].len() < 3 && !COMPLETION.cmd_contain(&args[0])) {
+        if args.is_empty()
+            || (args.len() == 1 && args[0].len() < 3 && !COMPLETION.cmd_contain(&args[0]))
+        {
             return Some(COMPLETION.root_filter(args.pop()));
         }
 
@@ -235,7 +239,7 @@ impl<Term: Terminal> Completer<Term> for CITACompletion {
                     None
                 }
             }
-            _ => None
+            _ => None,
         }
     }
 }
