@@ -53,7 +53,7 @@ pub fn build_interactive() -> App<'static, 'static> {
                     .help("Switch url"),
             ),
         )
-        .subcommand(SubCommand::with_name("exit").alias("quite"))
+        .subcommand(SubCommand::with_name("exit").alias("quit"))
         .subcommand(rpc_command())
         .subcommand(key_command())
         .subcommand(abi_command())

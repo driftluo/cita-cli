@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::env;
 use std::io;
 use std::sync::Arc;
@@ -72,21 +71,121 @@ pub fn start(url: &str) -> io::Result<()> {
 }
 
 struct CITACompleter<'a> {
-    command: BTreeMap<&'a str, BTreeMap<&'a str, BTreeMap<&'a str, Vec<&'a str>>>>,
+    root: Vec<&'a str>,
+    rpc: Vec<&'a str>,
+    key: Vec<&'a str>,
+    abi: Vec<&'a str>,
+    sub_abi: Vec<&'a str>,
 }
 
 impl<'a> CITACompleter<'a> {
     fn new() -> Self {
-        //        let sub_command = BTreeMap::new();
-        //        let sub_sub_command = BTreeMap::new();
-        let mut command = BTreeMap::new();
-        let global_params = vec!["--blake2b", "--no-color"];
-        command.insert("rpc", BTreeMap::new());
-        command.insert("key", BTreeMap::new());
-        command.insert("abi", BTreeMap::new());
-        command.insert("switch", BTreeMap::new());
-        command.insert("exit", BTreeMap::new());
-        CITACompleter { command: command }
+        CITACompleter {
+            root: vec!["exit", "quit", "rpc", "key", "abi"],
+            rpc: vec![
+                "net_peerCount",
+                "cita_blockNumber",
+                "cita_sendTransaction",
+                "cita_getBlockByHash",
+                "cita_getBlockByNumber",
+                "eth_getTransaction",
+                "eth_getCode",
+                "eth_getAbi",
+                "eth_getBalance",
+                "eth_getTransactionReceipt",
+                "eth_call",
+                "cita_getTransactionProof",
+                "eth_getLogs",
+                "cita_getMetaData",
+                "cita_getTransaction",
+                "cita_getTransactionCount",
+                "eth_newBlockFilter",
+                "eth_getFilterChanges",
+                "eth_getFilterLogs",
+            ],
+            key: vec!["create", "from-private-key", "pub-to-address"],
+            abi: vec!["encode"],
+            sub_abi: vec!["function", "params"],
+        }
+    }
+
+    fn root_filter(&self, command: Option<String>) -> Vec<Completion> {
+        if command.is_none() {
+            self.root
+                .iter()
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        } else {
+            self.root
+                .iter()
+                .filter(|cmd| cmd.starts_with(command.clone().unwrap().as_str()))
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        }
+    }
+
+    fn rpc_filter(&self, command: &str) -> Vec<Completion> {
+        if command.is_empty() {
+            self.rpc
+                .iter()
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        } else {
+            self.rpc
+                .iter()
+                .filter(|cmd| cmd.starts_with(command))
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        }
+    }
+
+    fn abi_filter(&self, command: &str) -> Vec<Completion> {
+        if command.is_empty() {
+            self.abi
+                .iter()
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        } else {
+            self.abi
+                .iter()
+                .filter(|cmd| cmd.starts_with(command))
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        }
+    }
+
+    fn sub_abi_filter(&self, command: &str) -> Vec<Completion> {
+        if command.is_empty() {
+            self.sub_abi
+                .iter()
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        } else {
+            self.sub_abi
+                .iter()
+                .filter(|cmd| cmd.starts_with(command))
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        }
+    }
+
+    fn key_filter(&self, command: &str) -> Vec<Completion> {
+        if command.is_empty() {
+            self.key
+                .iter()
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        } else {
+            self.key
+                .iter()
+                .filter(|cmd| cmd.starts_with(command))
+                .map(|cmd| Completion::simple(cmd.to_string()))
+                .collect()
+        }
+    }
+
+    fn cmd_contain(&self, command: &str) -> bool {
+        self.root.contains(&command) || self.rpc.contains(&command) || self.key.contains(&command) || self.abi.contains(&command) || self.sub_abi.contains(&command)
     }
 }
 
@@ -102,17 +201,41 @@ impl<Term: Terminal> Completer<Term> for CITACompletion {
     ) -> Option<Vec<Completion>> {
         let line = prompter.buffer();
 
-        let args = shell_words::split(line).unwrap();
+        let mut args = shell_words::split(line).unwrap();
 
-        if args.len() == 0 {
-            let key: Vec<Completion> = COMPLETION
-                .command
-                .keys()
-                .map(|key| Completion::simple(key.to_string()))
-                .collect();
-            Some(key)
-        } else {
-            None
+        if args.is_empty() || (args.len() == 1 && args[0].len() < 3 && !COMPLETION.cmd_contain(&args[0])) {
+            return Some(COMPLETION.root_filter(args.pop()));
+        }
+
+        match args[0].as_str() {
+            "rpc" => {
+                if args.len() == 1 {
+                    Some(COMPLETION.rpc_filter(""))
+                } else if args.len() == 2 && !COMPLETION.cmd_contain(&args[1]) {
+                    Some(COMPLETION.rpc_filter(&args[1]))
+                } else {
+                    None
+                }
+            }
+            "key" => {
+                if args.len() == 1 {
+                    Some(COMPLETION.key_filter(""))
+                } else if args.len() == 2 && !COMPLETION.cmd_contain(&args[1]) {
+                    Some(COMPLETION.key_filter(&args[1]))
+                } else {
+                    None
+                }
+            }
+            "abi" => {
+                if args.len() == 1 {
+                    Some(COMPLETION.abi_filter(""))
+                } else if args.len() == 2 && !COMPLETION.cmd_contain(&args[1]) {
+                    Some(COMPLETION.abi_filter(&args[1]))
+                } else {
+                    None
+                }
+            }
+            _ => None
         }
     }
 }
