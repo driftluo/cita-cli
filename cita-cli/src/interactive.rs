@@ -12,6 +12,15 @@ use shell_words;
 
 use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
 
+const ASCII_WORD: &'static str = r#"
+   ._____. ._____.  _. ._   ._____. ._____.   ._.   ._____. ._____.
+   | .___| |___. | | | | |  |___. | |_____|   |_|   |___. | |_____|
+   | |     ._. | | | |_| |  ._. | |   ._.   ._____. ._. | | ._____.
+   | |     | | |_| \_____/  | | |_/   | |   | ,_, | | | |_/ |_____|
+   | |___. | | ._.   ._.    | |       | |   | | | | | |     ._____.
+   |_____| |_| |_|   |_|    |_|       |_|   |_| |_| |_|     |_____|
+"#;
+
 /// Interactive command line
 pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
@@ -29,7 +38,7 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut parser = build_interactive();
 
     interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
-    interface.set_prompt(format!("{} ", Red.bold().paint(">")).as_str());
+    interface.set_prompt(format!("{} ", Red.bold().paint("cita>")).as_str());
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -42,6 +51,7 @@ pub fn start(url: &str) -> io::Result<()> {
         }
     }
 
+    println!("{}", Red.bold().paint(ASCII_WORD));
     print_env_variables(&url, blake2b, color);
     while let ReadResult::Input(line) = interface.read_line()? {
         let args = shell_words::split(line.as_str()).unwrap();
