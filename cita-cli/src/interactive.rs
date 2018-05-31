@@ -16,6 +16,11 @@ use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
 pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
     let mut url = url.to_string();
+    let mut color = true;
+    #[cfg(feature = "blake2b_hash")]
+    let mut blake2b = false;
+    #[cfg(not(feature = "blake2b_hash"))]
+    let blake2b = false;
 
     let mut history_file = env::home_dir().unwrap();
     history_file.push(".cita-cli.history");
@@ -24,9 +29,7 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut parser = build_interactive();
 
     interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
-    interface.set_prompt(
-        format!("{} ", Red.bold().paint(">")).as_str(),
-    );
+    interface.set_prompt(format!("{} ", Red.bold().paint(">")).as_str());
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -39,26 +42,49 @@ pub fn start(url: &str) -> io::Result<()> {
         }
     }
 
-    println!("[{}]", Yellow.paint(url.clone()));
+    print_env_variables(&url, blake2b, color);
     while let ReadResult::Input(line) = interface.read_line()? {
         let args = shell_words::split(line.as_str()).unwrap();
 
         if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
-            Ok(matches) => match matches.subcommand() {
-                ("switch", Some(m)) => {
-                    let host = m.value_of("host").unwrap();
-                    url = host.to_string();
-                    interface.set_prompt(
-                        format!("{} ", Red.bold().paint(">")).as_str(),
-                    );
-                    Ok(())
+            Ok(matches) => {
+                match matches.subcommand() {
+                    ("switch", Some(m)) => {
+                        m.value_of("host").and_then(|host| {
+                            url = host.to_string();
+                            Some(())
+                        });
+                        if m.is_present("color") {
+                            color = !color;
+                        }
+
+                        #[cfg(feature = "blake2b_hash")]
+                        {
+                            if m.is_present("switch_algorithm") {
+                                blake2b = !blake2b;
+                            }
+                        }
+                        #[cfg(not(feature = "blake2b_hash"))]
+                        {
+                            if m.is_present("algorithm") {
+                                println!("[{}]", Red.paint("The current version does not support the blake2b algorithm. \
+                                                    Open 'blak2b' feature and recompile cita-cli, please."));
+                            }
+                        }
+                        print_env_variables(&url, blake2b, color);
+                        Ok(())
+                    }
+                    ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str()), blake2b, color),
+                    ("abi", Some(m)) => abi_processor(m),
+                    ("key", Some(m)) => key_processor(m, blake2b),
+                    ("info", _) => {
+                        print_env_variables(&url, blake2b, color);
+                        Ok(())
+                    }
+                    ("exit", _) => break,
+                    _ => Ok(()),
                 }
-                ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str())),
-                ("abi", Some(m)) => abi_processor(m),
-                ("key", Some(m)) => key_processor(m),
-                ("exit", _) => break,
-                _ => Ok(()),
-            },
+            }
             Err(err) => Err(format!("{}", err)),
         } {
             println!("{}", err);
@@ -68,7 +94,6 @@ pub fn start(url: &str) -> io::Result<()> {
         if let Err(err) = interface.save_history(history_file) {
             println!("Save command history failed: {}", err);
         };
-        println!("[{}]", Yellow.paint(url.clone()));
     }
 
     Ok(())
@@ -226,4 +251,17 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
         }
         None
     }
+}
+
+fn print_env_variables(url: &str, encryption: bool, color: bool) {
+    println!(
+        "[url: {}] [encryption: {}] [color: {}]",
+        Yellow.paint(url),
+        Yellow.paint(if encryption {
+            "blake2b_hash"
+        } else {
+            "sha3_hash"
+        }),
+        Yellow.paint(color.to_string())
+    );
 }

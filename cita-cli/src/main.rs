@@ -36,9 +36,9 @@ fn main() {
     let matches = build_cli(&default_jsonrpc_url).get_matches();
 
     if let Err(err) = match matches.subcommand() {
-        ("rpc", Some(m)) => rpc_processor(m, None),
+        ("rpc", Some(m)) => rpc_processor(m, None, false, true),
         ("abi", Some(m)) => abi_processor(m),
-        ("key", Some(m)) => key_processor(m),
+        ("key", Some(m)) => key_processor(m, false),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())

@@ -46,30 +46,34 @@ pub fn build_interactive() -> App<'static, 'static> {
         .global_setting(AppSettings::DeriveDisplayOrder)
         .global_setting(AppSettings::DisableVersion)
         .subcommand(
-            SubCommand::with_name("switch").arg(
-                Arg::with_name("host")
-                    .long("host")
-                    .takes_value(true)
-                    .required(true)
-                    .help("Switch url"),
-            ),
+            SubCommand::with_name("switch")
+                .about("Switch environment variables, such as url/algorithm")
+                .arg(
+                    Arg::with_name("host")
+                        .long("host")
+                        .takes_value(true)
+                        .help("Switch url"),
+                )
+                .arg(
+                    Arg::with_name("color")
+                        .long("color")
+                        .help("Switching color for rpc interface"),
+                )
+                .arg(
+                    Arg::with_name("algorithm")
+                        .long("algorithm")
+                        .help("Switching encryption algorithm"),
+                ),
         )
-        .subcommand(SubCommand::with_name("exit").alias("quit"))
+        .subcommand(
+            SubCommand::with_name("exit")
+                .alias("quit")
+                .about("Exit the interactive interface"),
+        )
+        .subcommand(SubCommand::with_name("info").about("Display global variables"))
         .subcommand(rpc_command())
         .subcommand(key_command())
         .subcommand(abi_command())
-        .arg(
-            Arg::with_name("blake2b")
-                .long("blake2b")
-                .global(true)
-                .help("Use blake2b encryption algorithm, must build with feature blake2b"),
-        )
-        .arg(
-            Arg::with_name("no-color")
-                .long("no-color")
-                .global(true)
-                .help("Do not highlight(color) output json"),
-        )
 }
 
 /// Ethereum abi sub command
@@ -85,31 +89,33 @@ pub fn abi_command() -> App<'static, 'static> {
         .long("no-lenient")
         .help("Don't allow short representation of input params");
 
-    App::new("abi").subcommand(
-        SubCommand::with_name("encode")
-            .subcommand(
-                SubCommand::with_name("function")
-                    .arg(
-                        Arg::with_name("file")
-                            .required(true)
-                            .index(1)
-                            .help("ABI json file path"),
-                    )
-                    .arg(
-                        Arg::with_name("name")
-                            .required(true)
-                            .index(2)
-                            .help("function name"),
-                    )
-                    .arg(param_arg.clone().number_of_values(1))
-                    .arg(no_lenient_flag.clone()),
-            )
-            .subcommand(
-                SubCommand::with_name("params")
-                    .arg(param_arg)
-                    .arg(no_lenient_flag),
-            ),
-    )
+    App::new("abi")
+        .about("Abi operation, encode parameter, generate code based on abi and parameters")
+        .subcommand(
+            SubCommand::with_name("encode")
+                .subcommand(
+                    SubCommand::with_name("function")
+                        .arg(
+                            Arg::with_name("file")
+                                .required(true)
+                                .index(1)
+                                .help("ABI json file path"),
+                        )
+                        .arg(
+                            Arg::with_name("name")
+                                .required(true)
+                                .index(2)
+                                .help("function name"),
+                        )
+                        .arg(param_arg.clone().number_of_values(1))
+                        .arg(no_lenient_flag.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("params")
+                        .arg(param_arg)
+                        .arg(no_lenient_flag),
+                ),
+        )
 }
 
 /// ABI processor
@@ -154,6 +160,7 @@ pub fn abi_processor(sub_matches: &ArgMatches) -> Result<(), String> {
 /// Generate rpc sub command
 pub fn rpc_command() -> App<'static, 'static> {
     App::new("rpc")
+        .about("All cita jsonrpc interface commands")
         .subcommand(SubCommand::with_name("net_peerCount"))
         .subcommand(SubCommand::with_name("cita_blockNumber"))
         .subcommand(
@@ -457,14 +464,19 @@ pub fn rpc_command() -> App<'static, 'static> {
 }
 
 /// RPC processor
-pub fn rpc_processor(sub_matches: &ArgMatches, url: Option<&str>) -> Result<(), String> {
+pub fn rpc_processor(
+    sub_matches: &ArgMatches,
+    url: Option<&str>,
+    _blake2b: bool,
+    color: bool,
+) -> Result<(), String> {
     let mut client = Client::new().unwrap();
     let resp = match sub_matches.subcommand() {
         ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
         ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
         ("cita_sendTransaction", Some(m)) => {
             #[cfg(feature = "blake2b_hash")]
-            let blake2b = m.is_present("blake2b");
+            let blake2b = m.is_present("blake2b") || _blake2b;
 
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
                 client.set_chain_id(chain_id);
@@ -566,7 +578,7 @@ pub fn rpc_processor(sub_matches: &ArgMatches, url: Option<&str>) -> Result<(), 
         }
     };
     let mut content = format!("{:?}", resp);
-    if !sub_matches.is_present("no-color") {
+    if !sub_matches.is_present("no-color") && color {
         content = highlight::highlight(content.as_str(), "json")
     }
     println!("{}", content);
@@ -576,6 +588,7 @@ pub fn rpc_processor(sub_matches: &ArgMatches, url: Option<&str>) -> Result<(), 
 /// Key related commands
 pub fn key_command() -> App<'static, 'static> {
     App::new("key")
+        .about("Some key operations, such as generating address, public key")
         .subcommand(SubCommand::with_name("create"))
         .subcommand(
             SubCommand::with_name("from-private-key").arg(
@@ -618,10 +631,10 @@ fn print_keypair(key_pair: &KeyPair) {
 }
 
 /// Key processor
-pub fn key_processor(sub_matches: &ArgMatches) -> Result<(), String> {
+pub fn key_processor(sub_matches: &ArgMatches, blake2b: bool) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
-            let blake2b = m.is_present("blake2b");
+            let blake2b = m.is_present("blake2b") || blake2b;
             let key_pair = KeyPair::new(blake2b);
             print_keypair(&key_pair);
         }
