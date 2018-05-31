@@ -70,7 +70,7 @@ pub fn start(url: &str) -> io::Result<()> {
 
                         #[cfg(feature = "blake2b_hash")]
                         {
-                            if m.is_present("switch_algorithm") {
+                            if m.is_present("algorithm") {
                                 blake2b = !blake2b;
                             }
                         }
