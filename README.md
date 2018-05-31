@@ -13,13 +13,17 @@ Just like the relationship between redis_cli and redis.
 ## Todo
 
 - ~Send transaction, support sha3hash and blake2b~
-- Support interactive command line
+- ~Support interactive command line~
 - Init cita
 - Kill cita process
 - Start cita process
 - Monitoring status
 
 ## Usage
+
+### Screencast
+
+![A gif of cita-cli](https://storage.wodetu.cn/2018/05/31/95189cde6e96cc0393e9f7acb7fa4c29.gif)
 
 ### clone and build
 
@@ -44,6 +48,35 @@ $ cd ..
 
 If you think that the url specified on the command line is too complex, you can write the env file directly, 
 or the corresponding environment variable cli will get it automatically.
+
+#### Interactive mode(recommend)
+
+```bash
+$ ./target/debug/cita-cli
+
+[url: http://127.0.0.1:1337] [encryption: sha3_hash] [color: true]
+cita> switch --host http://121.196.200.225:1337
+[url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
+cita> rpc cita_blockNumber 
+{
+  "jsonrpc": "2.0",
+  "result": "0x5fbb2",
+  "id": 1
+}
+cita> key create 
+[private key]: 0xe392d8ca1aee361081affaa2da47505d2dde884572600c4ddb709c09c4d5aa78
+[public key ]: 0x0f5ee79c8d765b9788fbeb17bd48aae517a54af1f55ac2b14399a31490e8749dc02fee27728495f14e4888d34368ba4f1116d5c6c3e497bddbadf5ced4b233a7
+[  address  ]: 0x2a4b1cc7cc68332d045b2ac8da0e2c7761163926
+cita> info
+[url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
+cita> abi encode params -p uint256 16
+0000000000000000000000000000000000000000000000000000000000000010
+cita> abi encode function ../HelloWorld update -p 16
+82ab890a0000000000000000000000000000000000000000000000000000000000000010
+cita> exit
+```
+
+#### Command line mode
 
 - Get chain height
 ```bash
@@ -141,4 +174,12 @@ $ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c
 private key: 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 pubkey: 0xa3cadf91b0ad021eb05eaa1fc2bb66109b3d004808c5cc2a1fb251a881aa12615394bde17dfaea4fb84372344d28a1bd2c4a9b4ab3f5d34ae524e2431ce494b6
 address: 0x9dcd6b234e2772c5451fd4ccf7582f4283140697
+```
+
+- ABI generate
+```bash
+$ ./target/debug/cita-cli abi encode params -p uint256 16
+0000000000000000000000000000000000000000000000000000000000000010
+$ ./target/debug/cita-cli abi encode function ../HelloWorld update -p 16
+82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
