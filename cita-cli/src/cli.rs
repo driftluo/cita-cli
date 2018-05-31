@@ -213,7 +213,15 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
                         .help("Transaction quota costs, default is 1_000_000"),
+                )
+                .arg(
+                    Arg::with_name("value")
+                        .long("value")
+                        .takes_value(true)
+                        .validator(|value| parse_u64(value.as_ref()).map(|_| ()))
+                        .help("The value to send, default is 0"),
                 ),
+
         )
         .subcommand(
             SubCommand::with_name("cita_getBlockByHash")
@@ -489,9 +497,10 @@ pub fn rpc_processor(
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| s.parse::<u64>().unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let value = m.value_of("value").map(|s| s.parse::<u64>().unwrap());
             #[cfg(not(feature = "blake2b_hash"))]
             let response =
-                client.send_transaction(url, code, address, current_height, quota, false);
+                client.send_transaction(url, code, address, current_height, quota, value, false);
             #[cfg(feature = "blake2b_hash")]
             let response =
                 client.send_transaction(url, code, address, current_height, quota, blake2b);

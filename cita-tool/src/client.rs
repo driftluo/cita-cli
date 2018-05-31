@@ -177,6 +177,7 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
+        value: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
         let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
@@ -188,6 +189,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
+        tx.set_value(value.unwrap_or(0));
         tx.set_chain_id(self.get_chain_id(url));
         encode(
             tx.sha3_sign(*self.sha3_private_key().unwrap())
@@ -207,6 +209,7 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
+        value: Option<u64>,
     ) -> String {
         let data = decode(code).unwrap();
         let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
@@ -218,6 +221,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
+        tx.set_value(value.unwrap_or(0));
         tx.set_chain_id(self.get_chain_id(url));
         encode(
             tx.blake2b_sign(*self.blake2b_private_key().unwrap())
@@ -319,6 +323,7 @@ pub trait ClientExt {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
+        value: Option<u64>,
         blake2b: bool,
     ) -> Self::Output;
     /// cita_getBlockByHash: Get block by hash
@@ -420,14 +425,15 @@ impl ClientExt for Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
+        value: Option<u64>,
         blake2b: bool,
     ) -> Self::Output {
         let byte_code = if !blake2b {
-            self.generate_transaction(url, code, address, current_height, quota)
+            self.generate_transaction(url, code, address, current_height, quota, value)
         } else {
             #[cfg(feature = "blake2b_hash")]
             let code =
-                self.generate_transaction_by_blake2b(url, code, address, current_height, quota);
+                self.generate_transaction_by_blake2b(url, code, address, current_height, quota, value);
             #[cfg(not(feature = "blake2b_hash"))]
             let code = String::from("");
             code
