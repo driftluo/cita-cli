@@ -96,7 +96,7 @@ pub fn start(url: &str) -> io::Result<()> {
                         Ok(())
                     }
                     ("rpc", Some(m)) => rpc_processor(m, &printer, Some(url.as_str()), blake2b, color),
-                    ("abi", Some(m)) => abi_processor(m),
+                    ("abi", Some(m)) => abi_processor(m, &printer),
                     ("key", Some(m)) => key_processor(m, &printer, blake2b),
                     ("info", _) => {
                         print_env_variables(&url, blake2b, color);

@@ -46,7 +46,7 @@ fn main() {
 
     if let Err(err) = match matches.subcommand() {
         ("rpc", Some(m)) => rpc_processor(m, &printer, None, false, true),
-        ("abi", Some(m)) => abi_processor(m),
+        ("abi", Some(m)) => abi_processor(m, &printer),
         ("key", Some(m)) => key_processor(m, &printer, false),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);

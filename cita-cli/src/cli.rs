@@ -1,4 +1,5 @@
 use ansi_term::Colour::Yellow;
+use serde_json::Value;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
@@ -119,7 +120,7 @@ pub fn abi_command() -> App<'static, 'static> {
 }
 
 /// ABI processor
-pub fn abi_processor(sub_matches: &ArgMatches) -> Result<(), String> {
+pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("encode", Some(em)) => match em.subcommand() {
             ("function", Some(m)) => {
@@ -130,10 +131,8 @@ pub fn abi_processor(sub_matches: &ArgMatches) -> Result<(), String> {
                     .unwrap()
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
-                println!(
-                    "{}",
-                    abi::encode_input(file, name, &values, lenient).unwrap()
-                );
+                let output = abi::encode_input(file, name, &values, lenient).unwrap();
+                printer.println(&Value::String(output), false);
             }
             ("params", Some(m)) => {
                 let lenient = !m.is_present("no-lenient");
@@ -144,7 +143,8 @@ pub fn abi_processor(sub_matches: &ArgMatches) -> Result<(), String> {
                     types.push(param_iter.next().unwrap().to_owned());
                     values.push(param_iter.next().unwrap().to_owned());
                 }
-                println!("{}", abi::encode_params(&types, &values, lenient).unwrap());
+                let output = abi::encode_params(&types, &values, lenient).unwrap();
+                printer.println(&Value::String(output), false);
             }
             _ => {
                 return Err(em.usage().to_owned());
