@@ -503,7 +503,7 @@ pub fn rpc_processor(
                 client.send_transaction(url, code, address, current_height, quota, value, false);
             #[cfg(feature = "blake2b_hash")]
             let response =
-                client.send_transaction(url, code, address, current_height, quota, blake2b);
+                client.send_transaction(url, code, address, current_height, quota, value, blake2b);
             response
         }
         ("cita_getBlockByHash", Some(m)) => {
