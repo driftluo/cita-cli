@@ -10,6 +10,7 @@ use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
 use shell_words;
 
+use printer::{Printer, OutputFormat, ColorWhen};
 use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
 
 const ASCII_WORD: &'static str = r#"
@@ -51,6 +52,10 @@ pub fn start(url: &str) -> io::Result<()> {
         }
     }
 
+    let mut printer = Printer::default();
+    printer.set_format(OutputFormat::Raw);
+    printer.set_color(ColorWhen::default());
+
     println!("{}", Red.bold().paint(ASCII_WORD));
     print_env_variables(&url, blake2b, color);
     while let ReadResult::Input(line) = interface.read_line()? {
@@ -84,9 +89,9 @@ pub fn start(url: &str) -> io::Result<()> {
                         print_env_variables(&url, blake2b, color);
                         Ok(())
                     }
-                    ("rpc", Some(m)) => rpc_processor(m, Some(url.as_str()), blake2b, color),
+                    ("rpc", Some(m)) => rpc_processor(m, &printer, Some(url.as_str()), blake2b, color),
                     ("abi", Some(m)) => abi_processor(m),
-                    ("key", Some(m)) => key_processor(m, blake2b),
+                    ("key", Some(m)) => key_processor(m, &printer, blake2b),
                     ("info", _) => {
                         print_env_variables(&url, blake2b, color);
                         Ok(())

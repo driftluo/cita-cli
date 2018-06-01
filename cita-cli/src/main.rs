@@ -1,25 +1,33 @@
 extern crate ansi_term;
+extern crate atty;
 extern crate cita_tool;
 extern crate clap;
 extern crate dotenv;
 extern crate ethabi;
 extern crate linefeed;
 extern crate rustc_hex as hex;
+#[macro_use]
+extern crate serde_json;
 extern crate shell_words;
+// #[cfg(feature = "color")]
 extern crate syntect;
 
 mod abi;
 mod cli;
+mod printer;
+// #[cfg(feature = "color")]
 mod highlight;
 mod interactive;
 
 use std::collections::HashMap;
 use std::env;
+use std::rc::Rc;
 use std::iter::FromIterator;
 use std::process;
 
 use dotenv::dotenv;
 
+use printer::Printer;
 use cli::{abi_processor, build_cli, key_processor, rpc_processor};
 
 const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
@@ -33,18 +41,19 @@ fn main() {
         .remove(ENV_JSONRPC_URL)
         .unwrap_or(DEFAULT_JSONRPC_URL.to_owned());
 
+    let printer = Printer::default();
     let matches = build_cli(&default_jsonrpc_url).get_matches();
 
     if let Err(err) = match matches.subcommand() {
-        ("rpc", Some(m)) => rpc_processor(m, None, false, true),
+        ("rpc", Some(m)) => rpc_processor(m, &printer, None, false, true),
         ("abi", Some(m)) => abi_processor(m),
-        ("key", Some(m)) => key_processor(m, false),
+        ("key", Some(m)) => key_processor(m, &printer, false),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())
         }
     } {
-        println!("{}", err);
+        printer.eprintln(&Rc::new(format!("{}", err)), true);
         process::exit(1);
     }
 }

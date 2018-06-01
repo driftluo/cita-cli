@@ -4,7 +4,7 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
 
 use abi;
-use highlight;
+use printer::{Printer};
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
@@ -474,6 +474,7 @@ pub fn rpc_command() -> App<'static, 'static> {
 /// RPC processor
 pub fn rpc_processor(
     sub_matches: &ArgMatches,
+    printer: &Printer,
     url: Option<&str>,
     _blake2b: bool,
     color: bool,
@@ -586,11 +587,8 @@ pub fn rpc_processor(
             return Err(sub_matches.usage().to_owned());
         }
     };
-    let mut content = format!("{:?}", resp);
-    if !sub_matches.is_present("no-color") && color {
-        content = highlight::highlight(content.as_str(), "json")
-    }
-    println!("{}", content);
+    let is_color = !sub_matches.is_present("no-color") && color;
+    printer.println(&resp, is_color);
     Ok(())
 }
 
@@ -627,35 +625,29 @@ pub fn key_command() -> App<'static, 'static> {
         )
 }
 
-fn print_keypair(key_pair: &KeyPair) {
-    println!(
-        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
-        Yellow.paint("[private key]:"),
-        key_pair.privkey(),
-        Yellow.paint("[public key ]:"),
-        key_pair.pubkey(),
-        Yellow.paint("[  address  ]:"),
-        key_pair.address()
-    );
-}
-
 /// Key processor
-pub fn key_processor(sub_matches: &ArgMatches, blake2b: bool) -> Result<(), String> {
+pub fn key_processor(sub_matches: &ArgMatches, printer: &Printer, blake2b: bool) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
             let blake2b = m.is_present("blake2b") || blake2b;
             let key_pair = KeyPair::new(blake2b);
-            print_keypair(&key_pair);
+            let is_color = !sub_matches.is_present("no-color");
+            printer.println(&key_pair, is_color);
         }
         ("from-private-key", Some(m)) => {
             let private_key = m.value_of("private-key").unwrap();
             let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
-            print_keypair(&key_pair);
+            let is_color = !sub_matches.is_present("no-color");
+            printer.println(&key_pair, is_color);
         }
         ("pub-to-address", Some(m)) => {
             let pubkey = m.value_of("pubkey").unwrap();
             let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
-            println!("{} 0x{:#x}", Yellow.paint("[address]:"), address);
+            if printer.color() {
+                printer.println(&format!("{} 0x{:#x}", Yellow.paint("[address]:"), address), true);
+            } else {
+                printer.println(&format!("{} 0x{:#x}", "[address]:", address), false);
+            }
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
