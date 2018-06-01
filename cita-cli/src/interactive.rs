@@ -38,7 +38,13 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut parser = build_interactive();
 
     interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
-    interface.set_prompt("cita> ");
+    let style = Red.bold();
+    let text = "cita> ";
+
+    interface.set_prompt(&format!("\x01{prefix}\x02{text}\x01{suffix}\x02",
+                                  prefix=style.prefix(),
+                                  text=text,
+                                  suffix=style.suffix()));
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
