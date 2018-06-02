@@ -2,6 +2,7 @@ use std::env;
 use std::io;
 use std::iter;
 use std::path::PathBuf;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
@@ -322,17 +323,37 @@ impl GlobalConfig {
     }
 
     fn print(&self, url: &str) {
-        println!(
-            "[path: {}]\n[url: {}]\n[encryption: {}]\n[color: {}]\n[debug: {}]",
-            Yellow.paint(self.path.display().to_string()),
-            Yellow.paint(url),
-            Yellow.paint(if self.blake2b {
-                "blake2b_hash"
-            } else {
-                "sha3_hash"
-            }),
-            Yellow.paint(self.color.to_string()),
-            Yellow.paint(self.debug.to_string())
-        );
+        let path = self.path.to_string_lossy();
+        let encryption = if self.blake2b {
+            "blake2b_hash"
+        } else {
+            "sha3_hash"
+        };
+        let color = self.color.to_string();
+        let debug = self.debug.to_string();
+        let values = [
+            ("url", url),
+            ("pwd", path.deref()),
+            ("color", color.as_str()),
+            ("debug", debug.as_str()),
+            ("encryption", encryption),
+        ];
+
+        let max_width = values
+            .iter()
+            .map(|(name, _)| name.len())
+            .max()
+            .unwrap_or(20) + 2;
+        let output = values
+            .iter()
+            .map(|(name, value)| {
+                format!(
+                    "[{:^width$}]: {}",
+                    name, Yellow.paint(*value), width=max_width
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        println!("{}", output);
     }
 }
