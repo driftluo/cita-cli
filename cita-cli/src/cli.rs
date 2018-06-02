@@ -80,7 +80,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("exit")
-                .alias("quit")
+                .visible_alias("quit")
                 .about("Exit the interactive interface"),
         )
         .subcommand(SubCommand::with_name("info").about("Display global variables"))
