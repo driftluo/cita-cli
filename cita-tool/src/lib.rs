@@ -21,12 +21,15 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+extern crate ethabi;
 extern crate sha3;
 #[cfg(feature = "blake2b_hash")]
 extern crate sodiumoxide;
 extern crate tokio_core;
 extern crate uuid;
 
+/// Ethabi
+mod abi;
 /// The Jsonrpc Client
 pub mod client;
 /// Encryption algorithm library
@@ -38,6 +41,7 @@ pub mod protos;
 /// Reqeust and Response type
 pub mod rpctypes;
 
+pub use abi::{encode_input, encode_params};
 pub use client::{remove_0x, Client, ClientExt};
 #[cfg(feature = "blake2b_hash")]
 pub use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature};

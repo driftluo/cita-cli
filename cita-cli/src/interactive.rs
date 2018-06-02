@@ -1,6 +1,7 @@
 use std::env;
 use std::io;
 use std::iter;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
@@ -10,8 +11,8 @@ use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
 use shell_words;
 
-use printer::{Printer, OutputFormat, ColorWhen};
 use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
+use printer::{ColorWhen, OutputFormat, Printer};
 
 const ASCII_WORD: &'static str = r#"
    ._____. ._____.  _. ._   ._____. ._____.   ._.   ._____. ._____.
@@ -26,11 +27,7 @@ const ASCII_WORD: &'static str = r#"
 pub fn start(url: &str) -> io::Result<()> {
     let interface = Arc::new(Interface::new("cita-cli")?);
     let mut url = url.to_string();
-    let mut color = true;
-    #[cfg(feature = "blake2b_hash")]
-    let mut blake2b = false;
-    #[cfg(not(feature = "blake2b_hash"))]
-    let blake2b = false;
+    let mut env_variable = GlobalConfig::new();
 
     let mut history_file = env::home_dir().unwrap();
     history_file.push(".cita-cli.history");
@@ -42,10 +39,12 @@ pub fn start(url: &str) -> io::Result<()> {
     let style = Red.bold();
     let text = "cita> ";
 
-    interface.set_prompt(&format!("\x01{prefix}\x02{text}\x01{suffix}\x02",
-                                  prefix=style.prefix(),
-                                  text=text,
-                                  suffix=style.suffix()));
+    interface.set_prompt(&format!(
+        "\x01{prefix}\x02{text}\x01{suffix}\x02",
+        prefix = style.prefix(),
+        text = text,
+        suffix = style.suffix()
+    ));
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -63,7 +62,7 @@ pub fn start(url: &str) -> io::Result<()> {
     printer.set_color(ColorWhen::default());
 
     println!("{}", Red.bold().paint(ASCII_WORD));
-    print_env_variables(&url, blake2b, color);
+    env_variable.print(&url);
     while let ReadResult::Input(line) = interface.read_line()? {
         let args = shell_words::split(line.as_str()).unwrap();
 
@@ -76,13 +75,17 @@ pub fn start(url: &str) -> io::Result<()> {
                             Some(())
                         });
                         if m.is_present("color") {
-                            color = !color;
+                            env_variable.switch_color();
+                        }
+
+                        if m.is_present("debug") {
+                            env_variable.switch_debug();
                         }
 
                         #[cfg(feature = "blake2b_hash")]
                         {
                             if m.is_present("algorithm") {
-                                blake2b = !blake2b;
+                                env_variable.switch_encryption();
                             }
                         }
                         #[cfg(not(feature = "blake2b_hash"))]
@@ -92,14 +95,16 @@ pub fn start(url: &str) -> io::Result<()> {
                                                     Open 'blak2b' feature and recompile cita-cli, please."));
                             }
                         }
-                        print_env_variables(&url, blake2b, color);
+                        env_variable.print(&url);
                         Ok(())
                     }
-                    ("rpc", Some(m)) => rpc_processor(m, &printer, Some(url.as_str()), blake2b, color),
+                    ("rpc", Some(m)) => {
+                        rpc_processor(m, &printer, Some(url.as_str()), &env_variable)
+                    }
                     ("abi", Some(m)) => abi_processor(m, &printer),
-                    ("key", Some(m)) => key_processor(m, &printer, blake2b),
+                    ("key", Some(m)) => key_processor(m, &printer, &env_variable),
                     ("info", _) => {
-                        print_env_variables(&url, blake2b, color);
+                        env_variable.print(&url);
                         Ok(())
                     }
                     ("exit", _) => break,
@@ -274,15 +279,60 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
     }
 }
 
-fn print_env_variables(url: &str, encryption: bool, color: bool) {
-    println!(
-        "[url: {}] [encryption: {}] [color: {}]",
-        Yellow.paint(url),
-        Yellow.paint(if encryption {
-            "blake2b_hash"
-        } else {
-            "sha3_hash"
-        }),
-        Yellow.paint(color.to_string())
-    );
+pub struct GlobalConfig {
+    blake2b: bool,
+    color: bool,
+    debug: bool,
+    path: PathBuf,
+}
+
+impl GlobalConfig {
+    pub fn new() -> Self {
+        GlobalConfig {
+            blake2b: false,
+            color: true,
+            debug: false,
+            path: env::current_dir().unwrap(),
+        }
+    }
+
+    #[cfg(feature = "blake2b_hash")]
+    fn switch_encryption(&mut self) {
+        self.blake2b = !self.blake2b;
+    }
+
+    fn switch_color(&mut self) {
+        self.color = !self.color;
+    }
+
+    fn switch_debug(&mut self) {
+        self.debug = !self.debug;
+    }
+
+    pub fn blake2b(&self) -> bool {
+        self.blake2b
+    }
+
+    pub fn color(&self) -> bool {
+        self.color
+    }
+
+    pub fn debug(&self) -> bool {
+        self.debug
+    }
+
+    fn print(&self, url: &str) {
+        println!(
+            "[path: {}]\n[url: {}]\n[encryption: {}]\n[color: {}]\n[debug: {}]",
+            Yellow.paint(self.path.display().to_string()),
+            Yellow.paint(url),
+            Yellow.paint(if self.blake2b {
+                "blake2b_hash"
+            } else {
+                "sha3_hash"
+            }),
+            Yellow.paint(self.color.to_string()),
+            Yellow.paint(self.debug.to_string())
+        );
+    }
 }

@@ -43,6 +43,18 @@ impl Default for JsonRpcParams {
     }
 }
 
+impl fmt::Debug for JsonRpcParams {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
+    }
+}
+
+impl fmt::Display for JsonRpcParams {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", json!(self))
+    }
+}
+
 /// The params value of jsonrpc params
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -63,13 +75,13 @@ pub enum ParamsValue {
 
 impl fmt::Debug for ParamsValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
 impl fmt::Display for ParamsValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
+        write!(f, "{}", json!(self))
     }
 }
 
@@ -91,7 +103,7 @@ impl fmt::Debug for ResponseValue {
 
 impl fmt::Display for ResponseValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
+        write!(f, "{}", json!(self))
     }
 }
 
@@ -131,7 +143,7 @@ impl fmt::Debug for JsonRpcResponse {
 
 impl fmt::Display for JsonRpcResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
+        write!(f, "{}", json!(self))
     }
 }
 
@@ -159,12 +171,12 @@ impl ErrorResponse {
 
 impl fmt::Debug for ErrorResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", json!(self))
+        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
     }
 }
 
 impl fmt::Display for ErrorResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string_pretty(self).unwrap())
+        write!(f, "{}", json!(self))
     }
 }

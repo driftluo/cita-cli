@@ -3,7 +3,7 @@ use std::fs::File;
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use ethabi::{encode, Contract, Function};
-use hex::ToHex;
+use hex::encode as hex_encode;
 
 fn load_function(path: &str, function: &str) -> Result<Function, String> {
     let file = File::open(path).map_err(|e| format!("{}", e))?;
@@ -26,6 +26,7 @@ fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token
         .map_err(|e| format!("{}", e))
 }
 
+/// According to the given abi file, encode the function and parameter values
 pub fn encode_input(
     path: &str,
     function: &str,
@@ -46,9 +47,10 @@ pub fn encode_input(
         .encode_input(&tokens)
         .map_err(|e| format!("{}", e))?;
 
-    Ok(result.to_hex())
+    Ok(hex_encode(result))
 }
 
+/// According to type, encode the value of the parameter
 pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<String, String> {
     assert_eq!(types.len(), values.len());
 
@@ -66,5 +68,5 @@ pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Resu
     let tokens = parse_tokens(&params, lenient).map_err(|e| format!("{}", e))?;
     let result = encode(&tokens);
 
-    Ok(result.to_hex())
+    Ok(hex_encode(result))
 }

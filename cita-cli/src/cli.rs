@@ -1,11 +1,12 @@
 use ansi_term::Colour::Yellow;
-use serde_json::Value;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use serde_json::Value;
 
-use cita_tool::{pubkey_to_address, remove_0x, Client, ClientExt, KeyPair, PrivateKey, PubKey};
+use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
+                KeyPair, PrivateKey, PubKey};
 
-use abi;
-use printer::{Printer};
+use interactive::GlobalConfig;
+use printer::Printer;
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
@@ -37,6 +38,12 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
                 .global(true)
                 .help("Do not highlight(color) output json"),
         )
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .global(true)
+                .help("Display request parameters"),
+        )
 }
 
 /// Interactive parser
@@ -64,6 +71,11 @@ pub fn build_interactive() -> App<'static, 'static> {
                     Arg::with_name("algorithm")
                         .long("algorithm")
                         .help("Switching encryption algorithm"),
+                )
+                .arg(
+                    Arg::with_name("debug")
+                        .long("debug")
+                        .help("Switching debug mode"),
                 ),
         )
         .subcommand(
@@ -131,7 +143,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     .unwrap()
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
-                let output = abi::encode_input(file, name, &values, lenient).unwrap();
+                let output = encode_input(file, name, &values, lenient).unwrap();
                 printer.println(&Value::String(output), false);
             }
             ("params", Some(m)) => {
@@ -143,7 +155,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     types.push(param_iter.next().unwrap().to_owned());
                     values.push(param_iter.next().unwrap().to_owned());
                 }
-                let output = abi::encode_params(&types, &values, lenient).unwrap();
+                let output = encode_params(&types, &values, lenient).unwrap();
                 printer.println(&Value::String(output), false);
             }
             _ => {
@@ -221,7 +233,6 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|value| parse_u64(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
                 ),
-
         )
         .subcommand(
             SubCommand::with_name("cita_getBlockByHash")
@@ -476,16 +487,16 @@ pub fn rpc_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
     url: Option<&str>,
-    _blake2b: bool,
-    color: bool,
+    env_variable: &GlobalConfig,
 ) -> Result<(), String> {
-    let mut client = Client::new().unwrap();
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let mut client = Client::new().unwrap().set_debug(debug);
     let resp = match sub_matches.subcommand() {
         ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
         ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
         ("cita_sendTransaction", Some(m)) => {
             #[cfg(feature = "blake2b_hash")]
-            let blake2b = m.is_present("blake2b") || _blake2b;
+            let blake2b = m.is_present("blake2b") || env_variable.blake2b();
 
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
                 client.set_chain_id(chain_id);
@@ -587,7 +598,7 @@ pub fn rpc_processor(
             return Err(sub_matches.usage().to_owned());
         }
     };
-    let is_color = !sub_matches.is_present("no-color") && color;
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     printer.println(&resp, is_color);
     Ok(())
 }
@@ -626,10 +637,14 @@ pub fn key_command() -> App<'static, 'static> {
 }
 
 /// Key processor
-pub fn key_processor(sub_matches: &ArgMatches, printer: &Printer, blake2b: bool) -> Result<(), String> {
+pub fn key_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
-            let blake2b = m.is_present("blake2b") || blake2b;
+            let blake2b = m.is_present("blake2b") || env_variable.blake2b();
             let key_pair = KeyPair::new(blake2b);
             let is_color = !sub_matches.is_present("no-color");
             printer.println(&key_pair, is_color);
@@ -644,7 +659,10 @@ pub fn key_processor(sub_matches: &ArgMatches, printer: &Printer, blake2b: bool)
             let pubkey = m.value_of("pubkey").unwrap();
             let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
             if printer.color() {
-                printer.println(&format!("{} 0x{:#x}", Yellow.paint("[address]:"), address), true);
+                printer.println(
+                    &format!("{} 0x{:#x}", Yellow.paint("[address]:"), address),
+                    true,
+                );
             } else {
                 printer.println(&format!("{} 0x{:#x}", "[address]:", address), false);
             }

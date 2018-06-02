@@ -46,6 +46,7 @@ pub struct Client {
     sha3_private_key: Option<Sha3PrivKey>,
     #[cfg(feature = "blake2b_hash")]
     blake2b_private_key: Option<Blake2bPrivKey>,
+    debug: bool,
 }
 
 impl Client {
@@ -59,6 +60,7 @@ impl Client {
             sha3_private_key: None,
             #[cfg(feature = "blake2b_hash")]
             blake2b_private_key: None,
+            debug: false,
         })
     }
 
@@ -94,12 +96,26 @@ impl Client {
         self.sha3_private_key.as_ref()
     }
 
+    /// Get debug
+    pub fn debug(&self) -> bool {
+        self.debug
+    }
+
+    /// Set debug mode
+    pub fn set_debug(mut self, mode: bool) -> Self {
+        self.debug = mode;
+        self
+    }
+
     /// Send requests
     pub fn send_request(
         &mut self,
         urls: Vec<&str>,
         params: JsonRpcParams,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
+        if self.debug {
+            Self::debug_request(&params)
+        }
         let reqs = self.make_requests_with_all_url(urls, params);
 
         self.run(reqs)
@@ -280,6 +296,10 @@ impl Client {
             })
             .collect::<Vec<JsonRpcResponse>>())
     }
+
+    fn debug_request(params: &JsonRpcParams) {
+        println!("<--{}", params);
+    }
 }
 
 /// High level jsonrpc call
@@ -432,8 +452,14 @@ impl ClientExt for Client {
             self.generate_transaction(url, code, address, current_height, quota, value)
         } else {
             #[cfg(feature = "blake2b_hash")]
-            let code =
-                self.generate_transaction_by_blake2b(url, code, address, current_height, quota, value);
+            let code = self.generate_transaction_by_blake2b(
+                url,
+                code,
+                address,
+                current_height,
+                quota,
+                value,
+            );
             #[cfg(not(feature = "blake2b_hash"))]
             let code = String::from("");
             code
