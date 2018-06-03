@@ -3,7 +3,7 @@ use std::env;
 use std::io;
 use std::rc::Rc;
 
-use ansi_term::Colour::Yellow;
+use ansi_term::Colour::{Yellow, Red};
 use atty;
 use serde_json;
 
@@ -106,6 +106,11 @@ impl Printer {
 
     pub fn eprintln<P: Printable>(&self, content: &P, color: bool) {
         let stderr = io::stderr();
+        if color {
+            let prefix = Rc::new(format!("{} ", Red.paint("error:")));
+            self.print(&mut stderr.lock(), &prefix, false, None, None)
+                .unwrap();
+        };
         let color = if color { None } else { Some(ColorWhen::Never) };
         self.print(&mut stderr.lock(), content, true, None, color)
             .unwrap();

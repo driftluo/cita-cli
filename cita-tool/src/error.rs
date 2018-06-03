@@ -13,4 +13,7 @@ pub enum ToolError {
     /// Hyper error
     #[fail(display = "Hyper error: {}", _0)]
     Hyper(hyper::Error),
+    /// ABI error
+    #[fail(display = "ABI error: {}", _0)]
+    Abi(String),
 }

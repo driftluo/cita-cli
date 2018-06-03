@@ -5,6 +5,8 @@ use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use ethabi::{encode, Contract, Function};
 use hex::encode as hex_encode;
 
+use error::ToolError;
+
 fn load_function(path: &str, function: &str) -> Result<Function, String> {
     let file = File::open(path).map_err(|e| format!("{}", e))?;
     let contract = Contract::load(file).map_err(|e| format!("{}", e))?;
@@ -32,8 +34,8 @@ pub fn encode_input(
     function: &str,
     values: &[String],
     lenient: bool,
-) -> Result<String, String> {
-    let function = load_function(path, function)?;
+) -> Result<String, ToolError> {
+    let function = load_function(path, function).map_err(ToolError::Abi)?;
 
     let params: Vec<_> = function
         .inputs
@@ -42,30 +44,30 @@ pub fn encode_input(
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| format!("{}", e))?;
+    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
     let result = function
         .encode_input(&tokens)
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
     Ok(hex_encode(result))
 }
 
 /// According to type, encode the value of the parameter
-pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<String, String> {
+pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<String, ToolError> {
     assert_eq!(types.len(), values.len());
 
     let types: Vec<ParamType> = types
         .iter()
         .map(|s| Reader::read(s))
         .collect::<Result<_, _>>()
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
     let params: Vec<_> = types
         .into_iter()
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| format!("{}", e))?;
+    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
     let result = encode(&tokens);
 
     Ok(hex_encode(result))

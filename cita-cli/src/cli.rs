@@ -143,7 +143,8 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     .ok_or_else(|| format!("Plaese give at least one parameter."))?
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
-                let output = encode_input(file, name, &values, lenient)?;
+                let output = encode_input(file, name, &values, lenient)
+                    .map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
             }
             ("params", Some(m)) => {
@@ -157,7 +158,8 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     types.push(param_iter.next().unwrap().to_owned());
                     values.push(param_iter.next().unwrap().to_owned());
                 }
-                let output = encode_params(&types, &values, lenient)?;
+                let output = encode_params(&types, &values, lenient)
+                    .map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
             }
             _ => {
@@ -493,7 +495,7 @@ pub fn rpc_processor(
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
-        .map_err(|err| format!("{:?}", err))?
+        .map_err(|err| format!("{}", err))?
         .set_debug(debug);
     let result = match sub_matches.subcommand() {
         ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
@@ -602,7 +604,7 @@ pub fn rpc_processor(
             return Err(sub_matches.usage().to_owned());
         }
     };
-    let resp = result.map_err(|err| format!("{:?}", err))?;
+    let resp = result.map_err(|err| format!("{}", err))?;
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     printer.println(&resp, is_color);
     Ok(())
