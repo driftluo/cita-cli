@@ -228,7 +228,7 @@ impl Client {
         value: Option<u64>,
     ) -> Result<String, ToolError> {
         let data = decode(code).unwrap();
-        let current_height = current_height.unwrap_or(self.get_current_height(url).unwrap());
+        let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -238,13 +238,13 @@ impl Client {
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
         tx.set_value(value.unwrap_or(0));
-        tx.set_chain_id(self.get_chain_id(url));
-        encode(
+        tx.set_chain_id(self.get_chain_id(url)?);
+        Ok(encode(
             tx.blake2b_sign(*self.blake2b_private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
-        )
+        ))
     }
 
     /// Get chain id
