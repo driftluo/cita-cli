@@ -141,7 +141,13 @@ impl Printable for JsonRpcResponse {
 }
 
 impl Printable for serde_json::Value {
-    fn rc_string(&self, _format: OutputFormat, color: bool) -> Rc<String> {
+    fn rc_string(&self, format: OutputFormat, color: bool) -> Rc<String> {
+        match (format, self) {
+            (OutputFormat::Raw, serde_json::Value::String(content)) => {
+                return Rc::new(content.clone());
+            }
+            _ => {}
+        }
         let content = serde_json::to_string_pretty(self).unwrap();
         let content = if color {
             highlight::highlight(content.as_str(), "json")
@@ -156,8 +162,8 @@ impl Printable for KeyPair {
     fn rc_string(&self, format: OutputFormat, color: bool) -> Rc<String> {
         match format {
             OutputFormat::Json => json!({
-                    "private-key": format!("0x{}", self.privkey()),
-                    "public-key": format!("0x{}", self.pubkey()),
+                    "private": format!("0x{}", self.privkey()),
+                    "public": format!("0x{}", self.pubkey()),
                     "address": format!("0x{:#x}", self.address())
                 }).rc_string(format, color),
             OutputFormat::Raw => {

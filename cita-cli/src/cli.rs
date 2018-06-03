@@ -140,22 +140,24 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 let name = m.value_of("name").unwrap();
                 let lenient = !m.is_present("no-lenient");
                 let values: Vec<String> = m.values_of("param")
-                    .unwrap()
+                    .ok_or_else(|| format!("Plaese give at least one parameter."))?
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
-                let output = encode_input(file, name, &values, lenient).unwrap();
+                let output = encode_input(file, name, &values, lenient)?;
                 printer.println(&Value::String(output), false);
             }
             ("params", Some(m)) => {
                 let lenient = !m.is_present("no-lenient");
                 let mut types: Vec<String> = Vec::new();
                 let mut values: Vec<String> = Vec::new();
-                let mut param_iter = m.values_of("param").unwrap().peekable();
+                let mut param_iter = m.values_of("param")
+                    .ok_or_else(|| format!("Plaese give at least one parameter."))?
+                    .peekable();
                 while param_iter.peek().is_some() {
                     types.push(param_iter.next().unwrap().to_owned());
                     values.push(param_iter.next().unwrap().to_owned());
                 }
-                let output = encode_params(&types, &values, lenient).unwrap();
+                let output = encode_params(&types, &values, lenient)?;
                 printer.println(&Value::String(output), false);
             }
             _ => {
@@ -490,8 +492,10 @@ pub fn rpc_processor(
     env_variable: &GlobalConfig,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
-    let mut client = Client::new().unwrap().set_debug(debug);
-    let resp = match sub_matches.subcommand() {
+    let mut client = Client::new()
+        .map_err(|err| format!("{:?}", err))?
+        .set_debug(debug);
+    let result = match sub_matches.subcommand() {
         ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
         ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
         ("cita_sendTransaction", Some(m)) => {
@@ -502,7 +506,7 @@ pub fn rpc_processor(
                 client.set_chain_id(chain_id);
             }
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key).unwrap());
+                client.set_private_key(parse_privkey(private_key)?);
             }
             let url = url.unwrap_or_else(|| get_url(m));
             let code = m.value_of("code").unwrap();
@@ -598,6 +602,7 @@ pub fn rpc_processor(
             return Err(sub_matches.usage().to_owned());
         }
     };
+    let resp = result.map_err(|err| format!("{:?}", err))?;
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     printer.println(&resp, is_color);
     Ok(())
@@ -614,10 +619,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .long("private-key")
                     .takes_value(true)
                     .required(true)
-                    .validator(|privkey| match parse_privkey(privkey.as_ref()) {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(err),
-                    })
+                    .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
                     .help("The private key of transaction"),
             ),
         )
@@ -627,10 +629,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .long("pubkey")
                     .takes_value(true)
                     .required(true)
-                    .validator(|pubkey| match PubKey::from_str(remove_0x(&pubkey)) {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(err),
-                    })
+                    .validator(|pubkey| PubKey::from_str(remove_0x(&pubkey)).map(|_| ()))
                     .help("Pubkey"),
             ),
         )
@@ -651,13 +650,13 @@ pub fn key_processor(
         }
         ("from-private-key", Some(m)) => {
             let private_key = m.value_of("private-key").unwrap();
-            let key_pair = KeyPair::from_str(remove_0x(private_key)).unwrap();
+            let key_pair = KeyPair::from_str(remove_0x(private_key))?;
             let is_color = !sub_matches.is_present("no-color");
             printer.println(&key_pair, is_color);
         }
         ("pub-to-address", Some(m)) => {
             let pubkey = m.value_of("pubkey").unwrap();
-            let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey)).unwrap());
+            let address = pubkey_to_address(&PubKey::from_str(remove_0x(pubkey))?);
             if printer.color() {
                 printer.println(
                     &format!("{} 0x{:#x}", Yellow.paint("[address]:"), address),

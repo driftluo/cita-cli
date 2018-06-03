@@ -114,12 +114,12 @@ pub fn start(url: &str) -> io::Result<()> {
             }
             Err(err) => Err(format!("{}", err)),
         } {
-            println!("{}", err);
+            printer.eprintln(&format!("{}", err), true);
         }
 
         interface.add_history_unique(line.clone());
         if let Err(err) = interface.save_history(history_file) {
-            println!("Save command history failed: {}", err);
+            eprintln!("Save command history failed: {}", err);
         };
     }
 
