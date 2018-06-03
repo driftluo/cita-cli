@@ -76,6 +76,11 @@ pub fn build_interactive() -> App<'static, 'static> {
                     Arg::with_name("debug")
                         .long("debug")
                         .help("Switching debug mode"),
+                )
+                .arg(
+                    Arg::with_name("json")
+                        .long("json")
+                        .help("Switching json format"),
                 ),
         )
         .subcommand(
@@ -143,8 +148,8 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     .ok_or_else(|| format!("Plaese give at least one parameter."))?
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
-                let output = encode_input(file, name, &values, lenient)
-                    .map_err(|err| format!("{}", err))?;
+                let output =
+                    encode_input(file, name, &values, lenient).map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
             }
             ("params", Some(m)) => {
@@ -158,8 +163,8 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     types.push(param_iter.next().unwrap().to_owned());
                     values.push(param_iter.next().unwrap().to_owned());
                 }
-                let output = encode_params(&types, &values, lenient)
-                    .map_err(|err| format!("{}", err))?;
+                let output =
+                    encode_params(&types, &values, lenient).map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
             }
             _ => {

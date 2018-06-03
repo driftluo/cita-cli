@@ -348,7 +348,12 @@ pub trait ClientExt {
         blake2b: bool,
     ) -> Self::RpcResult;
     /// cita_getBlockByHash: Get block by hash
-    fn get_block_by_hash(&mut self, url: &str, hash: &str, transaction_info: bool) -> Self::RpcResult;
+    fn get_block_by_hash(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> Self::RpcResult;
     /// cita_getBlockByNumber: Get block by number
     fn get_block_by_number(
         &mut self,
@@ -491,7 +496,12 @@ impl ClientExt for Client {
         // }
     }
 
-    fn get_block_by_hash(&mut self, url: &str, hash: &str, transaction_info: bool) -> Self::RpcResult {
+    fn get_block_by_hash(
+        &mut self,
+        url: &str,
+        hash: &str,
+        transaction_info: bool,
+    ) -> Self::RpcResult {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
