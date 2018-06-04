@@ -706,7 +706,7 @@ pub fn contract_processor(
         .set_debug(debug);
 
     match sub_matches.subcommand() {
-        ("nodeManager", Some(m)) => match m.subcommand() {
+        ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
                 let authorities = client
                     .get_authorities(url.unwrap_or_else(|| get_url(m)))
