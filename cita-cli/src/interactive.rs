@@ -222,7 +222,26 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
     ) -> Option<&'p clap::App<'a, 'b>> {
         if let Some(name) = prefix_names.next() {
             for inner_app in &(app.p.subcommands) {
-                if inner_app.p.meta.name == name {
+                if inner_app.p.meta.name == name
+                    || inner_app
+                        .p
+                        .meta
+                        .aliases
+                        .as_ref()
+                        .and_then(|aliases| {
+                            if aliases
+                                .iter()
+                                .filter(|&&(alias, _)| alias == name)
+                                .collect::<Vec<&(&str, bool)>>()
+                                .is_empty()
+                            {
+                                None
+                            } else {
+                                Some(())
+                            }
+                        })
+                        .is_some()
+                {
                     if prefix_names.peek().is_none() {
                         return Some(inner_app);
                     }
