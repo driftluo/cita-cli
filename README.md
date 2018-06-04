@@ -64,9 +64,11 @@ cita> rpc cita_blockNumber
   "id": 1
 }
 cita> key create 
-[private key]: 0xe392d8ca1aee361081affaa2da47505d2dde884572600c4ddb709c09c4d5aa78
-[public key ]: 0x0f5ee79c8d765b9788fbeb17bd48aae517a54af1f55ac2b14399a31490e8749dc02fee27728495f14e4888d34368ba4f1116d5c6c3e497bddbadf5ced4b233a7
-[  address  ]: 0x2a4b1cc7cc68332d045b2ac8da0e2c7761163926
+{
+  "address": "0x1cd05e93e7501c125f14a4859c854fa6d0e63ad6",
+  "private": "0xfed11b78f963f7cf3de6fc43087900b13e449055e8a9bae1e9dc369412cdddca",
+  "public": "0xc10a38330fe144062d4a67e2de6f7eed5acf30da9dfd0fb0ecb86d05643afcc4a1b3b34b07731da088c2f564807049ba6632cb94dbcae81d1984ba248d5e5d1e"
+}
 cita> info
 [url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
 cita> abi encode params -p uint256 16
@@ -163,23 +165,27 @@ $ ./target/debug/cita-cli rpc eth_call \
 - Create new key pair
 ```bash
 $ ./target/debug/cita-cli key create
-private key: 0x8ee6aa885d9598f9c4e010b659aeecfc3f113beb646166414756568ab656f0f9
-pubkey: 0xe407bef7ef0a0e21395c46cc2e1ed324119783d0f4f47b676d95b23991f9065db1aa7a9099e2193160243a02168feb70c62eb8442e45c4b3542a4b3c8c8ac5bd
-address: 0xeea5c3cbb32fec85bc9b9bffa65fc027e4b1c6d5
+{
+  "address": "0x53ca05180d61bdc1c57b9c819c7545a87b1f3a1d",
+  "private": "0x49b7b71ce0120d727db74dde8cf7bec89626b5ff2f5c7522f4b8d4ffc878f2b7",
+  "public": "0xab7d29be188005a54d479a9971fba9faa7f28d637c83166f95de52f7f664b88ac9a3e7b570b462ec66702aac381da84021a52883f18ab1944df08f58db677982"
+}
 ```
 
 - Generate public keys and addresses based on private keys
 ```bash
 $ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
-private key: 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
-pubkey: 0xa3cadf91b0ad021eb05eaa1fc2bb66109b3d004808c5cc2a1fb251a881aa12615394bde17dfaea4fb84372344d28a1bd2c4a9b4ab3f5d34ae524e2431ce494b6
-address: 0x9dcd6b234e2772c5451fd4ccf7582f4283140697
+{
+  "address": "0x9dcd6b234e2772c5451fd4ccf7582f4283140697",
+  "private": "0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9",
+  "public": "0xa3cadf91b0ad021eb05eaa1fc2bb66109b3d004808c5cc2a1fb251a881aa12615394bde17dfaea4fb84372344d28a1bd2c4a9b4ab3f5d34ae524e2431ce494b6"
+}
 ```
 
 - ABI generate
 ```bash
 $ ./target/debug/cita-cli abi encode params -p uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-$ ./target/debug/cita-cli abi encode function ../HelloWorld update -p 16
+$ ./target/debug/cita-cli abi encode function ../HelloWorld.abi update -p 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```

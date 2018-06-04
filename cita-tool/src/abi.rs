@@ -53,7 +53,11 @@ pub fn encode_input(
 }
 
 /// According to type, encode the value of the parameter
-pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<String, ToolError> {
+pub fn encode_params(
+    types: &[String],
+    values: &[String],
+    lenient: bool,
+) -> Result<String, ToolError> {
     assert_eq!(types.len(), values.len());
 
     let types: Vec<ParamType> = types

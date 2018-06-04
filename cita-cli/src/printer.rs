@@ -3,7 +3,7 @@ use std::env;
 use std::io;
 use std::rc::Rc;
 
-use ansi_term::Colour::{Yellow, Red};
+use ansi_term::Colour::{Red, Yellow};
 use atty;
 use serde_json;
 
@@ -25,6 +25,7 @@ pub fn is_term_dumb() -> bool {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OutputFormat {
+    #[allow(dead_code)]
     Raw,
     Json,
 }
@@ -67,11 +68,19 @@ impl Printer {
     pub fn color(&self) -> bool {
         self.color != ColorWhen::Never
     }
-    pub fn set_format(&mut self, format: OutputFormat) -> &mut Self {
-        self.format = format;
-        self
+
+    pub fn switch_format(&mut self) {
+        match self.format {
+            OutputFormat::Raw => {
+                self.format = OutputFormat::Json;
+            }
+            OutputFormat::Json => {
+                self.format = OutputFormat::Raw;
+            }
+        }
     }
 
+    #[allow(dead_code)]
     pub fn set_color(&mut self, color: ColorWhen) -> &mut Self {
         self.color = color;
         self
@@ -82,15 +91,13 @@ impl Printer {
         target: &mut W,
         content: &P,
         newline: bool,
-        format: Option<OutputFormat>,
         color: Option<ColorWhen>,
     ) -> io::Result<()> {
-        let format = format.unwrap_or(self.format);
         let color = match color.unwrap_or(self.color) {
             ColorWhen::Always | ColorWhen::Auto => true,
             ColorWhen::Never => false,
         };
-        target.write_all(content.rc_string(format, color).as_bytes())?;
+        target.write_all(content.rc_string(self.format, color).as_bytes())?;
         if newline {
             target.write_all(&[b'\n'])?;
         }
@@ -100,7 +107,7 @@ impl Printer {
     pub fn println<P: Printable>(&self, content: &P, color: bool) {
         let stdout = io::stdout();
         let color = if color { None } else { Some(ColorWhen::Never) };
-        self.print(&mut stdout.lock(), content, true, None, color)
+        self.print(&mut stdout.lock(), content, true, color)
             .unwrap();
     }
 
@@ -108,11 +115,11 @@ impl Printer {
         let stderr = io::stderr();
         if color {
             let prefix = Rc::new(format!("{} ", Red.paint(">>")));
-            self.print(&mut stderr.lock(), &prefix, false, None, None)
+            self.print(&mut stderr.lock(), &prefix, false, None)
                 .unwrap();
         };
         let color = if color { None } else { Some(ColorWhen::Never) };
-        self.print(&mut stderr.lock(), content, true, None, color)
+        self.print(&mut stderr.lock(), content, true, color)
             .unwrap();
     }
 }
@@ -175,21 +182,21 @@ impl Printable for KeyPair {
                 let content = if color {
                     format!(
                         concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
-                        Yellow.paint("[private key]:"),
+                        Yellow.paint("[ private ]:"),
                         self.privkey(),
-                        Yellow.paint("[public key ]:"),
+                        Yellow.paint("[ public  ]:"),
                         self.pubkey(),
-                        Yellow.paint("[  address  ]:"),
+                        Yellow.paint("[ address ]:"),
                         self.address()
                     )
                 } else {
                     format!(
                         concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
-                        "[private key]:",
+                        "[ private ]:",
                         self.privkey(),
-                        "[public key ]:",
+                        "[ public  ]:",
                         self.pubkey(),
-                        "[  address  ]:",
+                        "[ address ]:",
                         self.address()
                     )
                 };

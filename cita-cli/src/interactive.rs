@@ -1,8 +1,8 @@
 use std::env;
 use std::io;
 use std::iter;
-use std::path::PathBuf;
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
@@ -13,7 +13,7 @@ use linefeed::{Interface, Prompter, ReadResult};
 use shell_words;
 
 use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
-use printer::{ColorWhen, OutputFormat, Printer};
+use printer::Printer;
 
 const ASCII_WORD: &'static str = r#"
    ._____. ._____.  _. ._   ._____. ._____.   ._.   ._____. ._____.
@@ -59,8 +59,6 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut printer = Printer::default();
-    printer.set_format(OutputFormat::Raw);
-    printer.set_color(ColorWhen::default());
 
     println!("{}", Red.bold().paint(ASCII_WORD));
     env_variable.print(&url);
@@ -77,6 +75,11 @@ pub fn start(url: &str) -> io::Result<()> {
                         });
                         if m.is_present("color") {
                             env_variable.switch_color();
+                        }
+
+                        if m.is_present("json") {
+                            printer.switch_format();
+                            env_variable.switch_format();
                         }
 
                         if m.is_present("debug") {
@@ -284,6 +287,7 @@ pub struct GlobalConfig {
     blake2b: bool,
     color: bool,
     debug: bool,
+    json_format: bool,
     path: PathBuf,
 }
 
@@ -293,6 +297,7 @@ impl GlobalConfig {
             blake2b: false,
             color: true,
             debug: false,
+            json_format: true,
             path: env::current_dir().unwrap(),
         }
     }
@@ -308,6 +313,10 @@ impl GlobalConfig {
 
     fn switch_debug(&mut self) {
         self.debug = !self.debug;
+    }
+
+    fn switch_format(&mut self) {
+        self.json_format = !self.json_format;
     }
 
     pub fn blake2b(&self) -> bool {
@@ -331,11 +340,13 @@ impl GlobalConfig {
         };
         let color = self.color.to_string();
         let debug = self.debug.to_string();
+        let json = self.json_format.to_string();
         let values = [
             ("url", url),
             ("pwd", path.deref()),
             ("color", color.as_str()),
             ("debug", debug.as_str()),
+            ("json", json.as_str()),
             ("encryption", encryption),
         ];
 
@@ -349,7 +360,9 @@ impl GlobalConfig {
             .map(|(name, value)| {
                 format!(
                     "[{:^width$}]: {}",
-                    name, Yellow.paint(*value), width=max_width
+                    name,
+                    Yellow.paint(*value),
+                    width = max_width
                 )
             })
             .collect::<Vec<String>>()
