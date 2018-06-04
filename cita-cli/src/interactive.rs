@@ -141,48 +141,49 @@ fn get_complete_strings<'a, 'b, 'p>(
         app.p
             .subcommands()
             .map(|app| {
-                let mut strings = vec![];
-                strings.push(app.p.meta.name.clone());
-                app.p.meta.aliases.as_ref().and_then(|aliases| {
-                    aliases
-                        .iter()
-                        .for_each(|(alias, _)| strings.push(alias.to_string()));
-                    Some(())
-                });
-                strings
+                [
+                    vec![app.p.meta.name.clone()],
+                    app.p
+                        .meta
+                        .aliases
+                        .as_ref()
+                        .map(|aliases| {
+                            aliases
+                                .iter()
+                                .map(|(alias, _)| alias.to_string())
+                                .collect::<Vec<String>>()
+                        })
+                        .unwrap_or(vec![])
+                ].concat()
             })
-            .fold(vec![], |mut all, part| {
-                all.extend(part);
-                all
-            }),
+            .collect::<Vec<Vec<String>>>()
+            .concat()
     );
     strings.extend(
         app.p
             .flags()
             .map(|a| {
-                let mut strings = vec![];
-                a.s.short.map(|s| strings.push(format!("-{}", s)));
-                a.s.long.map(|s| strings.push(format!("--{}", s)));
-                strings
+                a.s.short
+                    .map(|s| format!("-{}", s))
+                    .into_iter()
+                    .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
+                    .collect::<Vec<String>>()
             })
-            .fold(vec![], |mut all, part| {
-                all.extend(part);
-                all
-            }),
+            .collect::<Vec<Vec<String>>>()
+            .concat()
     );
     strings.extend(
         app.p
             .opts()
             .map(|a| {
-                let mut strings = vec![];
-                a.s.short.map(|s| strings.push(format!("-{}", s)));
-                a.s.long.map(|s| strings.push(format!("--{}", s)));
-                strings
+                a.s.short
+                    .map(|s| format!("-{}", s))
+                    .into_iter()
+                    .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
+                    .collect::<Vec<String>>()
             })
-            .fold(vec![], |mut all, part| {
-                all.extend(part);
-                all
-            }),
+            .collect::<Vec<Vec<String>>>()
+            .concat()
     );
     strings
         .into_iter()
