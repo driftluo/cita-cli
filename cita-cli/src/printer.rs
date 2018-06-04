@@ -107,7 +107,7 @@ impl Printer {
     pub fn eprintln<P: Printable>(&self, content: &P, color: bool) {
         let stderr = io::stderr();
         if color {
-            let prefix = Rc::new(format!("{} ", Red.paint("error:")));
+            let prefix = Rc::new(format!("{} ", Red.paint(">>")));
             self.print(&mut stderr.lock(), &prefix, false, None, None)
                 .unwrap();
         };
