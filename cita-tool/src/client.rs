@@ -282,6 +282,33 @@ impl Client {
         }
     }
 
+    /// Get authorities
+    pub fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
+        if let ResponseValue::Singe(ParamsValue::String(authorities)) = self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a2",
+            Some("0x609df32f"),
+            "latest",
+        )?
+            .result()
+            .unwrap()
+        {
+            let raw_authorities = remove_0x(&authorities).as_bytes();
+            let mut authorities = Vec::new();
+            let mut i = 64 * 2;
+            while i < raw_authorities.len() {
+                authorities.push(
+                    "0x".to_string() + str::from_utf8(&raw_authorities[i..i + 64][24..]).unwrap(),
+                );
+                i += 64;
+            }
+            Ok(authorities)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
     /// Start run
     fn run(
         &mut self,

@@ -12,7 +12,7 @@ use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
 use shell_words;
 
-use cli::{abi_processor, build_interactive, key_processor, rpc_processor};
+use cli::{abi_processor, build_interactive, contract_processor, key_processor, rpc_processor};
 use printer::Printer;
 
 const ASCII_WORD: &'static str = r#"
@@ -107,6 +107,9 @@ pub fn start(url: &str) -> io::Result<()> {
                     }
                     ("abi", Some(m)) => abi_processor(m, &printer),
                     ("key", Some(m)) => key_processor(m, &printer, &env_variable),
+                    ("contract", Some(m)) => {
+                        contract_processor(m, &printer, Some(url.as_str()), &env_variable)
+                    }
                     ("info", _) => {
                         env_variable.print(&url);
                         Ok(())
@@ -137,8 +140,21 @@ fn get_complete_strings<'a, 'b, 'p>(
     strings.extend(
         app.p
             .subcommands()
-            .map(|app| app.p.meta.name.clone())
-            .collect::<Vec<String>>(),
+            .map(|app| {
+                let mut strings = vec![];
+                strings.push(app.p.meta.name.clone());
+                app.p.meta.aliases.as_ref().and_then(|aliases| {
+                    aliases
+                        .iter()
+                        .for_each(|(alias, _)| strings.push(alias.to_string()));
+                    Some(())
+                });
+                strings
+            })
+            .fold(vec![], |mut all, part| {
+                all.extend(part);
+                all
+            }),
     );
     strings.extend(
         app.p
@@ -237,7 +253,7 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
             .collect::<Vec<&String>>();
         if let Some(cmd) = root.first() {
             match cmd.as_str() {
-                "abi" => args.truncate(3),
+                "abi" | "contract" => args.truncate(3),
                 _ => args.truncate(2),
             }
         }

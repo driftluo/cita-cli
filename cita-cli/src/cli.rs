@@ -24,6 +24,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
                     .help("JSONRPC server URL (dotenv: JSONRPC_URL)"),
             ),
         )
+        .subcommand(contract_command())
         .subcommand(key_command())
         .subcommand(abi_command())
         .arg(
@@ -92,6 +93,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(rpc_command())
         .subcommand(key_command())
         .subcommand(abi_command())
+        .subcommand(contract_command())
 }
 
 /// Ethereum abi sub command
@@ -652,13 +654,13 @@ pub fn key_processor(
         ("create", Some(m)) => {
             let blake2b = m.is_present("blake2b") || env_variable.blake2b();
             let key_pair = KeyPair::new(blake2b);
-            let is_color = !sub_matches.is_present("no-color");
+            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
             printer.println(&key_pair, is_color);
         }
         ("from-private-key", Some(m)) => {
             let private_key = m.value_of("private-key").unwrap();
             let key_pair = KeyPair::from_str(remove_0x(private_key))?;
-            let is_color = !sub_matches.is_present("no-color");
+            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
             printer.println(&key_pair, is_color);
         }
         ("pub-to-address", Some(m)) => {
@@ -676,6 +678,45 @@ pub fn key_processor(
         _ => {
             return Err(sub_matches.usage().to_owned());
         }
+    }
+    Ok(())
+}
+
+/// System contract
+pub fn contract_command() -> App<'static, 'static> {
+    App::new("contract")
+        .about("System contract manager")
+        .subcommand(
+            SubCommand::with_name("NodeManager")
+                .visible_alias("node")
+                .subcommand(SubCommand::with_name("listNode")),
+        )
+}
+
+/// System contract processor
+pub fn contract_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    url: Option<&str>,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let mut client = Client::new()
+        .map_err(|err| format!("{}", err))?
+        .set_debug(debug);
+
+    match sub_matches.subcommand() {
+        ("nodeManager", Some(m)) => match m.subcommand() {
+            ("listNode", _) => {
+                let authorities = client
+                    .get_authorities(url.unwrap_or_else(|| get_url(m)))
+                    .map_err(|err| format!("{}", err))?;
+                let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+                printer.println(&json!(authorities), is_color);
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        _ => return Err(sub_matches.usage().to_owned()),
     }
     Ok(())
 }
