@@ -266,6 +266,13 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .required(true)
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
                         .takes_value(true)
                         .help("The number of the block"),
                 )
@@ -296,7 +303,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("height")
                         .long("height")
-                        .required(true)
+                        .default_value("latest")
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -313,7 +327,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("height")
                         .long("height")
-                        .required(true)
+                        .default_value("latest")
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -330,7 +351,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("height")
                         .long("height")
-                        .required(true)
+                        .default_value("latest")
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -369,7 +397,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
-                        .required(true)
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
+                        .default_value("latest")
                         .help("The block number"),
                 ),
         )
@@ -455,7 +490,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("height")
                         .long("height")
-                        .required(true)
+                        .default_value("latest")
+                        .validator(|s| match s.as_str() {
+                            "latest" | "earliest" => Ok(()),
+                            _ => match s.parse::<u64>() {
+                                Ok(_) => Ok(()),
+                                Err(e) => Err(format!("{:?}", e)),
+                            },
+                        })
                         .takes_value(true)
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
@@ -689,7 +731,28 @@ pub fn contract_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("NodeManager")
                 .visible_alias("node")
-                .subcommand(SubCommand::with_name("listNode")),
+                .subcommand(SubCommand::with_name("listNode"))
+                .subcommand(
+                    SubCommand::with_name("deleteNode")
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        )
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Degraded node address"),
+                        ),
+                ),
         )
 }
 
@@ -713,6 +776,23 @@ pub fn contract_processor(
                     .map_err(|err| format!("{}", err))?;
                 let is_color = !sub_matches.is_present("no-color") && env_variable.color();
                 printer.println(&json!(authorities), is_color);
+            }
+            ("deleteNode", Some(m)) => {
+                #[cfg(feature = "blake2b_hash")]
+                let blake2b = m.is_present("blake2b") || env_variable.blake2b();
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                #[cfg(not(feature = "blake2b_hash"))]
+                let response = client
+                    .downgrade_consensus_node(url, address, false)
+                    .map_err(|err| format!("{}", err))?;
+                #[cfg(feature = "blake2b_hash")]
+                let response = client
+                    .downgrade_consensus_node(url, address, blake2b)
+                    .map_err(|err| format!("{}", err))?;
+                let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+                printer.println(&response, is_color);
             }
             _ => return Err(m.usage().to_owned()),
         },

@@ -153,37 +153,39 @@ fn get_complete_strings<'a, 'b, 'p>(
                                 .map(|(alias, _)| alias.to_string())
                                 .collect::<Vec<String>>()
                         })
-                        .unwrap_or(vec![])
+                        .unwrap_or(vec![]),
                 ].concat()
             })
             .collect::<Vec<Vec<String>>>()
-            .concat()
+            .concat(),
     );
     strings.extend(
         app.p
             .flags()
             .map(|a| {
-                a.s.short
+                a.s
+                    .short
                     .map(|s| format!("-{}", s))
                     .into_iter()
                     .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
                     .collect::<Vec<String>>()
             })
             .collect::<Vec<Vec<String>>>()
-            .concat()
+            .concat(),
     );
     strings.extend(
         app.p
             .opts()
             .map(|a| {
-                a.s.short
+                a.s
+                    .short
                     .map(|s| format!("-{}", s))
                     .into_iter()
                     .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
                     .collect::<Vec<String>>()
             })
             .collect::<Vec<Vec<String>>>()
-            .concat()
+            .concat(),
     );
     strings
         .into_iter()

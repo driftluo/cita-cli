@@ -275,7 +275,7 @@ impl Client {
         );
         let response = self.send_request(vec![url], params)?.pop().unwrap();
 
-        if let ResponseValue::Singe(ParamsValue::String(height)) = response.result().unwrap() {
+        if let Some(ResponseValue::Singe(ParamsValue::String(height))) = response.result() {
             Ok(Some(u64::from_str_radix(remove_0x(&height), 16).unwrap()))
         } else {
             Ok(None)
@@ -284,7 +284,7 @@ impl Client {
 
     /// Get authorities
     pub fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
-        if let ResponseValue::Singe(ParamsValue::String(authorities)) = self.call(
+        if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) = self.call(
             url,
             None,
             "0x00000000000000000000000000000000013241a2",
@@ -292,21 +292,40 @@ impl Client {
             "latest",
         )?
             .result()
-            .unwrap()
         {
-            let raw_authorities = remove_0x(&authorities).as_bytes();
-            let mut authorities = Vec::new();
-            let mut i = 64 * 2;
-            while i < raw_authorities.len() {
-                authorities.push(
-                    "0x".to_string() + str::from_utf8(&raw_authorities[i..i + 64][24..]).unwrap(),
-                );
-                i += 64;
-            }
-            Ok(authorities)
+            Ok(remove_0x(&authorities)
+                .as_bytes()
+                .chunks(64)
+                .skip(2)
+                .map(|data| format!("0x{}", str::from_utf8(&data[24..]).unwrap()))
+                .collect::<Vec<String>>())
         } else {
             Ok(Vec::new())
         }
+    }
+
+    /// Downgrade consensus node to ordinary node
+    pub fn downgrade_consensus_node(
+        &mut self,
+        url: &str,
+        address: &str,
+        blake2b: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "2d4ede93",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a2",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
     }
 
     /// Start run
