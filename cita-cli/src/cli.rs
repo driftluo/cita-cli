@@ -266,13 +266,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .required(true)
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
                 )
@@ -304,13 +298,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -328,13 +316,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -352,13 +334,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
@@ -397,13 +373,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .default_value("latest")
                         .help("The block number"),
                 ),
@@ -458,13 +428,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 Arg::with_name("height")
                     .long("height")
                     .default_value("latest")
-                    .validator(|s| match s.as_str() {
-                        "latest" | "earliest" => Ok(()),
-                        _ => match s.parse::<u64>() {
-                            Ok(_) => Ok(()),
-                            Err(e) => Err(format!("{:?}", e)),
-                        },
-                    })
+                    .validator(|s| parse_height(s.as_str()))
                     .takes_value(true)
                     .help("The height or tag"),
             ),
@@ -491,13 +455,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
-                        .validator(|s| match s.as_str() {
-                            "latest" | "earliest" => Ok(()),
-                            _ => match s.parse::<u64>() {
-                                Ok(_) => Ok(()),
-                                Err(e) => Err(format!("{:?}", e)),
-                            },
-                        })
+                        .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
@@ -562,7 +520,7 @@ pub fn rpc_processor(
             let url = url.unwrap_or_else(|| get_url(m));
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
-            let current_height = m.value_of("height").map(|s| s.parse::<u64>().unwrap());
+            let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value").map(|s| s.parse::<u64>().unwrap());
             #[cfg(not(feature = "blake2b_hash"))]
@@ -806,8 +764,15 @@ pub fn get_url<'a>(m: &'a ArgMatches) -> &'a str {
     m.value_of("url").unwrap()
 }
 
+/// The hexadecimal or numeric type string resolves to u64
 fn parse_u64(height: &str) -> Result<u64, String> {
-    Ok(u64::from_str_radix(remove_0x(height), 16).map_err(|err| format!("{}", err))?)
+    match is_hex(height) {
+        Ok(()) => Ok(u64::from_str_radix(remove_0x(height), 16).map_err(|err| format!("{}", err))?),
+        _ => match height.parse::<u64>() {
+            Ok(number) => Ok(number),
+            Err(e) => Err(format!("{:?}", e)),
+        },
+    }
 }
 
 /// Attempt to resolve the private key
@@ -817,9 +782,21 @@ pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
 
 fn is_hex(hex: &str) -> Result<(), String> {
     let tmp = hex.as_bytes();
-    if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
+    if tmp.len() < 2 {
+        Err("Must not be a hexadecimal string".to_string())
+    } else if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
         Ok(())
     } else {
         Err("Must hex string".to_string())
+    }
+}
+
+fn parse_height(height: &str) -> Result<(), String> {
+    match height {
+        "latest" | "earliest" => Ok(()),
+        _ => match height.parse::<u64>() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("{:?}", e)),
+        },
     }
 }
