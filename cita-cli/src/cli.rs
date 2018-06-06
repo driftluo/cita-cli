@@ -100,7 +100,6 @@ pub fn build_interactive() -> App<'static, 'static> {
 pub fn abi_command() -> App<'static, 'static> {
     let param_arg = Arg::with_name("param")
         .long("param")
-        .short("p")
         .takes_value(true)
         .multiple(true)
         .number_of_values(2)
@@ -127,12 +126,12 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .index(2)
                                 .help("function name"),
                         )
-                        .arg(param_arg.clone().number_of_values(1))
+                        .arg(param_arg.clone().number_of_values(1).value_name("value"))
                         .arg(no_lenient_flag.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("params")
-                        .arg(param_arg)
+                        .arg(param_arg.value_names(&["type", "value"]))
                         .arg(no_lenient_flag),
                 ),
         )
