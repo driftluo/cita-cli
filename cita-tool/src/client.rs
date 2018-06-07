@@ -282,6 +282,18 @@ impl Client {
         }
     }
 
+    /// Account transfer, only applies to charge mode
+    pub fn transfer(
+        &mut self,
+        url: &str,
+        value: u64,
+        address: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        self.send_transaction(url, "", address, None, quota, Some(value), blake2b)
+    }
+
     /// Get authorities
     pub fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
         if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) = self.call(

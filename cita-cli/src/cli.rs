@@ -27,6 +27,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .subcommand(contract_command())
         .subcommand(key_command())
         .subcommand(abi_command())
+        .subcommand(transfer_command())
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -94,6 +95,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(key_command())
         .subcommand(abi_command())
         .subcommand(contract_command())
+        .subcommand(transfer_command())
 }
 
 /// Ethereum abi sub command
@@ -507,8 +509,7 @@ pub fn rpc_processor(
         ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
         ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
         ("cita_sendTransaction", Some(m)) => {
-            #[cfg(feature = "blake2b_hash")]
-            let blake2b = m.is_present("blake2b") || env_variable.blake2b();
+            let blake2b = blake2b(m, env_variable);
 
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
                 client.set_chain_id(chain_id);
@@ -522,13 +523,7 @@ pub fn rpc_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value").map(|s| s.parse::<u64>().unwrap());
-            #[cfg(not(feature = "blake2b_hash"))]
-            let response =
-                client.send_transaction(url, code, address, current_height, quota, value, false);
-            #[cfg(feature = "blake2b_hash")]
-            let response =
-                client.send_transaction(url, code, address, current_height, quota, value, blake2b);
-            response
+            client.send_transaction(url, code, address, current_height, quota, value, blake2b)
         }
         ("cita_getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
@@ -681,6 +676,73 @@ pub fn key_processor(
     Ok(())
 }
 
+/// Account transfer command, only applies to charge mode
+pub fn transfer_command() -> App<'static, 'static> {
+    App::new("transfer")
+        .about("Account transfer command")
+        .arg(
+            Arg::with_name("address")
+                .long("address")
+                .takes_value(true)
+                .required(true)
+                .help("Transfer to address"),
+        )
+        .arg(
+            Arg::with_name("private-key")
+                .long("private-key")
+                .validator(|private| parse_privkey(private.as_str()).map(|_| ()))
+                .takes_value(true)
+                .required(true)
+                .help("Transfer Account Private Key"),
+        )
+        .arg(
+            Arg::with_name("value")
+                .long("value")
+                .validator(|value| parse_u64(value.as_str()).map(|_| ()))
+                .takes_value(true)
+                .required(true)
+                .help("Transfer amount"),
+        )
+        .arg(
+            Arg::with_name("quota")
+                .long("quota")
+                .default_value("1000")
+                .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
+                .takes_value(true)
+                .help("Transaction quota costs, default 1000"),
+        )
+}
+
+/// Account transfer processor
+pub fn transfer_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    url: Option<&str>,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let mut client = Client::new()
+        .map_err(|err| format!("{}", err))?
+        .set_debug(debug);
+    match sub_matches.subcommand() {
+        ("transfer", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+            let url = url.unwrap_or_else(|| get_url(m));
+            let address = m.value_of("address").unwrap();
+            let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+            let value = parse_u64(m.value_of("value").unwrap()).unwrap();
+            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+            let response = client
+                .transfer(url, value, address, quota, blake2b)
+                .map_err(|err| format!("{}", err))?;
+            printer.println(&response, is_color);
+            Ok(())
+        }
+        _ => return Err(sub_matches.usage().to_owned()),
+    }
+}
+
 /// System contract
 pub fn contract_command() -> App<'static, 'static> {
     App::new("contract")
@@ -725,7 +787,7 @@ pub fn contract_processor(
         .map_err(|err| format!("{}", err))?
         .set_debug(debug);
 
-    match sub_matches.subcommand() {
+    let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
                 let authorities = client
@@ -733,28 +795,22 @@ pub fn contract_processor(
                     .map_err(|err| format!("{}", err))?;
                 let is_color = !sub_matches.is_present("no-color") && env_variable.color();
                 printer.println(&json!(authorities), is_color);
+                return Ok(());
             }
             ("deleteNode", Some(m)) => {
-                #[cfg(feature = "blake2b_hash")]
-                let blake2b = m.is_present("blake2b") || env_variable.blake2b();
+                let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                #[cfg(not(feature = "blake2b_hash"))]
-                let response = client
-                    .downgrade_consensus_node(url, address, false)
-                    .map_err(|err| format!("{}", err))?;
-                #[cfg(feature = "blake2b_hash")]
-                let response = client
-                    .downgrade_consensus_node(url, address, blake2b)
-                    .map_err(|err| format!("{}", err))?;
-                let is_color = !sub_matches.is_present("no-color") && env_variable.color();
-                printer.println(&response, is_color);
+                client.downgrade_consensus_node(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         _ => return Err(sub_matches.usage().to_owned()),
-    }
+    };
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let response = result.map_err(|err| format!("{}", err))?;
+    printer.println(&response, is_color);
     Ok(())
 }
 
@@ -798,4 +854,12 @@ fn parse_height(height: &str) -> Result<(), String> {
             Err(e) => Err(format!("{:?}", e)),
         },
     }
+}
+
+fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {
+    #[cfg(feature = "blake2b_hash")]
+    let blake2b = _m.is_present("blake2b") || _env_variable.blake2b();
+    #[cfg(not(feature = "blake2b_hash"))]
+    let black2b = false;
+    black2b
 }

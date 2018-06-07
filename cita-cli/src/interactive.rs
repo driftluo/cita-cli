@@ -12,7 +12,8 @@ use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
 use shell_words;
 
-use cli::{abi_processor, build_interactive, contract_processor, key_processor, rpc_processor};
+use cli::{abi_processor, build_interactive, contract_processor, key_processor, rpc_processor,
+          transfer_processor};
 use printer::Printer;
 
 const ASCII_WORD: &'static str = r#"
@@ -109,6 +110,9 @@ pub fn start(url: &str) -> io::Result<()> {
                     ("key", Some(m)) => key_processor(m, &printer, &env_variable),
                     ("contract", Some(m)) => {
                         contract_processor(m, &printer, Some(url.as_str()), &env_variable)
+                    }
+                    ("transfer", Some(m)) => {
+                        transfer_processor(m, &printer, Some(url.as_str()), &env_variable)
                     }
                     ("info", _) => {
                         env_variable.print(&url);
