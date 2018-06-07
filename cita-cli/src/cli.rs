@@ -6,7 +6,7 @@ use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
-                JsonRpcResponse, ToolError,
+                JsonRpcResponse, ResponseValue, ParamsValue, UnverifiedTransaction, ToolError,
                 KeyPair, PrivateKey, PubKey};
 
 use interactive::GlobalConfig;
@@ -638,6 +638,7 @@ pub fn rpc_processor(
     env_variable: &GlobalConfig,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug);
@@ -718,7 +719,22 @@ pub fn rpc_processor(
         ),
         ("cita_getTransaction", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
-            client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash)
+            let result = client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash);
+            if debug {
+                if let Ok(ref resp) = result {
+                    if let Some(ResponseValue::Map(map)) = resp.result() {
+                        if let Some(ParamsValue::String(content)) = map.get("content") {
+                            let tx = UnverifiedTransaction::from_str(content)
+                                .unwrap()
+                                .to_json();
+                            printer.println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
+                            printer.println(&tx, is_color);
+                            printer.println(&"---- [UnverifiedTransaction] ----\n".to_owned(), is_color);
+                        }
+                    }
+                }
+            }
+            result
         }
         ("cita_getTransactionCount", Some(m)) => {
             let address = m.value_of("address").unwrap();
@@ -742,7 +758,6 @@ pub fn rpc_processor(
         }
     };
     let resp = result.map_err(|err| format!("{}", err))?;
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     printer.println(&resp, is_color);
     Ok(())
 }

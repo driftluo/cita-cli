@@ -1,5 +1,6 @@
 use hyper;
 use serde_json;
+use protobuf::error::ProtobufError;
 
 /// Error summary information
 #[derive(Debug, Fail)]
@@ -16,4 +17,7 @@ pub enum ToolError {
     /// ABI error
     #[fail(display = "ABI error: {}", _0)]
     Abi(String),
+    /// Protobuf error
+    #[fail(display = "Protobuf error: {}", _0)]
+    Proto(ProtobufError)
 }
