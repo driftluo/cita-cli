@@ -1,33 +1,40 @@
+use std::fs;
+use std::io::Read;
+
 use ansi_term::Colour::Yellow;
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
+                JsonRpcResponse, ToolError,
                 KeyPair, PrivateKey, PubKey};
 
 use interactive::GlobalConfig;
 use printer::Printer;
 
+const STORE_ADDRESS: &str = "ffffffffffffffffffffffffffffffffffffffff";
+const ABI_ADDRESS: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+// const GO_CONTRACT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+// const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
+
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
+    let arg_url = Arg::with_name("url")
+        .long("url")
+        .default_value(default_url)
+        .takes_value(true)
+        .multiple(true)
+        .global(true)
+        .help("JSONRPC server URL (dotenv: JSONRPC_URL)");
     App::new("cita-cli")
         .global_setting(AppSettings::ColoredHelp)
         .global_setting(AppSettings::DeriveDisplayOrder)
-        .subcommand(
-            rpc_command().arg(
-                Arg::with_name("url")
-                    .long("url")
-                    .default_value(default_url)
-                    .takes_value(true)
-                    .multiple(true)
-                    .global(true)
-                    .help("JSONRPC server URL (dotenv: JSONRPC_URL)"),
-            ),
-        )
-        .subcommand(contract_command())
+        .subcommand(rpc_command().arg(arg_url.clone()))
+        .subcommand(contract_command().arg(arg_url.clone()))
         .subcommand(key_command())
         .subcommand(abi_command())
-        .subcommand(transfer_command())
+        .subcommand(transfer_command().arg(arg_url.clone()))
+        .subcommand(store_command().arg(arg_url.clone()))
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -96,6 +103,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(abi_command())
         .subcommand(contract_command())
         .subcommand(transfer_command())
+        .subcommand(store_command())
 }
 
 /// Ethereum abi sub command
@@ -178,6 +186,134 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
             return Err(sub_matches.usage().to_owned());
         }
     }
+    Ok(())
+}
+
+/// Store data, store contract ABI subcommand
+pub fn store_command() -> App<'static, 'static> {
+    let common_args = [
+        Arg::with_name("chain-id")
+            .long("chain-id")
+            .takes_value(true)
+            .validator(|chain_id| match chain_id.parse::<u32>() {
+                Ok(_) => Ok(()),
+                Err(err) => Err(format!("{:?}", err)),
+            })
+            .help("The chain_id of transaction"),
+        Arg::with_name("private-key")
+            .long("private-key")
+            .takes_value(true)
+            .required(true)
+            .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
+            .help("The private key of transaction"),
+        Arg::with_name("quota")
+            .long("quota")
+            .takes_value(true)
+            .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
+            .help("Transaction quota costs, default is 1_000_000"),
+    ];
+
+    App::new("store")
+        .about("Store data, store contract ABI.")
+        .help(concat!(
+            "Store data, store contract ABI.\n",
+            " [data address]: 0xffffffffffffffffffffffffffffffffffffffff\n",
+            " [ ABI address]: 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ))
+        .subcommand(
+            SubCommand::with_name("data")
+                .arg(
+                    Arg::with_name("content")
+                        .long("content")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The content of data to store")
+                )
+                .args(&common_args)
+        )
+        .subcommand(
+            SubCommand::with_name("abi")
+                .arg(
+                    Arg::with_name("content")
+                        .long("content")
+                        .takes_value(true)
+                        .help("The content of ABI data to store")
+                )
+                .arg(
+                    Arg::with_name("path")
+                        .long("path")
+                        .takes_value(true)
+                        .help("The path of ABI json file to store")
+                )
+                .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
+                .args(&common_args)
+        )
+}
+
+
+/// Store data, store contract ABI processor
+pub fn store_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    url: Option<&str>,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let mut client = Client::new()
+        .map_err(|err| format!("{}", err))?
+        .set_debug(debug);
+
+    fn send_tx(
+        m: &ArgMatches,
+        client: &mut Client,
+        address: &str,
+        content: &str,
+        url: Option<&str>,
+        blake2b: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let current_height = None;
+        let url = url.unwrap_or_else(|| get_url(m));
+        let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+        let value = None;
+        client.send_transaction(url, content, address, current_height, quota, value, blake2b)
+    }
+
+    let result = match sub_matches.subcommand() {
+        ("data", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            let content = m.value_of("content").unwrap();
+            // TODO: this really should be fixed, private key must required
+            if let Some(private_key) = m.value_of("private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            send_tx(m, &mut client, STORE_ADDRESS, content, url, blake2b)
+        }
+        ("abi", Some(m)) => {
+            // TODO: the content should be encoded ???
+            let blake2b = blake2b(m, env_variable);
+            let mut abi_content = String::new();
+            let content = match m.value_of("content") {
+                Some(content) => content,
+                None => {
+                    let path = m.value_of("path").unwrap();
+                    let mut file = fs::File::open(path).map_err(|err| format!("{}", err))?;
+                    file.read_to_string(&mut abi_content).map_err(|err| format!("{}", err))?;
+                    abi_content.as_str()
+                }
+            };
+            // TODO: this really should be fixed, private key must required
+            if let Some(private_key) = m.value_of("private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            send_tx(m, &mut client, ABI_ADDRESS, content, url, blake2b)
+        }
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    };
+    let resp = result.map_err(|err| format!("{}", err))?;
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    printer.println(&resp, is_color);
     Ok(())
 }
 
@@ -860,6 +996,6 @@ fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {
     #[cfg(feature = "blake2b_hash")]
     let blake2b = _m.is_present("blake2b") || _env_variable.blake2b();
     #[cfg(not(feature = "blake2b_hash"))]
-    let black2b = false;
-    black2b
+    let blake2b = false;
+    blake2b
 }
