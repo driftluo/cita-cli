@@ -1,12 +1,15 @@
 use std::env;
 use std::io;
+use std::io::{Read, Write};
 use std::iter;
+use std::fs;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
 use clap::{self, ArgMatches};
+use serde_json;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
@@ -31,9 +34,29 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut url = url.to_string();
     let mut env_variable = GlobalConfig::new();
 
-    let mut history_file = env::home_dir().unwrap();
-    history_file.push(".cita-cli.history");
+    let mut cita_cli_dir = env::home_dir().unwrap();
+    cita_cli_dir.push(".cita-cli");
+    if !cita_cli_dir.as_path().exists() {
+        fs::create_dir(&cita_cli_dir)?;
+    }
+    let mut history_file = cita_cli_dir.clone();
+    history_file.push("history");
     let history_file = history_file.to_str().unwrap();
+    let mut config_file = cita_cli_dir.clone();
+    config_file.push("config");
+    if config_file.as_path().exists() {
+        let mut file = fs::File::open(&config_file)?;
+        let mut content = String::new();
+        file.read_to_string(&mut content)?;
+        let configs: serde_json::Value = serde_json::from_str(content.as_str()).unwrap();
+        if let Some(value) = configs["url"].as_str() {
+            url = value.to_string();
+        }
+        env_variable.set_debug(configs["debug"].as_bool().unwrap_or(false));
+        env_variable.set_color(configs["color"].as_bool().unwrap_or(true));
+        env_variable.set_blake2b(configs["blake2b"].as_bool().unwrap_or(false));
+        env_variable.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
+    }
 
     let mut parser = build_interactive();
 
@@ -60,6 +83,9 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut printer = Printer::default();
+    if !env_variable.json_format() {
+        printer.switch_format();
+    }
 
     println!("{}", Red.bold().paint(ASCII_WORD));
     env_variable.print(&url);
@@ -101,6 +127,15 @@ pub fn start(url: &str) -> io::Result<()> {
                             }
                         }
                         env_variable.print(&url);
+                        let mut file = fs::File::create(config_file.as_path())?;
+                        let content = serde_json::to_string_pretty(&json!({
+                            "url": url,
+                            "blake2b": env_variable.blake2b(),
+                            "color": env_variable.color(),
+                            "debug": env_variable.debug(),
+                            "json_format": env_variable.json_format(),
+                        })).unwrap();
+                        file.write_all(content.as_bytes())?;
                         Ok(())
                     }
                     ("rpc", Some(m)) => {
@@ -364,6 +399,22 @@ impl GlobalConfig {
         self.json_format = !self.json_format;
     }
 
+    pub fn set_blake2b(&mut self, value: bool) {
+        self.blake2b = value;
+    }
+
+    pub fn set_color(&mut self, value: bool) {
+        self.color = value;
+    }
+
+    pub fn set_debug(&mut self, value: bool) {
+        self.debug = value;
+    }
+
+    fn set_json_format(&mut self, value: bool) {
+        self.json_format = value;
+    }
+
     pub fn blake2b(&self) -> bool {
         self.blake2b
     }
@@ -374,6 +425,10 @@ impl GlobalConfig {
 
     pub fn debug(&self) -> bool {
         self.debug
+    }
+
+    fn json_format(&self) -> bool {
+        self.json_format
     }
 
     fn print(&self, url: &str) {
