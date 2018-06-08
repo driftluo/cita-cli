@@ -1,3 +1,5 @@
+use failure::Fail;
+use serde;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::{str, u64};
@@ -294,52 +296,6 @@ impl Client {
         self.send_transaction(url, "", address, None, quota, Some(value), blake2b)
     }
 
-    /// Get authorities
-    pub fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
-        if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) = self.call(
-            url,
-            None,
-            "0x00000000000000000000000000000000013241a2",
-            Some("0x609df32f"),
-            "latest",
-        )?
-            .result()
-        {
-            Ok(remove_0x(&authorities)
-                .as_bytes()
-                .chunks(64)
-                .skip(2)
-                .map(|data| format!("0x{}", str::from_utf8(&data[24..]).unwrap()))
-                .collect::<Vec<String>>())
-        } else {
-            Ok(Vec::new())
-        }
-    }
-
-    /// Downgrade consensus node to ordinary node
-    pub fn downgrade_consensus_node(
-        &mut self,
-        url: &str,
-        address: &str,
-        blake2b: bool,
-    ) -> Result<JsonRpcResponse, ToolError> {
-        let code = format!(
-            "{function}{complete}{param}",
-            function = "2d4ede93",
-            complete = "0".repeat(24),
-            param = remove_0x(address)
-        );
-        self.send_transaction(
-            url,
-            &code,
-            "00000000000000000000000000000000013241a2",
-            None,
-            Some(1000),
-            None,
-            blake2b,
-        )
-    }
-
     /// Start run
     fn run(
         &mut self,
@@ -386,7 +342,11 @@ impl Client {
 ///   * eth_getFilterLogs
 ///   * cita_getTransactionProof
 ///   * cita_getMetaData
-pub trait ClientExt {
+pub trait ClientExt<T, E>
+where
+    T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
+{
     /// Rpc response
     type RpcResult;
 
@@ -472,7 +432,7 @@ pub trait ClientExt {
     fn get_metadata(&mut self, url: &str, height: &str) -> Self::RpcResult;
 }
 
-impl ClientExt for Client {
+impl ClientExt<JsonRpcResponse, ToolError> for Client {
     type RpcResult = Result<JsonRpcResponse, ToolError>;
 
     fn get_net_peer_count(&mut self, url: &str) -> Self::RpcResult {
@@ -906,6 +866,113 @@ impl ClientExt for Client {
                 ParamsValue::String(String::from(CITA_GET_META_DATA)),
             );
         Ok(self.send_request(vec![url], params)?.pop().unwrap())
+    }
+}
+
+/// High degree of encapsulation of system contract operation
+pub trait Contract: ClientExt<JsonRpcResponse, ToolError> {
+    /// Downgrade consensus node to ordinary node
+    fn downgrade_consensus_node(
+        &mut self,
+        url: &str,
+        address: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Get node status
+    fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult;
+
+    /// Get authorities
+    fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError>;
+
+    /// Applying to promote nodes as consensus nodes
+    fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
+
+    /// Approve node upgrades to consensus nodes
+    fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
+}
+
+impl Contract for Client {
+    fn downgrade_consensus_node(
+        &mut self,
+        url: &str,
+        address: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "2d4ede93",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a2",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
+    }
+
+    fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "0x645b8b1b",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+        self.call(
+            url,
+            None,
+            "00000000000000000000000000000000013241a2",
+            Some(&code),
+            "latest",
+        )
+    }
+
+    fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
+        if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) = self.call(
+            url,
+            None,
+            "00000000000000000000000000000000013241a2",
+            Some("0x609df32f"),
+            "latest",
+        )?
+            .result()
+        {
+            Ok(remove_0x(&authorities)
+                .as_bytes()
+                .chunks(64)
+                .skip(2)
+                .map(|data| format!("0x{}", str::from_utf8(&data[24..]).unwrap()))
+                .collect::<Vec<String>>())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "ddad2ffe",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+
+        self.send_transaction(url, &code, address, None, Some(3000), None, blake2b)
+    }
+
+    fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "dd4c97a0",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+
+        self.send_transaction(url, &code, address, None, Some(3000), None, blake2b)
     }
 }
 

@@ -6,8 +6,8 @@ use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
-                JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
-                ToolError, UnverifiedTransaction};
+                Contract, JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey,
+                ResponseValue, ToolError, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -906,6 +906,16 @@ pub fn contract_command() -> App<'static, 'static> {
                 .visible_alias("node")
                 .subcommand(SubCommand::with_name("listNode"))
                 .subcommand(
+                    SubCommand::with_name("getStatus").arg(
+                        Arg::with_name("address")
+                            .long("address")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|address| is_hex(address.as_ref()))
+                            .help("Node address"),
+                    ),
+                )
+                .subcommand(
                     SubCommand::with_name("deleteNode")
                         .arg(
                             Arg::with_name("admin-private")
@@ -924,6 +934,48 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Degraded node address"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("newNode")
+                        .arg(
+                            Arg::with_name("private")
+                                .long("private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key"),
+                        )
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("node address"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("approveNode")
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        )
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Approve node address"),
                         ),
                 ),
         )
@@ -951,12 +1003,31 @@ pub fn contract_processor(
                 printer.println(&json!(authorities), is_color);
                 return Ok(());
             }
+            ("getStatus", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                client.node_status(url, address)
+            }
             ("deleteNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 client.downgrade_consensus_node(url, address, blake2b)
+            }
+            ("newNode", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                client.new_consensus_node(url, address, blake2b)
+            }
+            ("approveNode", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                client.approve_node(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
