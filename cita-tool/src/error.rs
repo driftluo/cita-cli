@@ -1,6 +1,7 @@
+use hex::FromHexError;
 use hyper;
-use serde_json;
 use protobuf::error::ProtobufError;
+use serde_json;
 
 /// Error summary information
 #[derive(Debug, Fail)]
@@ -19,5 +20,8 @@ pub enum ToolError {
     Abi(String),
     /// Protobuf error
     #[fail(display = "Protobuf error: {}", _0)]
-    Proto(ProtobufError)
+    Proto(ProtobufError),
+    /// Hex decode error
+    #[fail(display = "hex decode error: {}", _0)]
+    Decode(FromHexError),
 }

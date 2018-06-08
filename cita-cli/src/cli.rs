@@ -6,8 +6,8 @@ use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
-                JsonRpcResponse, ResponseValue, ParamsValue, UnverifiedTransaction, ToolError,
-                KeyPair, PrivateKey, PubKey};
+                JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
+                ToolError, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -226,10 +226,11 @@ pub fn store_command() -> App<'static, 'static> {
                     Arg::with_name("content")
                         .long("content")
                         .required(true)
+                        .validator(|content| is_hex(content.as_str()))
                         .takes_value(true)
-                        .help("The content of data to store")
+                        .help("The content of data to store"),
                 )
-                .args(&common_args)
+                .args(&common_args),
         )
         .subcommand(
             SubCommand::with_name("abi")
@@ -237,19 +238,18 @@ pub fn store_command() -> App<'static, 'static> {
                     Arg::with_name("content")
                         .long("content")
                         .takes_value(true)
-                        .help("The content of ABI data to store")
+                        .help("The content of ABI data to store"),
                 )
                 .arg(
                     Arg::with_name("path")
                         .long("path")
                         .takes_value(true)
-                        .help("The path of ABI json file to store")
+                        .help("The path of ABI json file to store"),
                 )
                 .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
-                .args(&common_args)
+                .args(&common_args),
         )
 }
-
 
 /// Store data, store contract ABI processor
 pub fn store_processor(
@@ -281,7 +281,7 @@ pub fn store_processor(
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
-            let content = m.value_of("content").unwrap();
+            let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
@@ -297,7 +297,8 @@ pub fn store_processor(
                 None => {
                     let path = m.value_of("path").unwrap();
                     let mut file = fs::File::open(path).map_err(|err| format!("{}", err))?;
-                    file.read_to_string(&mut abi_content).map_err(|err| format!("{}", err))?;
+                    file.read_to_string(&mut abi_content)
+                        .map_err(|err| format!("{}", err))?;
                     abi_content.as_str()
                 }
             };
@@ -724,12 +725,14 @@ pub fn rpc_processor(
                 if let Ok(ref resp) = result {
                     if let Some(ResponseValue::Map(map)) = resp.result() {
                         if let Some(ParamsValue::String(content)) = map.get("content") {
-                            let tx = UnverifiedTransaction::from_str(content)
-                                .unwrap()
-                                .to_json();
-                            printer.println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
+                            let tx = UnverifiedTransaction::from_str(content).unwrap().to_json();
+                            printer
+                                .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
                             printer.println(&tx, is_color);
-                            printer.println(&"---- [UnverifiedTransaction] ----\n".to_owned(), is_color);
+                            printer.println(
+                                &"---- [UnverifiedTransaction] ----\n".to_owned(),
+                                is_color,
+                            );
                         }
                     }
                 }

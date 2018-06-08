@@ -5,17 +5,17 @@ use super::remove_0x;
 #[cfg(feature = "blake2b_hash")]
 use super::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
 use super::{sha3_sign, CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey};
-use protobuf::Message as MessageTrait;
-use protobuf::{ProtobufEnum, parse_from_bytes};
-use serde_json::Value;
 use hex;
+use protobuf::Message as MessageTrait;
+use protobuf::{parse_from_bytes, ProtobufEnum};
+use serde_json::Value;
 
 use error::ToolError;
 
 impl UnverifiedTransaction {
     /// Parse UnverifiedTransaction from hex string
-    pub fn from_str(content: &str) -> Result<Self, ToolError>{
-        let bytes = hex::decode(remove_0x(content)).unwrap();
+    pub fn from_str(content: &str) -> Result<Self, ToolError> {
+        let bytes = hex::decode(remove_0x(content)).map_err(ToolError::Decode)?;
         parse_from_bytes(&bytes).map_err(ToolError::Proto)
     }
 

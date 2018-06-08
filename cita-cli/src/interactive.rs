@@ -1,22 +1,22 @@
 use std::env;
+use std::fs;
 use std::io;
 use std::io::{Read, Write};
 use std::iter;
-use std::fs;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
 use clap::{self, ArgMatches};
-use serde_json;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
+use serde_json;
 use shell_words;
 
 use cli::{abi_processor, build_interactive, contract_processor, key_processor, rpc_processor,
-          transfer_processor, store_processor};
+          store_processor, transfer_processor};
 use printer::Printer;
 
 const ASCII_WORD: &'static str = r#"

@@ -195,7 +195,7 @@ impl Client {
         quota: Option<u64>,
         value: Option<u64>,
     ) -> Result<String, ToolError> {
-        let data = decode(code).unwrap();
+        let data = decode(code).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
         let mut tx = Transaction::new();
@@ -227,7 +227,7 @@ impl Client {
         quota: Option<u64>,
         value: Option<u64>,
     ) -> Result<String, ToolError> {
-        let data = decode(code).unwrap();
+        let data = decode(code).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
         let mut tx = Transaction::new();
