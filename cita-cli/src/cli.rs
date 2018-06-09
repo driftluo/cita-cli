@@ -235,16 +235,23 @@ pub fn store_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("abi")
                 .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The contract address of the ABI"),
+                )
+                .arg(
                     Arg::with_name("content")
                         .long("content")
                         .takes_value(true)
-                        .help("The content of ABI data to store"),
+                        .help("The content of ABI data to store (json)"),
                 )
                 .arg(
                     Arg::with_name("path")
                         .long("path")
                         .takes_value(true)
-                        .help("The path of ABI json file to store"),
+                        .help("The path of ABI json file to store (.json)"),
                 )
                 .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
                 .args(&common_args),
@@ -289,24 +296,27 @@ pub fn store_processor(
             send_tx(m, &mut client, STORE_ADDRESS, content, url, blake2b)
         }
         ("abi", Some(m)) => {
-            // TODO: the content should be encoded ???
             let blake2b = blake2b(m, env_variable);
-            let mut abi_content = String::new();
             let content = match m.value_of("content") {
-                Some(content) => content,
+                Some(content) => content.to_owned(),
                 None => {
+                    let mut abi_content = String::new();
                     let path = m.value_of("path").unwrap();
                     let mut file = fs::File::open(path).map_err(|err| format!("{}", err))?;
                     file.read_to_string(&mut abi_content)
                         .map_err(|err| format!("{}", err))?;
-                    abi_content.as_str()
+                    abi_content
                 }
             };
+            let address = remove_0x(m.value_of("address").unwrap());
+            let content_abi = encode_params(&["string".to_owned()], &[content], false)
+                .map_err(|err| {format!("{}", err)})?;
+            let code = format!("{}{}", address, content_abi);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            send_tx(m, &mut client, ABI_ADDRESS, content, url, blake2b)
+            send_tx(m, &mut client, ABI_ADDRESS, code.as_str(), url, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
