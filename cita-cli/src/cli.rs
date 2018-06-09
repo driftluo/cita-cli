@@ -310,7 +310,7 @@ pub fn store_processor(
             };
             let address = remove_0x(m.value_of("address").unwrap());
             let content_abi = encode_params(&["string".to_owned()], &[content], false)
-                .map_err(|err| {format!("{}", err)})?;
+                .map_err(|err| format!("{}", err))?;
             let code = format!("{}{}", address, content_abi);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {

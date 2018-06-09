@@ -23,7 +23,7 @@ Just like the relationship between redis_cli and redis.
 
 ### Screencast
 
-![A gif of cita-cli](https://storage.wodetu.cn/2018/05/31/95189cde6e96cc0393e9f7acb7fa4c29.gif)
+![A asciicast of cita-cli](./asciicast.svg)
 
 ### clone and build
 
