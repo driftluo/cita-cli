@@ -15,7 +15,14 @@ use printer::Printer;
 const STORE_ADDRESS: &str = "ffffffffffffffffffffffffffffffffffffffff";
 const ABI_ADDRESS: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 // const GO_CONTRACT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-// const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
+const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
+
+///amend the abi data
+const AMEND_ABI: u32 = 1;
+///amend the account code
+const AMEND_CODE: u32 = 2;
+///amend the kv of db
+const AMEND_KV_H256: u32 = 3;
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
@@ -35,6 +42,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .subcommand(abi_command())
         .subcommand(transfer_command().arg(arg_url.clone()))
         .subcommand(store_command().arg(arg_url.clone()))
+        .subcommand(amend_command().arg(arg_url.clone()))
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -104,6 +112,7 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(contract_command())
         .subcommand(transfer_command())
         .subcommand(store_command())
+        .subcommand(amend_command())
 }
 
 /// Ethereum abi sub command
@@ -189,6 +198,216 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
     Ok(())
 }
 
+/// Amend(Update) ABI/contract code/H256KV
+pub fn amend_command() -> App<'static, 'static> {
+    fn h256_validator(s: String) -> Result<(), String> {
+        let s = remove_0x(s.as_str());
+        if s.len() != 32 {
+            Err(format!("Invalid H256 length={}", s.len()))
+        } else {
+            Ok(())
+        }
+    }
+
+    let common_args = [
+        Arg::with_name("chain-id")
+            .long("chain-id")
+            .takes_value(true)
+            .validator(|chain_id| match chain_id.parse::<u32>() {
+                Ok(_) => Ok(()),
+                Err(err) => Err(format!("{:?}", err)),
+            })
+            .help("The chain_id of transaction"),
+        Arg::with_name("admin-private-key")
+            .long("admin-private-key")
+            .takes_value(true)
+            .required(true)
+            .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
+            .help("The private key of super admin"),
+        Arg::with_name("quota")
+            .long("quota")
+            .takes_value(true)
+            .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
+            .help("Transaction quota costs, default is 1_000_000"),
+    ];
+    App::new("amend")
+        .about("Amend(update) ABI/contract code/H256KV")
+        .subcommand(
+            SubCommand::with_name("code")
+                .about("Amend contract code")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The contract address of the code"),
+                )
+                .arg(
+                    Arg::with_name("content")
+                        .long("content")
+                        .takes_value(true)
+                        .help("The contract code to amend"),
+                )
+                .args(&common_args),
+        )
+        .subcommand(
+            SubCommand::with_name("abi")
+                .about("Amend contract ABI data")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The contract address of the ABI"),
+                )
+                .arg(
+                    Arg::with_name("content")
+                        .long("content")
+                        .takes_value(true)
+                        .help("The content of ABI data to amend (json)"),
+                )
+                .arg(
+                    Arg::with_name("path")
+                        .long("path")
+                        .takes_value(true)
+                        .help("The path of ABI json file to amend (.json)"),
+                )
+                .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
+                .args(&common_args),
+        )
+        .subcommand(
+            SubCommand::with_name("kv-h256")
+                .about("Amend H256 Key,Value pair")
+                .visible_alias("h256-kv")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The account address"),
+                )
+                .arg(
+                    Arg::with_name("key")
+                        .long("key")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(h256_validator)
+                        .help("The key of pair"),
+                )
+                .arg(
+                    Arg::with_name("value")
+                        .long("value")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(h256_validator)
+                        .help("The value of pair"),
+                )
+                .args(&common_args),
+        )
+}
+
+/// Store data, store contract ABI processor
+pub fn amend_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    url: Option<&str>,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let mut client = Client::new()
+        .map_err(|err| format!("{}", err))?
+        .set_debug(debug);
+
+    let result = match sub_matches.subcommand() {
+        ("code", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            // TODO: this really should be fixed, private key must required
+            if let Some(private_key) = m.value_of("admin-private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            let address = remove_0x(m.value_of("address").unwrap());
+            let content = remove_0x(m.value_of("content").unwrap());
+            let data = format!("{}{}", address, content);
+            let url = url.unwrap_or_else(|| get_url(m));
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let value = Some(AMEND_CODE as u64);
+            client.send_transaction(
+                url,
+                data.as_str(),
+                AMEND_ADDRESS,
+                None,
+                quota,
+                value,
+                blake2b,
+            )
+        }
+        ("abi", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            // TODO: this really should be fixed, private key must required
+            if let Some(private_key) = m.value_of("admin-private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            let content = match m.value_of("content") {
+                Some(content) => content.to_owned(),
+                None => {
+                    let mut abi_content = String::new();
+                    let path = m.value_of("path").unwrap();
+                    let mut file = fs::File::open(path).map_err(|err| format!("{}", err))?;
+                    file.read_to_string(&mut abi_content)
+                        .map_err(|err| format!("{}", err))?;
+                    abi_content
+                }
+            };
+            let address = remove_0x(m.value_of("address").unwrap());
+            let content_abi = encode_params(&["string".to_owned()], &[content], false)
+                .map_err(|err| format!("{}", err))?;
+            let data = format!("{}{}", address, content_abi);
+            let url = url.unwrap_or_else(|| get_url(m));
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let value = Some(AMEND_ABI as u64);
+            client.send_transaction(
+                url,
+                data.as_str(),
+                AMEND_ADDRESS,
+                None,
+                quota,
+                value,
+                blake2b,
+            )
+        }
+        ("kv-h256", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            // TODO: this really should be fixed, private key must required
+            if let Some(private_key) = m.value_of("admin-private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            let url = url.unwrap_or_else(|| get_url(m));
+            let address = remove_0x(m.value_of("address").unwrap());
+            let h256_key = remove_0x(m.value_of("key").unwrap());
+            let h256_value = remove_0x(m.value_of("value").unwrap());
+            let data = format!("{}{}{}", address, h256_key, h256_value);
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let value = Some(AMEND_KV_H256 as u64);
+            client.send_transaction(
+                url,
+                data.as_str(),
+                AMEND_ADDRESS,
+                None,
+                quota,
+                value,
+                blake2b,
+            )
+        }
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    };
+    let resp = result.map_err(|err| format!("{}", err))?;
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    printer.println(&resp, is_color);
+    Ok(())
+}
+
 /// Store data, store contract ABI subcommand
 pub fn store_command() -> App<'static, 'static> {
     let common_args = [
@@ -215,13 +434,9 @@ pub fn store_command() -> App<'static, 'static> {
 
     App::new("store")
         .about("Store data, store contract ABI.")
-        .help(concat!(
-            "Store data, store contract ABI.\n",
-            " [data address]: 0xffffffffffffffffffffffffffffffffffffffff\n",
-            " [ ABI address]: 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        ))
         .subcommand(
             SubCommand::with_name("data")
+                .about("Store data to: 0xffffffffffffffffffffffffffffffffffffffff")
                 .arg(
                     Arg::with_name("content")
                         .long("content")
@@ -234,6 +449,7 @@ pub fn store_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("abi")
+                .about("Store ABI to: 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -311,12 +527,12 @@ pub fn store_processor(
             let address = remove_0x(m.value_of("address").unwrap());
             let content_abi = encode_params(&["string".to_owned()], &[content], false)
                 .map_err(|err| format!("{}", err))?;
-            let code = format!("{}{}", address, content_abi);
+            let data = format!("{}{}", address, content_abi);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            send_tx(m, &mut client, ABI_ADDRESS, code.as_str(), url, blake2b)
+            send_tx(m, &mut client, ABI_ADDRESS, data.as_str(), url, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

@@ -24,8 +24,8 @@ use std::rc::Rc;
 
 use dotenv::dotenv;
 
-use cli::{abi_processor, build_cli, contract_processor, key_processor, rpc_processor,
-          store_processor, transfer_processor};
+use cli::{abi_processor, amend_processor, build_cli, contract_processor, key_processor,
+          rpc_processor, store_processor, transfer_processor};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -51,6 +51,7 @@ fn main() {
         ("contract", Some(m)) => contract_processor(m, &printer, None, &env_variable),
         ("transfer", Some(m)) => transfer_processor(m, &printer, None, &env_variable),
         ("store", Some(m)) => store_processor(m, &printer, None, &env_variable),
+        ("amend", Some(m)) => amend_processor(m, &printer, None, &env_variable),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())

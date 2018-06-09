@@ -15,8 +15,8 @@ use linefeed::{Interface, Prompter, ReadResult};
 use serde_json;
 use shell_words;
 
-use cli::{abi_processor, build_interactive, contract_processor, key_processor, rpc_processor,
-          store_processor, transfer_processor};
+use cli::{abi_processor, amend_processor, build_interactive, contract_processor, key_processor,
+          rpc_processor, store_processor, transfer_processor};
 use printer::Printer;
 
 const ASCII_WORD: &'static str = r#"
@@ -151,6 +151,9 @@ pub fn start(url: &str) -> io::Result<()> {
                     }
                     ("store", Some(m)) => {
                         store_processor(m, &printer, Some(url.as_str()), &env_variable)
+                    }
+                    ("amend", Some(m)) => {
+                        amend_processor(m, &printer, Some(url.as_str()), &env_variable)
                     }
                     ("info", _) => {
                         env_variable.print(&url);
