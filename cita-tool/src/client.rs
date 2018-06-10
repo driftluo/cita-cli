@@ -870,7 +870,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 }
 
 /// High degree of encapsulation of system contract operation
-pub trait Contract: ClientExt<JsonRpcResponse, ToolError> {
+pub trait ContractExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Downgrade consensus node to ordinary node
     fn downgrade_consensus_node(
         &mut self,
@@ -892,7 +892,7 @@ pub trait Contract: ClientExt<JsonRpcResponse, ToolError> {
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
 }
 
-impl Contract for Client {
+impl ContractExt for Client {
     fn downgrade_consensus_node(
         &mut self,
         url: &str,

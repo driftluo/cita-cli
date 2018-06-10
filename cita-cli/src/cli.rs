@@ -6,7 +6,7 @@ use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
-                Contract, JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey,
+                ContractExt, JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey,
                 ResponseValue, ToolError, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
