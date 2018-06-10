@@ -261,7 +261,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                 }
             }
         }
-        if app.p.subcommands.is_empty() {
+        if prefix_names.peek().is_none() || app.p.subcommands.is_empty() {
             Some(app)
         } else {
             None
@@ -282,40 +282,14 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
     ) -> Option<Vec<Completion>> {
         let line = prompter.buffer();
         let args = shell_words::split(&line[..start]).unwrap();
-        Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).and_then(
+        Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).map(
             |current_app| {
-                let strings = get_complete_strings(current_app);
-                let word_lowercase = word.to_lowercase();
-                let mut target: Option<String> = None;
-                if strings
-                    .iter()
-                    .filter(|s| {
-                        let matched = s.to_lowercase().contains(word_lowercase.as_str());
-                        if matched {
-                            target = Some(s.to_string());
-                        }
-                        matched
-                    })
-                    .count() == 1
-                {
-                    Some(vec![Completion::simple(target.unwrap())])
-                } else if !strings.is_empty() {
-                    Some(
-                        strings
-                            .into_iter()
-                            .filter(|s| {
-                                if word.is_empty() {
-                                    true
-                                } else {
-                                    s.starts_with(&word)
-                                }
-                            })
-                            .map(|s| Completion::simple(s))
-                            .collect::<Vec<Completion>>(),
-                    )
-                } else {
-                    None
-                }
+                let word_lower = word.to_lowercase();
+                get_complete_strings(current_app)
+                    .into_iter()
+                    .filter(|s| word.is_empty() || s.to_lowercase().contains(word_lower.as_str()))
+                    .map(|s| Completion::simple(s))
+                    .collect::<Vec<_>>()
             },
         )
     }
