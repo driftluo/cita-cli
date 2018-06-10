@@ -5,24 +5,12 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
-use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, Client, ClientExt,
-                ContractExt, JsonRpcResponse, KeyPair, ParamsValue, PrivateKey, PubKey,
-                ResponseValue, ToolError, UnverifiedTransaction};
+use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
+                ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
+                StoreExt, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
-
-const STORE_ADDRESS: &str = "ffffffffffffffffffffffffffffffffffffffff";
-const ABI_ADDRESS: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-// const GO_CONTRACT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
-
-///amend the abi data
-const AMEND_ABI: u32 = 1;
-///amend the account code
-const AMEND_CODE: u32 = 2;
-///amend the kv of db
-const AMEND_KV_H256: u32 = 3;
 
 /// Generate cli
 pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
@@ -306,7 +294,7 @@ pub fn amend_command() -> App<'static, 'static> {
         )
 }
 
-/// Store data, store contract ABI processor
+/// Amend processor
 pub fn amend_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
@@ -325,21 +313,11 @@ pub fn amend_processor(
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            let address = remove_0x(m.value_of("address").unwrap());
-            let content = remove_0x(m.value_of("content").unwrap());
-            let data = format!("{}{}", address, content);
+            let address = m.value_of("address").unwrap();
+            let content = m.value_of("content").unwrap();
             let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = Some(AMEND_CODE as u64);
-            client.send_transaction(
-                url,
-                data.as_str(),
-                AMEND_ADDRESS,
-                None,
-                quota,
-                value,
-                blake2b,
-            )
+            client.amend_code(url, address, content, quota, blake2b)
         }
         ("abi", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
@@ -358,22 +336,10 @@ pub fn amend_processor(
                     abi_content
                 }
             };
-            let address = remove_0x(m.value_of("address").unwrap());
-            let content_abi = encode_params(&["string".to_owned()], &[content], false)
-                .map_err(|err| format!("{}", err))?;
-            let data = format!("{}{}", address, content_abi);
+            let address = m.value_of("address").unwrap();
             let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = Some(AMEND_ABI as u64);
-            client.send_transaction(
-                url,
-                data.as_str(),
-                AMEND_ADDRESS,
-                None,
-                quota,
-                value,
-                blake2b,
-            )
+            client.amend_abi(url, address, content, quota, blake2b)
         }
         ("kv-h256", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
@@ -382,21 +348,11 @@ pub fn amend_processor(
                 client.set_private_key(parse_privkey(private_key)?);
             }
             let url = url.unwrap_or_else(|| get_url(m));
-            let address = remove_0x(m.value_of("address").unwrap());
-            let h256_key = remove_0x(m.value_of("key").unwrap());
-            let h256_value = remove_0x(m.value_of("value").unwrap());
-            let data = format!("{}{}{}", address, h256_key, h256_value);
+            let address = m.value_of("address").unwrap();
+            let h256_key = m.value_of("key").unwrap();
+            let h256_value = m.value_of("value").unwrap();
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = Some(AMEND_KV_H256 as u64);
-            client.send_transaction(
-                url,
-                data.as_str(),
-                AMEND_ADDRESS,
-                None,
-                quota,
-                value,
-                blake2b,
-            )
+            client.amend_h256kv(url, address, h256_key, h256_value, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -486,33 +442,22 @@ pub fn store_processor(
         .map_err(|err| format!("{}", err))?
         .set_debug(debug);
 
-    fn send_tx(
-        m: &ArgMatches,
-        client: &mut Client,
-        address: &str,
-        content: &str,
-        url: Option<&str>,
-        blake2b: bool,
-    ) -> Result<JsonRpcResponse, ToolError> {
-        let current_height = None;
-        let url = url.unwrap_or_else(|| get_url(m));
-        let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-        let value = None;
-        client.send_transaction(url, content, address, current_height, quota, value, blake2b)
-    }
-
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
+            let url = url.unwrap_or_else(|| get_url(m));
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            send_tx(m, &mut client, STORE_ADDRESS, content, url, blake2b)
+            client.store_data(url, content, quota, blake2b)
         }
         ("abi", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
+            let url = url.unwrap_or_else(|| get_url(m));
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
                 None => {
@@ -524,15 +469,12 @@ pub fn store_processor(
                     abi_content
                 }
             };
-            let address = remove_0x(m.value_of("address").unwrap());
-            let content_abi = encode_params(&["string".to_owned()], &[content], false)
-                .map_err(|err| format!("{}", err))?;
-            let data = format!("{}{}", address, content_abi);
+            let address = m.value_of("address").unwrap();
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            send_tx(m, &mut client, ABI_ADDRESS, data.as_str(), url, blake2b)
+            client.store_abi(url, address, content, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

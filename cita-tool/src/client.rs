@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::{str, u64};
 
+use super::encode_params;
 #[cfg(feature = "blake2b_hash")]
 use super::Blake2bPrivKey;
 use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
@@ -38,6 +39,20 @@ const ETH_NEW_BLOCK_FILTER: &str = "eth_newBlockFilter";
 const ETH_UNINSTALL_FILTER: &str = "eth_uninstallFilter";
 const ETH_GET_FILTER_CHANGES: &str = "eth_getFilterChanges";
 const ETH_GET_FILTER_LOGS: &str = "eth_getFilterLogs";
+
+/// Store action target address
+pub const STORE_ADDRESS: &str = "ffffffffffffffffffffffffffffffffffffffff";
+/// StoreAbi action target address
+pub const ABI_ADDRESS: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+/// Amend action target address
+pub const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
+
+///amend the abi data
+pub const AMEND_ABI: u32 = 1;
+///amend the account code
+pub const AMEND_CODE: u32 = 2;
+///amend the kv of db
+pub const AMEND_KV_H256: u32 = 3;
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -973,6 +988,162 @@ impl ContractExt for Client {
         );
 
         self.send_transaction(url, &code, address, None, Some(3000), None, blake2b)
+    }
+}
+
+/// Store data or contract ABI to chain
+pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
+    /// Store data to chain, data can be get back by `cita_getTransaction` rpc call
+    fn store_data(
+        &mut self,
+        url: &str,
+        content: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Store contract ABI to chain, ABI can be get back by `eth_getAbi` rpc call
+    fn store_abi(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+}
+
+impl StoreExt for Client {
+    fn store_data(
+        &mut self,
+        url: &str,
+        content: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let content = remove_0x(content);
+        self.send_transaction(url, content, STORE_ADDRESS, None, quota, None, blake2b)
+    }
+
+    fn store_abi(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
+        let data = format!("{}{}", address, content_abi);
+        self.send_transaction(url, data.as_str(), ABI_ADDRESS, None, quota, None, blake2b)
+    }
+}
+
+/// Amend(Update) ABI/contract code/H256KV
+pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
+    /// Amend contract code
+    fn amend_code(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Amend contract ABI
+    fn amend_abi(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Amend H256KV
+    fn amend_h256kv(
+        &mut self,
+        url: &str,
+        address: &str,
+        h256_key: &str,
+        h256_value: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+}
+
+impl AmendExt for Client {
+    fn amend_code(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let content = remove_0x(content);
+        let data = format!("{}{}", address, content);
+        let value = Some(AMEND_CODE as u64);
+        self.send_transaction(
+            url,
+            data.as_str(),
+            AMEND_ADDRESS,
+            None,
+            quota,
+            value,
+            blake2b,
+        )
+    }
+
+    fn amend_abi(
+        &mut self,
+        url: &str,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
+        let data = format!("{}{}", address, content_abi);
+        let value = Some(AMEND_ABI as u64);
+        self.send_transaction(
+            url,
+            data.as_str(),
+            AMEND_ADDRESS,
+            None,
+            quota,
+            value,
+            blake2b,
+        )
+    }
+
+    fn amend_h256kv(
+        &mut self,
+        url: &str,
+        address: &str,
+        h256_key: &str,
+        h256_value: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let h256_key = remove_0x(h256_key);
+        let h256_value = remove_0x(h256_value);
+        let data = format!("{}{}{}", address, h256_key, h256_value);
+        let value = Some(AMEND_KV_H256 as u64);
+        self.send_transaction(
+            url,
+            data.as_str(),
+            AMEND_ADDRESS,
+            None,
+            quota,
+            value,
+            blake2b,
+        )
     }
 }
 
