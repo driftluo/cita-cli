@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
-use clap::{self, ArgMatches};
+use clap;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
@@ -177,79 +177,43 @@ pub fn start(url: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn get_complete_strings<'a, 'b, 'p>(
-    app: &'p clap::App<'a, 'b>,
-    filter: Vec<&String>,
-) -> Vec<String> {
-    let mut strings: Vec<String> = vec![];
-    strings.extend(
-        app.p
-            .subcommands()
-            .map(|app| {
-                [
-                    vec![app.p.meta.name.clone()],
-                    app.p
-                        .meta
-                        .aliases
-                        .as_ref()
-                        .map(|aliases| {
-                            aliases
-                                .iter()
-                                .map(|(alias, _)| alias.to_string())
-                                .collect::<Vec<String>>()
-                        })
-                        .unwrap_or(vec![]),
-                ].concat()
-            })
-            .collect::<Vec<Vec<String>>>()
-            .concat(),
-    );
-    strings.extend(
-        app.p
-            .flags()
-            .map(|a| {
-                a.s
-                    .short
-                    .map(|s| format!("-{}", s))
-                    .into_iter()
-                    .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
-                    .collect::<Vec<String>>()
-            })
-            .collect::<Vec<Vec<String>>>()
-            .concat(),
-    );
-    strings.extend(
-        app.p
-            .opts()
-            .map(|a| {
-                a.s
-                    .short
-                    .map(|s| format!("-{}", s))
-                    .into_iter()
-                    .chain(a.s.long.map(|s| format!("--{}", s)).into_iter())
-                    .collect::<Vec<String>>()
-            })
-            .collect::<Vec<Vec<String>>>()
-            .concat(),
-    );
-    strings
-        .into_iter()
-        .filter(|s| !filter.contains(&s))
-        .collect()
-}
-
-fn _get_command_chain(matches: &ArgMatches) -> Vec<String> {
-    let mut matches = Some(matches);
-    let mut names: Vec<String> = vec![];
-    while let Some(m) = matches {
-        matches = m.subcommand_name()
-            .map(|name| {
-                names.push(name.to_owned());
-                m.subcommand_matches(name)
-            })
-            .unwrap_or(None);
-    }
-    names
+fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
+    app.p
+        .subcommands()
+        .map(|app| {
+            [
+                vec![app.p.meta.name.clone()],
+                app.p
+                    .meta
+                    .aliases
+                    .as_ref()
+                    .map(|aliases| {
+                        aliases
+                            .iter()
+                            .map(|(alias, _)| alias.to_string())
+                            .collect::<Vec<String>>()
+                    })
+                    .unwrap_or(vec![]),
+            ].concat()
+        })
+        .chain(app.p.flags().map(|a| {
+            vec![
+                a.s.short.map(|s| format!("-{}", s)),
+                a.s.long.map(|s| format!("--{}", s)),
+            ].into_iter()
+                .filter_map(|s| s)
+                .collect::<Vec<String>>()
+        }))
+        .chain(app.p.opts().map(|a| {
+            vec![
+                a.s.short.map(|s| format!("-{}", s)),
+                a.s.long.map(|s| format!("--{}", s)),
+            ].into_iter()
+                .filter_map(|s| s)
+                .collect::<Vec<String>>()
+        }))
+        .collect::<Vec<Vec<String>>>()
+        .concat()
 }
 
 struct CitaCompleter<'a, 'b>
@@ -297,7 +261,11 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                 }
             }
         }
-        None
+        if app.p.subcommands.is_empty() {
+            Some(app)
+        } else {
+            None
+        }
     }
 }
 
@@ -313,56 +281,43 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
         _end: usize,
     ) -> Option<Vec<Completion>> {
         let line = prompter.buffer();
-        let mut args = shell_words::split(&line[..start]).unwrap();
-        let root = args.clone();
-        let filter = root.iter()
-            .filter(|s| s.starts_with("-"))
-            .collect::<Vec<&String>>();
-        if let Some(cmd) = root.first() {
-            match cmd.as_str() {
-                "abi" | "contract" => args.truncate(3),
-                _ => args.truncate(2),
-            }
-        }
-        let current_app = if args.is_empty() {
-            Some(&self.clap_app)
-        } else {
-            Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable())
-        };
-        if let Some(current_app) = current_app {
-            let strings = get_complete_strings(current_app, filter);
-            let mut target: Option<String> = None;
-            if &strings
-                .iter()
-                .filter(|s| {
-                    let matched = s.to_lowercase().contains(&word.to_lowercase());
-                    if matched {
-                        target = Some(s.to_string());
-                    }
-                    matched
-                })
-                .count() == &1
-            {
-                return Some(vec![Completion::simple(target.unwrap())]);
-            }
-
-            if !strings.is_empty() {
-                return Some(
-                    strings
-                        .into_iter()
-                        .filter(|s| {
-                            if word.is_empty() {
-                                true
-                            } else {
-                                s.starts_with(&word)
-                            }
-                        })
-                        .map(|s| Completion::simple(s))
-                        .collect::<Vec<Completion>>(),
-                );
-            }
-        }
-        None
+        let args = shell_words::split(&line[..start]).unwrap();
+        Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).and_then(
+            |current_app| {
+                let strings = get_complete_strings(current_app);
+                let word_lowercase = word.to_lowercase();
+                let mut target: Option<String> = None;
+                if strings
+                    .iter()
+                    .filter(|s| {
+                        let matched = s.to_lowercase().contains(word_lowercase.as_str());
+                        if matched {
+                            target = Some(s.to_string());
+                        }
+                        matched
+                    })
+                    .count() == 1
+                {
+                    Some(vec![Completion::simple(target.unwrap())])
+                } else if !strings.is_empty() {
+                    Some(
+                        strings
+                            .into_iter()
+                            .filter(|s| {
+                                if word.is_empty() {
+                                    true
+                                } else {
+                                    s.starts_with(&word)
+                                }
+                            })
+                            .map(|s| Completion::simple(s))
+                            .collect::<Vec<Completion>>(),
+                    )
+                } else {
+                    None
+                }
+            },
+        )
     }
 }
 
