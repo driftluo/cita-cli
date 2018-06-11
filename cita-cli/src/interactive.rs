@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io;
@@ -177,7 +178,22 @@ pub fn start(url: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
+fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>, args: &[String]) -> Vec<String> {
+    let args_set = args.iter().collect::<HashSet<&String>>();
+    let get_switched_strings = |short: Option<char>, long: Option<&str>, multiple: bool| {
+        let names = vec![
+            short.map(|s| format!("-{}", s)),
+            long.map(|s| format!("--{}", s)),
+        ].into_iter()
+            .filter_map(|s| s)
+            .collect::<Vec<String>>();
+
+        if !multiple && names.iter().any(|name| args_set.contains(name)) {
+            vec![]
+        } else {
+            names
+        }
+    };
     app.p
         .subcommands()
         .map(|app| {
@@ -197,20 +213,10 @@ fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>) -> Vec<String> {
             ].concat()
         })
         .chain(app.p.flags().map(|a| {
-            vec![
-                a.s.short.map(|s| format!("-{}", s)),
-                a.s.long.map(|s| format!("--{}", s)),
-            ].into_iter()
-                .filter_map(|s| s)
-                .collect::<Vec<String>>()
+            get_switched_strings(a.s.short, a.s.long, a.b.is_set(clap::ArgSettings::Multiple))
         }))
         .chain(app.p.opts().map(|a| {
-            vec![
-                a.s.short.map(|s| format!("-{}", s)),
-                a.s.long.map(|s| format!("--{}", s)),
-            ].into_iter()
-                .filter_map(|s| s)
-                .collect::<Vec<String>>()
+            get_switched_strings(a.s.short, a.s.long, a.b.is_set(clap::ArgSettings::Multiple))
         }))
         .collect::<Vec<Vec<String>>>()
         .concat()
@@ -285,9 +291,9 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
         Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).map(
             |current_app| {
                 let word_lower = word.to_lowercase();
-                get_complete_strings(current_app)
+                get_complete_strings(current_app, &args)
                     .into_iter()
-                    .filter(|s| word.is_empty() || s.to_lowercase().contains(word_lower.as_str()))
+                    .filter(|s| word.is_empty() || s.to_lowercase().contains(&word_lower))
                     .map(|s| Completion::simple(s))
                     .collect::<Vec<_>>()
             },
