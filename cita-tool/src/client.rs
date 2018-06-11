@@ -1,7 +1,6 @@
 use failure::Fail;
 use serde;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::{str, u64};
 
 use super::encode_params;
@@ -11,7 +10,7 @@ use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseVal
             ToolError, Transaction};
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
-use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
+use hyper::{self, Body, Client as HyperClient, Request};
 use protobuf::Message;
 use serde_json;
 use tokio::runtime::current_thread::Runtime;
@@ -159,10 +158,11 @@ impl Client {
         let client = HyperClient::new();
         let mut reqs = Vec::new();
         urls.iter().for_each(|url| {
-            let mut req: Request<Body> =
-                Request::new(Body::from(serde_json::to_string(&params).unwrap()));
-            *req.uri_mut() = Uri::from_str(url).unwrap();
-            *req.method_mut() = Method::POST;
+            let req: Request<Body> = Request::builder()
+                .uri(*url)
+                .method("POST")
+                .body(Body::from(serde_json::to_string(&params).unwrap()))
+                .unwrap();
             let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
                 client
                     .request(req)
@@ -187,10 +187,11 @@ impl Client {
                 param.insert("id", ParamsValue::Int(self.id))
             })
             .for_each(|param| {
-                let mut req: Request<Body> =
-                    Request::new(Body::from(serde_json::to_string(&param).unwrap()));
-                *req.uri_mut() = Uri::from_str(url).unwrap();
-                *req.method_mut() = Method::POST;
+                let req: Request<Body> = Request::builder()
+                    .uri(url)
+                    .method("POST")
+                    .body(Body::from(serde_json::to_string(&param).unwrap()))
+                    .unwrap();
                 let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
                     client
                         .request(req)
