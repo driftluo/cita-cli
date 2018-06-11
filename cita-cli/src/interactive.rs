@@ -178,50 +178,6 @@ pub fn start(url: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn get_complete_strings<'a, 'b, 'p>(app: &'p clap::App<'a, 'b>, args: &[String]) -> Vec<String> {
-    let args_set = args.iter().collect::<HashSet<&String>>();
-    let get_switched_strings = |short: Option<char>, long: Option<&str>, multiple: bool| {
-        let names = vec![
-            short.map(|s| format!("-{}", s)),
-            long.map(|s| format!("--{}", s)),
-        ].into_iter()
-            .filter_map(|s| s)
-            .collect::<Vec<String>>();
-
-        if !multiple && names.iter().any(|name| args_set.contains(name)) {
-            vec![]
-        } else {
-            names
-        }
-    };
-    app.p
-        .subcommands()
-        .map(|app| {
-            [
-                vec![app.p.meta.name.clone()],
-                app.p
-                    .meta
-                    .aliases
-                    .as_ref()
-                    .map(|aliases| {
-                        aliases
-                            .iter()
-                            .map(|(alias, _)| alias.to_string())
-                            .collect::<Vec<String>>()
-                    })
-                    .unwrap_or(vec![]),
-            ].concat()
-        })
-        .chain(app.p.flags().map(|a| {
-            get_switched_strings(a.s.short, a.s.long, a.b.is_set(clap::ArgSettings::Multiple))
-        }))
-        .chain(app.p.opts().map(|a| {
-            get_switched_strings(a.s.short, a.s.long, a.b.is_set(clap::ArgSettings::Multiple))
-        }))
-        .collect::<Vec<Vec<String>>>()
-        .concat()
-}
-
 struct CitaCompleter<'a, 'b>
 where
     'a: 'b,
@@ -232,6 +188,71 @@ where
 impl<'a, 'b> CitaCompleter<'a, 'b> {
     fn new(clap_app: clap::App<'a, 'b>) -> Self {
         CitaCompleter { clap_app }
+    }
+
+    fn get_completions<'p>(app: &'p clap::App<'a, 'b>, args: &[String]) -> Vec<Completion> {
+        let args_set = args.iter().collect::<HashSet<&String>>();
+        let switched_completions =
+            |short: Option<char>, long: Option<&str>, multiple: bool, required: bool| {
+                let names = vec![
+                    short.map(|s| format!("-{}", s)),
+                    long.map(|s| format!("--{}", s)),
+                ].into_iter()
+                    .filter_map(|s| s)
+                    .map(|s| {
+                        let display = if required {
+                            Some(format!("{}(*)", s))
+                        } else {
+                            None
+                        };
+                        let mut completion = Completion::simple(s);
+                        completion.display = display;
+                        completion
+                    })
+                    .collect::<Vec<Completion>>();
+
+                if !multiple && names.iter().any(|c| args_set.contains(&c.completion)) {
+                    vec![]
+                } else {
+                    names
+                }
+            };
+        app.p
+            .subcommands()
+            .map(|app| {
+                [
+                    vec![Completion::simple(app.p.meta.name.clone())],
+                    app.p
+                        .meta
+                        .aliases
+                        .as_ref()
+                        .map(|aliases| {
+                            aliases
+                                .iter()
+                                .map(|(alias, _)| Completion::simple(alias.to_string()))
+                                .collect::<Vec<Completion>>()
+                        })
+                        .unwrap_or(vec![]),
+                ].concat()
+            })
+            .chain(app.p.flags().map(|a| {
+                switched_completions(
+                    a.s.short,
+                    a.s.long,
+                    a.b.is_set(clap::ArgSettings::Multiple),
+                    a.b.is_set(clap::ArgSettings::Required),
+                )
+            }))
+            .chain(app.p.opts().map(|a| {
+                switched_completions(
+                    a.s.short,
+                    a.s.long,
+                    a.b.is_set(clap::ArgSettings::Multiple),
+                    a.b.is_set(clap::ArgSettings::Required),
+                )
+            }))
+            .collect::<Vec<Vec<Completion>>>()
+            .concat()
     }
 
     fn find_subcommand<'s, 'p, Iter: iter::Iterator<Item = &'s str>>(
@@ -246,24 +267,14 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                         .meta
                         .aliases
                         .as_ref()
-                        .and_then(|aliases| {
-                            if aliases
-                                .iter()
-                                .filter(|&&(alias, _)| alias == name)
-                                .collect::<Vec<&(&str, bool)>>()
-                                .is_empty()
-                            {
-                                None
-                            } else {
-                                Some(())
-                            }
-                        })
-                        .is_some()
+                        .map(|aliases| aliases.iter().any(|&(alias, _)| alias == name))
+                        .unwrap_or(false)
                 {
-                    if prefix_names.peek().is_none() {
-                        return Some(inner_app);
-                    }
-                    return Self::find_subcommand(inner_app, prefix_names);
+                    return if prefix_names.peek().is_none() {
+                        Some(inner_app)
+                    } else {
+                        Self::find_subcommand(inner_app, prefix_names)
+                    };
                 }
             }
         }
@@ -291,10 +302,11 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
         Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).map(
             |current_app| {
                 let word_lower = word.to_lowercase();
-                get_complete_strings(current_app, &args)
+                Self::get_completions(current_app, &args)
                     .into_iter()
-                    .filter(|s| word.is_empty() || s.to_lowercase().contains(&word_lower))
-                    .map(|s| Completion::simple(s))
+                    .filter(|s| {
+                        word.is_empty() || s.completion.to_lowercase().contains(&word_lower)
+                    })
                     .collect::<Vec<_>>()
             },
         )
