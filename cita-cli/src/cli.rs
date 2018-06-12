@@ -5,9 +5,9 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
-use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
-                ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
-                StoreExt, UnverifiedTransaction};
+use cita_tool::{encode_input, encode_params, parse_code, pubkey_to_address, remove_0x, AmendExt,
+                Client, ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey,
+                ResponseValue, StoreExt, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -823,7 +823,7 @@ pub fn rpc_processor(
                 client.set_private_key(parse_privkey(private_key)?);
             }
             let url = url.unwrap_or_else(|| get_url(m));
-            let code = m.value_of("code").unwrap();
+            let code = parse_code(m.value_of("code").unwrap());
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
