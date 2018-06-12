@@ -1,7 +1,6 @@
 use failure::Fail;
 use serde;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::{str, u64};
 
 use super::encode_params;
@@ -11,10 +10,10 @@ use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseVal
             ToolError, Transaction};
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
-use hyper::{self, Body, Client as HyperClient, Method, Request, Uri};
+use hyper::{self, Body, Client as HyperClient, Request};
 use protobuf::Message;
 use serde_json;
-use tokio_core::reactor::Core;
+use tokio::runtime::current_thread::Runtime;
 use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
@@ -58,7 +57,7 @@ pub const AMEND_KV_H256: u32 = 3;
 #[derive(Debug)]
 pub struct Client {
     id: u64,
-    core: Core,
+    run_time: Runtime,
     chain_id: Option<u32>,
     sha3_private_key: Option<Sha3PrivKey>,
     #[cfg(feature = "blake2b_hash")]
@@ -69,10 +68,10 @@ pub struct Client {
 impl Client {
     /// Create a client for CITA
     pub fn new() -> Result<Self, ToolError> {
-        let core = Core::new().map_err(ToolError::Stdio)?;
+        let run_time = Runtime::new().map_err(ToolError::Stdio)?;
         Ok(Client {
             id: 0,
-            core: core,
+            run_time: run_time,
             chain_id: None,
             sha3_private_key: None,
             #[cfg(feature = "blake2b_hash")]
@@ -156,16 +155,18 @@ impl Client {
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
         self.id = self.id.overflowing_add(1).0;
         let params = params.insert("id", ParamsValue::Int(self.id));
-        let client = HyperClient::new(&self.core.handle());
+        let client = HyperClient::new();
         let mut reqs = Vec::new();
         urls.iter().for_each(|url| {
-            let uri = Uri::from_str(url).unwrap();
-            let mut req: Request<Body> = Request::new(Method::Post, uri);
-            req.set_body(serde_json::to_string(&params).unwrap());
+            let req: Request<Body> = Request::builder()
+                .uri(*url)
+                .method("POST")
+                .body(Body::from(serde_json::to_string(&params).unwrap()))
+                .unwrap();
             let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
                 client
                     .request(req)
-                    .and_then(|res| res.body().concat2())
+                    .and_then(|res| res.into_body().concat2())
                     .map_err(ToolError::Hyper),
             );
             reqs.push(future);
@@ -178,7 +179,7 @@ impl Client {
         url: &str,
         params: T,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
-        let client = HyperClient::new(&self.core.handle());
+        let client = HyperClient::new();
         let mut reqs = Vec::new();
         params
             .map(|param| {
@@ -186,13 +187,15 @@ impl Client {
                 param.insert("id", ParamsValue::Int(self.id))
             })
             .for_each(|param| {
-                let uri = Uri::from_str(&url).unwrap();
-                let mut req: Request<Body> = Request::new(Method::Post, uri);
-                req.set_body(serde_json::to_string(&param).unwrap());
+                let req: Request<Body> = Request::builder()
+                    .uri(url)
+                    .method("POST")
+                    .body(Body::from(serde_json::to_string(&param).unwrap()))
+                    .unwrap();
                 let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
                     client
                         .request(req)
-                        .and_then(|res| res.body().concat2())
+                        .and_then(|res| res.into_body().concat2())
                         .map_err(ToolError::Hyper),
                 );
                 reqs.push(future);
@@ -316,7 +319,7 @@ impl Client {
         &mut self,
         reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>>,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
-        let responses = self.core.run(reqs)?;
+        let responses = self.run_time.block_on(reqs)?;
         Ok(responses
             .into_iter()
             .map(|response| {

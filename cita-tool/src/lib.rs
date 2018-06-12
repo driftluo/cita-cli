@@ -25,7 +25,7 @@ extern crate ethabi;
 extern crate sha3;
 #[cfg(feature = "blake2b_hash")]
 extern crate sodiumoxide;
-extern crate tokio_core;
+extern crate tokio;
 extern crate uuid;
 
 /// Ethabi
