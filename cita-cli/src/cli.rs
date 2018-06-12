@@ -190,7 +190,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
 pub fn amend_command() -> App<'static, 'static> {
     fn h256_validator(s: String) -> Result<(), String> {
         let s = remove_0x(s.as_str());
-        if s.len() != 32 {
+        if s.len() != 64 {
             Err(format!("Invalid H256 length={}", s.len()))
         } else {
             Ok(())
@@ -266,7 +266,6 @@ pub fn amend_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("kv-h256")
                 .about("Amend H256 Key,Value pair")
-                .visible_alias("h256-kv")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
