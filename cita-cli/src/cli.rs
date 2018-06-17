@@ -5,9 +5,9 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
-use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt,
-                Client, ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey,
-                ResponseValue, StoreExt, UnverifiedTransaction};
+use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
+                ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
+                StoreExt, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -1146,6 +1146,131 @@ pub fn contract_command() -> App<'static, 'static> {
                         ),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("QuotaManager")
+                .subcommand(SubCommand::with_name("getBQL"))
+                .subcommand(SubCommand::with_name("getDefaultAQL"))
+                .subcommand(SubCommand::with_name("getAccounts"))
+                .subcommand(SubCommand::with_name("getQuotas"))
+                .subcommand(
+                    SubCommand::with_name("getAQL").arg(
+                        Arg::with_name("address")
+                            .long("address")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|address| is_hex(address.as_ref()))
+                            .help("Account address"),
+                    ),
+                )
+                .subcommand(
+                    SubCommand::with_name("setBQL")
+                        .arg(
+                            Arg::with_name("quota")
+                                .long("quota")
+                                .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
+                                .takes_value(true)
+                                .required(true)
+                                .help(
+                                    "The quota value must be between 2 ** 63 - 1 and 2 ** 28 - 1",
+                                ),
+                        )
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("setDefaultAQL")
+                        .arg(
+                            Arg::with_name("quota")
+                                .long("quota")
+                                .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
+                                .takes_value(true)
+                                .required(true)
+                                .help(
+                                    "The quota value must be between 2 ** 63 - 1 and 2 ** 22 - 1",
+                                ),
+                        )
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("setAQL")
+                        .arg(
+                            Arg::with_name("quota")
+                                .long("quota")
+                                .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
+                                .takes_value(true)
+                                .required(true)
+                                .help(
+                                    "The quota value must be between 2 ** 63 - 1 and 2 ** 22 - 1",
+                                ),
+                        )
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        )
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Account address"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("isAdmin").arg(
+                        Arg::with_name("address")
+                            .long("address")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|address| is_hex(address.as_ref()))
+                            .help("Account address"),
+                    ),
+                )
+                .subcommand(
+                    SubCommand::with_name("addAdmin")
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Account address"),
+                        )
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        ),
+                ),
+        )
 }
 
 /// System contract processor
@@ -1195,6 +1320,52 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 client.approve_node(url, address, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("QuotaManager", Some(m)) => match m.subcommand() {
+            ("getBQL", _) => client.get_bql(url.unwrap_or_else(|| get_url(m))),
+            ("getDefaultAQL", _) => client.get_default_bql(url.unwrap_or_else(|| get_url(m))),
+            ("getAccounts", _) => client.get_accounts(url.unwrap_or_else(|| get_url(m))),
+            ("getQuotas", _) => client.get_quotas(url.unwrap_or_else(|| get_url(m))),
+            ("getAQL", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.get_aql(url, address)
+            }
+            ("setBQL", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.set_bql(url, quota, blake2b)
+            }
+            ("setDefaultAQL", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.set_default_aql(url, quota, blake2b)
+            }
+            ("setAQL", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                client.set_aql(url, address, quota, blake2b)
+            }
+            ("isAdmin", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.is_admin(url, address)
+            }
+            ("addAdmin", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let address = m.value_of("address").unwrap();
+                client.add_admin(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },

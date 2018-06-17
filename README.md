@@ -14,6 +14,7 @@ Just like the relationship between redis_cli and redis.
 
 - ~Send transaction, support sha3hash and blake2b~
 - ~Support interactive command line~
+- Support system contract
 - Init cita
 - Kill cita process
 - Start cita process
@@ -71,10 +72,12 @@ cita> key create
 }
 cita> info
 [url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
-cita> abi encode params -p uint256 16
+cita> abi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-cita> abi encode function ../HelloWorld update -p 16
+cita> abi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
+cita> abi encode params --param address 08d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb --param uint256 16
+"00000000000000000000000008d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb0000000000000000000000000000000000000000000000000000000000000010"
 cita> exit
 ```
 
@@ -184,8 +187,8 @@ $ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c
 
 - ABI generate
 ```bash
-$ ./target/debug/cita-cli abi encode params -p uint256 16
+$ ./target/debug/cita-cli abi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-$ ./target/debug/cita-cli abi encode function ../HelloWorld.abi update -p 16
+$ ./target/debug/cita-cli abi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```

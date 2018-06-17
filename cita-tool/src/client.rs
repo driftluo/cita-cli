@@ -9,7 +9,7 @@ use super::Blake2bPrivKey;
 use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
             ToolError, Transaction};
 use futures::{future::join_all, future::JoinAll, Future, Stream};
-use hex::{encode, decode};
+use hex::{decode, encode};
 use hyper::{self, Body, Client as HyperClient, Request};
 use protobuf::Message;
 use serde_json;
@@ -312,15 +312,7 @@ impl Client {
         quota: Option<u64>,
         blake2b: bool,
     ) -> Result<JsonRpcResponse, ToolError> {
-        self.send_transaction(
-            url,
-            "",
-            address,
-            None,
-            quota,
-            Some(value),
-            blake2b,
-        )
+        self.send_transaction(url, "", address, None, quota, Some(value), blake2b)
     }
 
     /// Start run
@@ -917,6 +909,42 @@ pub trait ContractExt: ClientExt<JsonRpcResponse, ToolError> {
 
     /// Approve node upgrades to consensus nodes
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
+
+    /// Get block quota upper limit
+    fn get_bql(&mut self, url: &str) -> Self::RpcResult;
+
+    /// Get account quota upper limit of the specific account
+    fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult;
+
+    /// Get default block quota limit
+    fn get_default_bql(&mut self, url: &str) -> Self::RpcResult;
+
+    /// Get accounts
+    fn get_accounts(&mut self, url: &str) -> Self::RpcResult;
+
+    /// Get quotas
+    fn get_quotas(&mut self, url: &str) -> Self::RpcResult;
+
+    /// Set block quota limit
+    fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult;
+
+    /// Set default block quota limit
+    fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult;
+
+    /// Set account quota upper limit of the specific account
+    fn set_aql(
+        &mut self,
+        url: &str,
+        address: &str,
+        quota_limit: u64,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Check if the account is admin
+    fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult;
+
+    /// Add admin account
+    fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
 }
 
 impl ContractExt for Client {
@@ -1000,6 +1028,166 @@ impl ContractExt for Client {
         );
 
         self.send_transaction(url, &code, address, None, Some(3000), None, blake2b)
+    }
+
+    fn get_bql(&mut self, url: &str) -> Self::RpcResult {
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some("0x0bc8982f"),
+            "latest",
+        )
+    }
+
+    fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        let code = format!(
+            "0x{function}{complete}{param}",
+            function = "942a8ad3",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some(&code),
+            "latest",
+        )
+    }
+
+    fn get_default_bql(&mut self, url: &str) -> Self::RpcResult {
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some("0xbd9fbe7b"),
+            "latest",
+        )
+    }
+
+    fn get_accounts(&mut self, url: &str) -> Self::RpcResult {
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some("0x8a48ac03"),
+            "latest",
+        )
+    }
+
+    fn get_quotas(&mut self, url: &str) -> Self::RpcResult {
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some("0xcdbcff6d"),
+            "latest",
+        )
+    }
+
+    fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
+        let quota_limit = format!("{:x}", quota_limit);
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "931cd0cc",
+            complete = "0".repeat(64 - quota_limit.len()),
+            param = quota_limit,
+        );
+
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a3",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
+    }
+
+    fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
+        let quota_limit = format!("{:x}", quota_limit);
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "b107ea12",
+            complete = "0".repeat(64 - quota_limit.len()),
+            param = quota_limit,
+        );
+
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a3",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
+    }
+
+    fn set_aql(
+        &mut self,
+        url: &str,
+        address: &str,
+        quota_limit: u64,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let quota_limit = format!("{:x}", quota_limit);
+        let code = format!(
+            "{function}{complete}{address}{complete2}{param}",
+            function = "499a1bcd",
+            complete = "0".repeat(24),
+            address = remove_0x(address),
+            complete2 = "0".repeat(64 - quota_limit.len()),
+            param = quota_limit,
+        );
+
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a3",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
+    }
+
+    fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        let code = format!(
+            "0x{function}{complete}{param}",
+            function = "24d7806c",
+            complete = "0".repeat(24),
+            param = remove_0x(address)
+        );
+
+        self.call(
+            url,
+            None,
+            "0x00000000000000000000000000000000013241a3",
+            Some(&code),
+            "latest",
+        )
+    }
+
+    fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
+        let code = format!(
+            "{function}{complete}{param}",
+            function = "70480275",
+            complete = "0".repeat(24),
+            param = remove_0x(address),
+        );
+
+        self.send_transaction(
+            url,
+            &code,
+            "00000000000000000000000000000000013241a3",
+            None,
+            Some(1000),
+            None,
+            blake2b,
+        )
     }
 }
 
