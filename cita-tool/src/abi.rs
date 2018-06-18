@@ -2,8 +2,8 @@ use std::fs::File;
 
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
-use ethabi::{encode, Contract, Function};
-use hex::encode as hex_encode;
+use ethabi::{decode, encode, Contract, Function};
+use hex::{decode as hex_decode, encode as hex_encode};
 
 use error::ToolError;
 
@@ -75,4 +75,27 @@ pub fn encode_params(
     let result = encode(&tokens);
 
     Ok(hex_encode(result))
+}
+
+/// According to type, decode the data
+pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolError> {
+    let types: Vec<ParamType> = types
+        .iter()
+        .map(|s| Reader::read(s))
+        .collect::<Result<_, _>>()
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+
+    let data = hex_decode(data).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+
+    let tokens = decode(&types, &data).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+
+    assert_eq!(types.len(), tokens.len());
+
+    let result = types
+        .iter()
+        .zip(tokens.iter())
+        .map(|(ty, to)| format!("{}: {}", ty, to))
+        .collect::<Vec<String>>();
+
+    Ok(result)
 }

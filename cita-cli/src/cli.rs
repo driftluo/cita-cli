@@ -5,9 +5,9 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
-use cita_tool::{encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
-                ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
-                StoreExt, UnverifiedTransaction};
+use cita_tool::{decode_params, encode_input, encode_params, pubkey_to_address, remove_0x,
+                AmendExt, Client, ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey,
+                PubKey, ResponseValue, StoreExt, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -142,6 +142,24 @@ pub fn abi_command() -> App<'static, 'static> {
                         .arg(no_lenient_flag),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("decode").subcommand(
+                SubCommand::with_name("params")
+                    .arg(
+                        Arg::with_name("type")
+                            .long("type")
+                            .takes_value(true)
+                            .multiple(true)
+                            .help("Decode types"),
+                    )
+                    .arg(
+                        Arg::with_name("data")
+                            .long("data")
+                            .takes_value(true)
+                            .help("Decode data"),
+                    ),
+            ),
+        )
 }
 
 /// ABI processor
@@ -153,7 +171,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 let name = m.value_of("name").unwrap();
                 let lenient = !m.is_present("no-lenient");
                 let values: Vec<String> = m.values_of("param")
-                    .ok_or_else(|| format!("Plaese give at least one parameter."))?
+                    .ok_or_else(|| format!("Please give at least one parameter."))?
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>();
                 let output =
@@ -165,7 +183,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 let mut types: Vec<String> = Vec::new();
                 let mut values: Vec<String> = Vec::new();
                 let mut param_iter = m.values_of("param")
-                    .ok_or_else(|| format!("Plaese give at least one parameter."))?
+                    .ok_or_else(|| format!("Please give at least one parameter."))?
                     .peekable();
                 while param_iter.peek().is_some() {
                     types.push(param_iter.next().unwrap().to_owned());
@@ -174,6 +192,24 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 let output =
                     encode_params(&types, &values, lenient).map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
+            }
+            _ => {
+                return Err(em.usage().to_owned());
+            }
+        },
+        ("decode", Some(em)) => match em.subcommand() {
+            ("params", Some(m)) => {
+                let types: Vec<String> = m.values_of("type")
+                    .ok_or_else(|| format!("Please give at least one parameter."))?
+                    .map(|value| value.to_owned())
+                    .collect();
+                let data = m.value_of("data").unwrap();
+                let output = decode_params(&types, data)
+                    .map_err(|err| format!("{}", err))?
+                    .iter()
+                    .map(|value| json!(value))
+                    .collect();
+                printer.println(&Value::Array(output), false);
             }
             _ => {
                 return Err(em.usage().to_owned());
@@ -892,7 +928,7 @@ pub fn rpc_processor(
                 if let Ok(ref resp) = result {
                     if let Some(ResponseValue::Map(map)) = resp.result() {
                         if let Some(ParamsValue::String(content)) = map.get("content") {
-                            let tx = UnverifiedTransaction::from_str(content).unwrap().to_json();
+                            let tx = UnverifiedTransaction::from_str(&content).unwrap().to_json();
                             printer
                                 .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
                             printer.println(&tx, is_color);

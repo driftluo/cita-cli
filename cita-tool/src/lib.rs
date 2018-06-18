@@ -38,10 +38,10 @@ pub mod crypto;
 pub mod error;
 /// Transaction protobuf code
 pub mod protos;
-/// Reqeust and Response type
+/// Request and Response type
 pub mod rpctypes;
 
-pub use abi::{encode_input, encode_params};
+pub use abi::{decode_params, encode_input, encode_params};
 pub use client::{parse_code, remove_0x, AmendExt, Client, ClientExt, ContractExt, StoreExt};
 #[cfg(feature = "blake2b_hash")]
 pub use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature};
