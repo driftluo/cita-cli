@@ -85,7 +85,7 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
         .collect::<Result<_, _>>()
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
-    let data = hex_decode(data).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let data = hex_decode(data).map_err(ToolError::Decode)?;
 
     let tokens = decode(&types, &data).map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
@@ -94,7 +94,13 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
     let result = types
         .iter()
         .zip(tokens.iter())
-        .map(|(ty, to)| format!("{}: {}", ty, to))
+        .map(|(ty, to)| {
+            if to.type_check(&ParamType::Bool) || format!("{}", ty) == "bool[]" {
+                format!("{{\"{}\": {}}}", ty, to)
+            } else {
+                format!("{{\"{}\": \"{}\"}}", ty, to)
+            }
+        })
         .collect::<Vec<String>>();
 
     Ok(result)
