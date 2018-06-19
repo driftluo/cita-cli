@@ -6,8 +6,8 @@ use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::Value;
 
 use cita_tool::{decode_params, encode_input, encode_params, pubkey_to_address, remove_0x,
-                AmendExt, Client, ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey,
-                PubKey, ResponseValue, StoreExt, UnverifiedTransaction};
+                AmendExt, Client, ClientExt, ContractExt, GroupExt, KeyPair, ParamsValue,
+                PrivateKey, PubKey, ResponseValue, StoreExt, UnverifiedTransaction};
 
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -1102,11 +1102,17 @@ pub fn transfer_processor(
 
 /// System contract
 pub fn contract_command() -> App<'static, 'static> {
+    let group_address_arg = Arg::with_name("address")
+        .long("address")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("Group address");
+
     App::new("contract")
         .about("System contract manager")
         .subcommand(
             SubCommand::with_name("NodeManager")
-                .visible_alias("node")
                 .subcommand(SubCommand::with_name("listNode"))
                 .subcommand(
                     SubCommand::with_name("getStatus").arg(
@@ -1307,6 +1313,30 @@ pub fn contract_command() -> App<'static, 'static> {
                         ),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("GroupManagement")
+                .about("User management using group struct (group_management.sol)")
+                .subcommand(SubCommand::with_name("newGroup"))
+                .subcommand(SubCommand::with_name("deleteGroup"))
+                .subcommand(SubCommand::with_name("updateGroupName"))
+                .subcommand(SubCommand::with_name("addAccounts"))
+                .subcommand(SubCommand::with_name("deleteAccounts"))
+                .subcommand(SubCommand::with_name("checkScope"))
+                .subcommand(SubCommand::with_name("queryGroups")),
+        )
+        .subcommand(
+            SubCommand::with_name("Group")
+                .about("Group contract (group.sol)")
+                .subcommand(SubCommand::with_name("queryInfo").arg(group_address_arg.clone()))
+                .subcommand(SubCommand::with_name("queryName").arg(group_address_arg.clone()))
+                .subcommand(SubCommand::with_name("queryAccounts").arg(group_address_arg.clone()))
+                .subcommand(SubCommand::with_name("queryChild").arg(group_address_arg.clone()))
+                .subcommand(
+                    SubCommand::with_name("queryChildLength").arg(group_address_arg.clone()),
+                )
+                .subcommand(SubCommand::with_name("queryParent").arg(group_address_arg.clone()))
+                .subcommand(SubCommand::with_name("inGroup").arg(group_address_arg.clone())),
+        )
 }
 
 /// System contract processor
@@ -1402,6 +1432,44 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 client.add_admin(url, address, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("Group", Some(m)) => match m.subcommand() {
+            ("queryInfo", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_info(url, address)
+            }
+            ("queryName", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_name(url, address)
+            }
+            ("queryAccounts", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_accounts(url, address)
+            }
+            ("queryChild", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_child(url, address)
+            }
+            ("queryChildLength", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_child_length(url, address)
+            }
+            ("queryParent", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_query_parent(url, address)
+            }
+            ("inGroup", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                client.group_in_group(url, address)
             }
             _ => return Err(m.usage().to_owned()),
         },
