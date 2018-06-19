@@ -1327,15 +1327,41 @@ pub fn contract_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("Group")
                 .about("Group contract (group.sol)")
-                .subcommand(SubCommand::with_name("queryInfo").arg(group_address_arg.clone()))
-                .subcommand(SubCommand::with_name("queryName").arg(group_address_arg.clone()))
-                .subcommand(SubCommand::with_name("queryAccounts").arg(group_address_arg.clone()))
-                .subcommand(SubCommand::with_name("queryChild").arg(group_address_arg.clone()))
                 .subcommand(
-                    SubCommand::with_name("queryChildLength").arg(group_address_arg.clone()),
+                    SubCommand::with_name("queryInfo")
+                        .about("Query the information of the group")
+                        .arg(group_address_arg.clone()),
                 )
-                .subcommand(SubCommand::with_name("queryParent").arg(group_address_arg.clone()))
-                .subcommand(SubCommand::with_name("inGroup").arg(group_address_arg.clone())),
+                .subcommand(
+                    SubCommand::with_name("queryName")
+                        .about("Query the name of the group")
+                        .arg(group_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryAccounts")
+                        .about("Query the accounts of the group")
+                        .arg(group_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryChild")
+                        .about("Query the child of the group")
+                        .arg(group_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryChildLength")
+                        .about("Query the length of children of the group")
+                        .arg(group_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryParent")
+                        .about("Query the parent of the group")
+                        .arg(group_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("inGroup")
+                        .about("Check the account in the group")
+                        .arg(group_address_arg.clone()),
+                ),
         )
 }
 
