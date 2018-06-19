@@ -3,7 +3,7 @@ use std::io::Read;
 
 use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
-use serde_json::Value;
+use serde_json::{self, Value};
 
 use cita_tool::{decode_params, encode_input, encode_params, pubkey_to_address, remove_0x,
                 AmendExt, Client, ClientExt, ContractExt, KeyPair, ParamsValue, PrivateKey,
@@ -203,11 +203,11 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     .ok_or_else(|| format!("Please give at least one parameter."))?
                     .map(|value| value.to_owned())
                     .collect();
-                let data = m.value_of("data").unwrap();
+                let data = remove_0x(m.value_of("data").unwrap());
                 let output = decode_params(&types, data)
                     .map_err(|err| format!("{}", err))?
                     .iter()
-                    .map(|value| json!(value))
+                    .map(|value| serde_json::from_str(value).unwrap())
                     .collect();
                 printer.println(&Value::Array(output), false);
             }
@@ -859,7 +859,7 @@ pub fn rpc_processor(
                 client.set_private_key(parse_privkey(private_key)?);
             }
             let url = url.unwrap_or_else(|| get_url(m));
-            let code = m.value_of("code").unwrap();
+            let code = remove_0x(m.value_of("code").unwrap());
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
