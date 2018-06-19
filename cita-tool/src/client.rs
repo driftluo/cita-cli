@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
 const CITA_GET_META_DATA: &str = "cita_getMetaData";
-const CITA_SEND_TRANSACTION: &str = "cita_sendTransaction";
+const CITA_SEND_TRANSACTION: &str = "cita_sendRawTransaction";
 const NET_PEER_COUNT: &str = "net_peerCount";
 const CITA_GET_BLOCK_BY_HASH: &str = "cita_getBlockByHash";
 const CITA_GET_BLOCK_BY_NUMBER: &str = "cita_getBlockByNumber";
@@ -42,18 +42,18 @@ const ETH_GET_FILTER_CHANGES: &str = "eth_getFilterChanges";
 const ETH_GET_FILTER_LOGS: &str = "eth_getFilterLogs";
 
 /// Store action target address
-pub const STORE_ADDRESS: &str = "ffffffffffffffffffffffffffffffffffffffff";
+pub const STORE_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffffffffff";
 /// StoreAbi action target address
-pub const ABI_ADDRESS: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub const ABI_ADDRESS: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 /// Amend action target address
-pub const AMEND_ADDRESS: &str = "cccccccccccccccccccccccccccccccccccccccc";
+pub const AMEND_ADDRESS: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
 
 ///amend the abi data
-pub const AMEND_ABI: u32 = 1;
+pub const AMEND_ABI: &str = "0x0000000000000000000000000000000000000000000000000000000000000001";
 ///amend the account code
-pub const AMEND_CODE: u32 = 2;
+pub const AMEND_CODE: &str = "0x0000000000000000000000000000000000000000000000000000000000000002";
 ///amend the kv of db
-pub const AMEND_KV_H256: u32 = 3;
+pub const AMEND_KV_H256: &str = "0x0000000000000000000000000000000000000000000000000000000000000003";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -215,7 +215,7 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<u64>,
+        value: Option<H256>,
     ) -> Result<String, ToolError> {
         let data = decode(code).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
@@ -227,7 +227,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
-        tx.set_value(value.unwrap_or(0));
+        tx.set_value(value.unwrap_or(H256::zero()).to_vec());
         tx.set_chain_id(self.get_chain_id(url)?);
         Ok(encode(
             tx.sha3_sign(*self.sha3_private_key().unwrap())
@@ -247,7 +247,7 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<u64>,
+        value: Option<H256>,
     ) -> Result<String, ToolError> {
         let data = decode(code).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
@@ -259,7 +259,7 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
-        tx.set_value(value.unwrap_or(0));
+        tx.set_value(value.unwrap_or(H256::zero()).to_vec());
         tx.set_chain_id(self.get_chain_id(url)?);
         Ok(encode(
             tx.blake2b_sign(*self.blake2b_private_key().unwrap())
@@ -308,12 +308,12 @@ impl Client {
     pub fn transfer(
         &mut self,
         url: &str,
-        value: u64,
+        value: H256,
         address: &str,
         quota: Option<u64>,
         blake2b: bool,
     ) -> Result<JsonRpcResponse, ToolError> {
-        self.send_transaction(url, "", address, None, quota, Some(value), blake2b)
+        self.send_transaction(url, "0x", address, None, quota, Some(value), blake2b)
     }
 
     /// Start run
@@ -382,7 +382,7 @@ where
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<u64>,
+        value: Option<H256>,
         blake2b: bool,
     ) -> Self::RpcResult;
     /// cita_getBlockByHash: Get block by hash
@@ -489,7 +489,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<u64>,
+        value: Option<H256>,
         blake2b: bool,
     ) -> Self::RpcResult {
         let byte_code = if !blake2b {
@@ -505,7 +505,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                 value,
             )?;
             #[cfg(not(feature = "blake2b_hash"))]
-            let code = String::from("");
+            let code = String::from("0x");
             code
         };
         let params = JsonRpcParams::new()
@@ -956,7 +956,7 @@ impl ContractExt for Client {
         blake2b: bool,
     ) -> Self::RpcResult {
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "2d4ede93",
             complete = "0".repeat(24),
             param = remove_0x(address)
@@ -964,7 +964,7 @@ impl ContractExt for Client {
         self.send_transaction(
             url,
             &code,
-            "00000000000000000000000000000000013241a2",
+            "0x00000000000000000000000000000000013241a2",
             None,
             Some(1000),
             None,
@@ -974,8 +974,8 @@ impl ContractExt for Client {
 
     fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult {
         let code = format!(
-            "{function}{complete}{param}",
-            function = "0x645b8b1b",
+            "0x{function}{complete}{param}",
+            function = "645b8b1b",
             complete = "0".repeat(24),
             param = remove_0x(address)
         );
@@ -1011,7 +1011,7 @@ impl ContractExt for Client {
 
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "ddad2ffe",
             complete = "0".repeat(24),
             param = remove_0x(address)
@@ -1022,7 +1022,7 @@ impl ContractExt for Client {
 
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "dd4c97a0",
             complete = "0".repeat(24),
             param = remove_0x(address)
@@ -1090,7 +1090,7 @@ impl ContractExt for Client {
     fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{:x}", quota_limit);
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "931cd0cc",
             complete = "0".repeat(64 - quota_limit.len()),
             param = quota_limit,
@@ -1099,7 +1099,7 @@ impl ContractExt for Client {
         self.send_transaction(
             url,
             &code,
-            "00000000000000000000000000000000013241a3",
+            "0x00000000000000000000000000000000013241a3",
             None,
             Some(1000),
             None,
@@ -1110,7 +1110,7 @@ impl ContractExt for Client {
     fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{:x}", quota_limit);
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "b107ea12",
             complete = "0".repeat(64 - quota_limit.len()),
             param = quota_limit,
@@ -1119,7 +1119,7 @@ impl ContractExt for Client {
         self.send_transaction(
             url,
             &code,
-            "00000000000000000000000000000000013241a3",
+            "0x00000000000000000000000000000000013241a3",
             None,
             Some(1000),
             None,
@@ -1136,7 +1136,7 @@ impl ContractExt for Client {
     ) -> Self::RpcResult {
         let quota_limit = format!("{:x}", quota_limit);
         let code = format!(
-            "{function}{complete}{address}{complete2}{param}",
+            "0x{function}{complete}{address}{complete2}{param}",
             function = "499a1bcd",
             complete = "0".repeat(24),
             address = remove_0x(address),
@@ -1147,7 +1147,7 @@ impl ContractExt for Client {
         self.send_transaction(
             url,
             &code,
-            "00000000000000000000000000000000013241a3",
+            "0x00000000000000000000000000000000013241a3",
             None,
             Some(1000),
             None,
@@ -1174,7 +1174,7 @@ impl ContractExt for Client {
 
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let code = format!(
-            "{function}{complete}{param}",
+            "0x{function}{complete}{param}",
             function = "70480275",
             complete = "0".repeat(24),
             param = remove_0x(address),
@@ -1183,7 +1183,7 @@ impl ContractExt for Client {
         self.send_transaction(
             url,
             &code,
-            "00000000000000000000000000000000013241a3",
+            "0x00000000000000000000000000000000013241a3",
             None,
             Some(1000),
             None,
@@ -1293,7 +1293,7 @@ impl StoreExt for Client {
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let content = remove_0x(content);
+        let content = content;
         self.send_transaction(url, content, STORE_ADDRESS, None, quota, None, blake2b)
     }
 
@@ -1307,7 +1307,7 @@ impl StoreExt for Client {
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
-        let data = format!("{}{}", address, content_abi);
+        let data = format!("0x{}{}", address, content_abi);
         self.send_transaction(url, &data, ABI_ADDRESS, None, quota, None, blake2b)
     }
 }
@@ -1357,8 +1357,8 @@ impl AmendExt for Client {
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let content = remove_0x(content);
-        let data = format!("{}{}", address, content);
-        let value = Some(AMEND_CODE as u64);
+        let data = format!("0x{}{}", address, content);
+        let value = Some(parse_to_h256(AMEND_CODE));
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 
@@ -1372,8 +1372,8 @@ impl AmendExt for Client {
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
-        let data = format!("{}{}", address, content_abi);
-        let value = Some(AMEND_ABI as u64);
+        let data = format!("0x{}{}", address, content_abi);
+        let value = Some(parse_to_h256(AMEND_ABI));
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 
@@ -1389,8 +1389,8 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let h256_key = remove_0x(h256_key);
         let h256_value = remove_0x(h256_value);
-        let data = format!("{}{}{}", address, h256_key, h256_value);
-        let value = Some(AMEND_KV_H256 as u64);
+        let data = format!("0x{}{}{}", address, h256_key, h256_value);
+        let value = Some(parse_to_h256(AMEND_KV_H256));
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 }
@@ -1421,7 +1421,7 @@ pub fn remove_0x(hex: &str) -> &str {
 }
 
 /// Convert string to H256
-pub fn parse_code(code: &str) -> H256 {
+pub fn parse_to_h256(code: &str) -> H256 {
     H256::from(encode(code).as_bytes())
 }
 
