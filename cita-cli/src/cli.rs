@@ -809,9 +809,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
         )
-        .subcommand(
-            SubCommand::with_name("eth_newBlockFilter").about("Create a block filter (TODO)"),
-        )
+        .subcommand(SubCommand::with_name("eth_newBlockFilter").about("Create a block filter"))
         .subcommand(
             SubCommand::with_name("eth_uninstallFilter")
                 .about("Uninstall a filter by its id")
@@ -846,6 +844,40 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|id| is_hex(id.as_ref()))
                         .help("The filter id."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("eth_newFilter")
+                .about("Creates a filter object")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .validator(|address| is_hex(address.as_ref()))
+                        .takes_value(true)
+                        .multiple(true)
+                        .help("Contract Address"),
+                )
+                .arg(
+                    Arg::with_name("topic")
+                        .long("topic")
+                        .validator(|address| is_hex(address.as_ref()))
+                        .takes_value(true)
+                        .multiple(true)
+                        .help("Topic"),
+                )
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .validator(|from| parse_height(from.as_ref()))
+                        .takes_value(true)
+                        .help("Starting block height"),
+                )
+                .arg(
+                    Arg::with_name("to")
+                        .long("to")
+                        .validator(|from| parse_height(from.as_ref()))
+                        .takes_value(true)
+                        .help("Starting block height"),
                 ),
         )
 }
@@ -891,10 +923,6 @@ pub fn rpc_processor(
             let height = m.value_of("height").unwrap();
             let with_txs = m.is_present("with-txs");
             client.get_block_by_number(url.unwrap_or_else(|| get_url(m)), height, with_txs)
-        }
-        ("eth_getTransaction", Some(m)) => {
-            let hash = m.value_of("hash").unwrap();
-            client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash)
         }
         ("eth_getCode", Some(m)) => client.get_code(
             url.unwrap_or_else(|| get_url(m)),
@@ -974,6 +1002,14 @@ pub fn rpc_processor(
         }
         ("eth_getFilterLogs", Some(m)) => {
             client.get_filter_logs(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
+        }
+        ("eth_newFilter", Some(m)) => {
+            let address = m.values_of("address").map(|value| value.collect());
+            let from = m.value_of("from");
+            let to = m.value_of("to");
+            let topic = m.values_of("topic").map(|value| value.collect());
+            let url = url.unwrap_or_else(|| get_url(m));
+            client.new_filter(url, topic, address, from, to)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
