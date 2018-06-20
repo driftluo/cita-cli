@@ -525,10 +525,11 @@ pub fn store_processor(
 pub fn rpc_command() -> App<'static, 'static> {
     App::new("rpc")
         .about("All cita jsonrpc interface commands")
-        .subcommand(SubCommand::with_name("net_peerCount"))
-        .subcommand(SubCommand::with_name("cita_blockNumber"))
+        .subcommand(SubCommand::with_name("net_peerCount").about("Get network peer count"))
+        .subcommand(SubCommand::with_name("cita_blockNumber").about("Get current height"))
         .subcommand(
             SubCommand::with_name("cita_sendTransaction")
+                .about("Send a transaction return transaction hash")
                 .arg(
                     Arg::with_name("code")
                         .long("code")
@@ -588,6 +589,7 @@ pub fn rpc_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("cita_getBlockByHash")
+                .about("Get block by hash")
                 .arg(
                     Arg::with_name("hash")
                         .long("hash")
@@ -603,6 +605,7 @@ pub fn rpc_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("cita_getBlockByNumber")
+                .about("Get block by number")
                 .arg(
                     Arg::with_name("height")
                         .long("height")
@@ -618,16 +621,8 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getTransaction").arg(
-                Arg::with_name("hash")
-                    .long("hash")
-                    .required(true)
-                    .takes_value(true)
-                    .help("The hash of specific transaction"),
-            ),
-        )
-        .subcommand(
             SubCommand::with_name("eth_getCode")
+                .about("Get the code of a contract")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -646,6 +641,7 @@ pub fn rpc_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("eth_getAbi")
+                .about("Get the ABI of a contract")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -664,6 +660,7 @@ pub fn rpc_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("eth_getBalance")
+                .about("Get the balance of a contract (TODO: return U256)")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -681,16 +678,19 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getTransactionReceipt").arg(
-                Arg::with_name("hash")
-                    .long("hash")
-                    .required(true)
-                    .takes_value(true)
-                    .help("The hash of specific transaction"),
-            ),
+            SubCommand::with_name("eth_getTransactionReceipt")
+                .about("Get transaction receipt")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of specific transaction"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("eth_call")
+                .about("Call a contract function (readonly, will not save state change)")
                 .arg(
                     Arg::with_name("from")
                         .long("from")
@@ -720,16 +720,19 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getTransactionProof").arg(
-                Arg::with_name("hash")
-                    .long("hash")
-                    .required(true)
-                    .takes_value(true)
-                    .help("The hash of the transaction"),
-            ),
+            SubCommand::with_name("cita_getTransactionProof")
+                .about("Get proof of a transaction")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the transaction"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("eth_getLogs")
+                .about("Get logs")
                 .arg(
                     Arg::with_name("topic")
                         .long("topic")
@@ -765,26 +768,31 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getMetaData").arg(
-                Arg::with_name("height")
-                    .long("height")
-                    .default_value("latest")
-                    .validator(|s| parse_height(s.as_str()))
-                    .takes_value(true)
-                    .help("The height or tag"),
-            ),
+            SubCommand::with_name("cita_getMetaData")
+                .about("Get metadata of current chain")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The height or tag"),
+                ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getTransaction").arg(
-                Arg::with_name("hash")
-                    .long("hash")
-                    .required(true)
-                    .takes_value(true)
-                    .help("The hash of the transaction"),
-            ),
+            SubCommand::with_name("cita_getTransaction")
+                .about("Get transaction by hash")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the transaction"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("cita_getTransactionCount")
+                .about("Get transaction count of an account")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -801,36 +809,44 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
         )
-        .subcommand(SubCommand::with_name("eth_newBlockFilter"))
         .subcommand(
-            SubCommand::with_name("eth_uninstallFilter").arg(
-                Arg::with_name("id")
-                    .long("id")
-                    .required(true)
-                    .takes_value(true)
-                    .validator(|id| is_hex(id.as_ref()))
-                    .help("The filter id."),
-            ),
+            SubCommand::with_name("eth_newBlockFilter").about("Create a block filter (TODO)"),
         )
         .subcommand(
-            SubCommand::with_name("eth_getFilterChanges").arg(
-                Arg::with_name("id")
-                    .long("id")
-                    .required(true)
-                    .takes_value(true)
-                    .validator(|id| is_hex(id.as_ref()))
-                    .help("The filter id."),
-            ),
+            SubCommand::with_name("eth_uninstallFilter")
+                .about("Uninstall a filter by its id")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getFilterLogs").arg(
-                Arg::with_name("id")
-                    .long("id")
-                    .required(true)
-                    .takes_value(true)
-                    .validator(|id| is_hex(id.as_ref()))
-                    .help("The filter id."),
-            ),
+            SubCommand::with_name("eth_getFilterChanges")
+                .about("Get filter changes")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("eth_getFilterLogs")
+                .about("Get filter logs")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
         )
 }
 
