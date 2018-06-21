@@ -525,23 +525,25 @@ pub fn store_processor(
 pub fn rpc_command() -> App<'static, 'static> {
     App::new("rpc")
         .about("All cita jsonrpc interface commands")
-        .subcommand(SubCommand::with_name("net_peerCount").about("Get network peer count"))
-        .subcommand(SubCommand::with_name("cita_blockNumber").about("Get current height"))
+        .subcommand(SubCommand::with_name("peerCount").about("Get network peer count"))
+        .subcommand(SubCommand::with_name("blockNumber").about("Get current height"))
         .subcommand(
-            SubCommand::with_name("cita_sendTransaction")
+            SubCommand::with_name("sendRawTransaction")
                 .about("Send a transaction return transaction hash")
                 .arg(
                     Arg::with_name("code")
                         .long("code")
                         .takes_value(true)
                         .required(true)
+                        .validator(|code| is_hex(code.as_str()))
                         .help("Binary content of the transaction"),
                 )
                 .arg(
                     Arg::with_name("address")
                         .long("address")
-                        .default_value("")
+                        .default_value("0x")
                         .takes_value(true)
+                        .validator(|address| is_hex(address.as_str()))
                         .help(
                             "The address of the invoking contract, defalut is empty to \
                              create contract",
@@ -583,12 +585,12 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("value")
                         .long("value")
                         .takes_value(true)
-                        .validator(|value| parse_u64(value.as_ref()).map(|_| ()))
+                        .validator(|value| is_hex(value.as_ref()))
                         .help("The value to send, default is 0"),
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getBlockByHash")
+            SubCommand::with_name("getBlockByHash")
                 .about("Get block by hash")
                 .arg(
                     Arg::with_name("hash")
@@ -604,7 +606,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getBlockByNumber")
+            SubCommand::with_name("getBlockByNumber")
                 .about("Get block by number")
                 .arg(
                     Arg::with_name("height")
@@ -621,7 +623,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getCode")
+            SubCommand::with_name("getCode")
                 .about("Get the code of a contract")
                 .arg(
                     Arg::with_name("address")
@@ -640,7 +642,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getAbi")
+            SubCommand::with_name("getAbi")
                 .about("Get the ABI of a contract")
                 .arg(
                     Arg::with_name("address")
@@ -659,7 +661,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getBalance")
+            SubCommand::with_name("getBalance")
                 .about("Get the balance of a contract (TODO: return U256)")
                 .arg(
                     Arg::with_name("address")
@@ -678,7 +680,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getTransactionReceipt")
+            SubCommand::with_name("getTransactionReceipt")
                 .about("Get transaction receipt")
                 .arg(
                     Arg::with_name("hash")
@@ -689,7 +691,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_call")
+            SubCommand::with_name("call")
                 .about("Call a contract function (readonly, will not save state change)")
                 .arg(
                     Arg::with_name("from")
@@ -720,7 +722,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getTransactionProof")
+            SubCommand::with_name("getTransactionProof")
                 .about("Get proof of a transaction")
                 .arg(
                     Arg::with_name("hash")
@@ -731,7 +733,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getLogs")
+            SubCommand::with_name("getLogs")
                 .about("Get logs")
                 .arg(
                     Arg::with_name("topic")
@@ -768,7 +770,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getMetaData")
+            SubCommand::with_name("getMetaData")
                 .about("Get metadata of current chain")
                 .arg(
                     Arg::with_name("height")
@@ -780,7 +782,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getTransaction")
+            SubCommand::with_name("getTransaction")
                 .about("Get transaction by hash")
                 .arg(
                     Arg::with_name("hash")
@@ -791,7 +793,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("cita_getTransactionCount")
+            SubCommand::with_name("getTransactionCount")
                 .about("Get transaction count of an account")
                 .arg(
                     Arg::with_name("address")
@@ -809,9 +811,9 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
         )
-        .subcommand(SubCommand::with_name("eth_newBlockFilter").about("Create a block filter"))
+        .subcommand(SubCommand::with_name("newBlockFilter").about("Create a block filter"))
         .subcommand(
-            SubCommand::with_name("eth_uninstallFilter")
+            SubCommand::with_name("uninstallFilter")
                 .about("Uninstall a filter by its id")
                 .arg(
                     Arg::with_name("id")
@@ -823,7 +825,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getFilterChanges")
+            SubCommand::with_name("getFilterChanges")
                 .about("Get filter changes")
                 .arg(
                     Arg::with_name("id")
@@ -835,7 +837,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_getFilterLogs")
+            SubCommand::with_name("getFilterLogs")
                 .about("Get filter logs")
                 .arg(
                     Arg::with_name("id")
@@ -847,7 +849,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("eth_newFilter")
+            SubCommand::with_name("newFilter")
                 .about("Creates a filter object")
                 .arg(
                     Arg::with_name("address")
@@ -895,9 +897,9 @@ pub fn rpc_processor(
         .map_err(|err| format!("{}", err))?
         .set_debug(debug);
     let result = match sub_matches.subcommand() {
-        ("net_peerCount", Some(m)) => client.get_net_peer_count(url.unwrap_or_else(|| get_url(m))),
-        ("cita_blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
-        ("cita_sendTransaction", Some(m)) => {
+        ("peerCount", Some(m)) => client.get_peer_count(url.unwrap_or_else(|| get_url(m))),
+        ("blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
+        ("sendRawTransaction", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
 
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
@@ -907,65 +909,65 @@ pub fn rpc_processor(
                 client.set_private_key(parse_privkey(private_key)?);
             }
             let url = url.unwrap_or_else(|| get_url(m));
-            let code = remove_0x(m.value_of("code").unwrap());
+            let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = m.value_of("value").map(|s| s.parse::<u64>().unwrap());
-            client.send_transaction(url, code, address, current_height, quota, value, blake2b)
+            let value = m.value_of("value");
+            client.send_raw_transaction(url, code, address, current_height, quota, value, blake2b)
         }
-        ("cita_getBlockByHash", Some(m)) => {
+        ("getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
             let with_txs = m.is_present("with-txs");
             client.get_block_by_hash(url.unwrap_or_else(|| get_url(m)), hash, with_txs)
         }
-        ("cita_getBlockByNumber", Some(m)) => {
+        ("getBlockByNumber", Some(m)) => {
             let height = m.value_of("height").unwrap();
             let with_txs = m.is_present("with-txs");
             client.get_block_by_number(url.unwrap_or_else(|| get_url(m)), height, with_txs)
         }
-        ("eth_getCode", Some(m)) => client.get_code(
+        ("getCode", Some(m)) => client.get_code(
             url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
-        ("eth_getAbi", Some(m)) => client.get_abi(
+        ("getAbi", Some(m)) => client.get_abi(
             url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
-        ("eth_getBalance", Some(m)) => client.get_balance(
+        ("getBalance", Some(m)) => client.get_balance(
             url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
-        ("eth_getTransactionReceipt", Some(m)) => {
+        ("getTransactionReceipt", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
             client.get_transaction_receipt(url.unwrap_or_else(|| get_url(m)), hash)
         }
-        ("eth_call", Some(m)) => client.call(
+        ("call", Some(m)) => client.call(
             url.unwrap_or_else(|| get_url(m)),
             m.value_of("from"),
             m.value_of("to").unwrap(),
             m.value_of("data"),
             m.value_of("height").unwrap(),
         ),
-        ("cita_getTransactionProof", Some(m)) => client.get_transaction_proof(
+        ("getTransactionProof", Some(m)) => client.get_transaction_proof(
             url.unwrap_or_else(|| get_url(m)),
             m.value_of("hash").unwrap(),
         ),
-        ("cita_getMetaData", Some(m)) => {
+        ("getMetaData", Some(m)) => {
             let height = m.value_of("height").unwrap();
             client.get_metadata(url.unwrap_or_else(|| get_url(m)), height)
         }
-        ("eth_getLogs", Some(m)) => client.get_logs(
+        ("getLogs", Some(m)) => client.get_logs(
             url.unwrap_or_else(|| get_url(m)),
             m.values_of("topic").map(|value| value.collect()),
             m.values_of("address").map(|value| value.collect()),
             m.value_of("from"),
             m.value_of("to"),
         ),
-        ("cita_getTransaction", Some(m)) => {
+        ("getTransaction", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
             let result = client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash);
             if debug {
@@ -986,24 +988,22 @@ pub fn rpc_processor(
             }
             result
         }
-        ("cita_getTransactionCount", Some(m)) => {
+        ("getTransactionCount", Some(m)) => {
             let address = m.value_of("address").unwrap();
             let height = m.value_of("height").unwrap();
             client.get_transaction_count(url.unwrap_or_else(|| get_url(m)), address, height)
         }
-        ("eth_newBlockFilter", Some(m)) => {
-            client.new_block_filter(url.unwrap_or_else(|| get_url(m)))
-        }
-        ("eth_uninstallFilter", Some(m)) => {
+        ("newBlockFilter", Some(m)) => client.new_block_filter(url.unwrap_or_else(|| get_url(m))),
+        ("uninstallFilter", Some(m)) => {
             client.uninstall_filter(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
         }
-        ("eth_getFilterChanges", Some(m)) => {
+        ("getFilterChanges", Some(m)) => {
             client.get_filter_changes(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
         }
-        ("eth_getFilterLogs", Some(m)) => {
+        ("getFilterLogs", Some(m)) => {
             client.get_filter_logs(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
         }
-        ("eth_newFilter", Some(m)) => {
+        ("newFilter", Some(m)) => {
             let address = m.values_of("address").map(|value| value.collect());
             let from = m.value_of("from");
             let to = m.value_of("to");
@@ -1107,7 +1107,7 @@ pub fn transfer_command() -> App<'static, 'static> {
         .arg(
             Arg::with_name("value")
                 .long("value")
-                .validator(|value| parse_u64(value.as_str()).map(|_| ()))
+                .validator(|value| is_hex(value.as_str()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer amount"),
@@ -1140,7 +1140,7 @@ pub fn transfer_processor(
     let quota = sub_matches
         .value_of("quota")
         .map(|quota| parse_u64(quota).unwrap());
-    let value = parse_u64(sub_matches.value_of("value").unwrap())?;
+    let value = sub_matches.value_of("value").unwrap();
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let response = client
         .transfer(url, value, address, quota, blake2b)
