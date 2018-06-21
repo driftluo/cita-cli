@@ -1,6 +1,6 @@
 [package]
 name = "cita-tool"
-version = "0.1.0"
+version = "0.17.0"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 
 [dependencies]
@@ -10,7 +10,7 @@ futures = "^0.1"
 serde_json = "^1.0.17"
 serde = "^1.0.53"
 serde_derive = "^1.0.53"
-protobuf = "=1.4.4"
+protobuf = "=1.5.1"
 hex = "^0.3.2"
 sha3 = { git = "https://github.com/cryptape/cita-common", branch = "develop" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", rev = "db81cfea59014b4d176f10f86ed52e1a130b6822" }

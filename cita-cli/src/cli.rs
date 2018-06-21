@@ -22,6 +22,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .global(true)
         .help("JSONRPC server URL (dotenv: JSONRPC_URL)");
     App::new("cita-cli")
+        .version(crate_version!())
         .global_setting(AppSettings::ColoredHelp)
         .global_setting(AppSettings::DeriveDisplayOrder)
         .subcommand(rpc_command().arg(arg_url.clone()))
@@ -54,6 +55,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
 /// Interactive parser
 pub fn build_interactive() -> App<'static, 'static> {
     App::new("interactive")
+        .version(crate_version!())
         .setting(AppSettings::NoBinaryName)
         .global_setting(AppSettings::ColoredHelp)
         .global_setting(AppSettings::DeriveDisplayOrder)

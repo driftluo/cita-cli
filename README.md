@@ -2,7 +2,7 @@
 
 A easy-to-use [CITA](https://github.com/cryptape/cita) command line tool.
 
-Just like the relationship between redis_cli and redis.
+Just like the relationship between redis-cli and redis.
 
 ## Overview
 
