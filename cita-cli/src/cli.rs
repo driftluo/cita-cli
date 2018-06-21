@@ -1133,23 +1133,20 @@ pub fn transfer_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug);
-    match sub_matches.subcommand() {
-        ("transfer", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
-            client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-            let url = url.unwrap_or_else(|| get_url(m));
-            let address = m.value_of("address").unwrap();
-            let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-            let value = parse_u64(m.value_of("value").unwrap()).unwrap();
-            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
-            let response = client
-                .transfer(url, value, address, quota, blake2b)
-                .map_err(|err| format!("{}", err))?;
-            printer.println(&response, is_color);
-            Ok(())
-        }
-        _ => return Err(sub_matches.usage().to_owned()),
-    }
+    let blake2b = blake2b(sub_matches, env_variable);
+    client.set_private_key(parse_privkey(sub_matches.value_of("private-key").unwrap())?);
+    let url = url.unwrap_or_else(|| get_url(sub_matches));
+    let address = sub_matches.value_of("address").unwrap();
+    let quota = sub_matches
+        .value_of("quota")
+        .map(|quota| parse_u64(quota).unwrap());
+    let value = parse_u64(sub_matches.value_of("value").unwrap())?;
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let response = client
+        .transfer(url, value, address, quota, blake2b)
+        .map_err(|err| format!("{}", err))?;
+    printer.println(&response, is_color);
+    Ok(())
 }
 
 /// System contract

@@ -160,7 +160,12 @@ pub fn start(url: &str) -> io::Result<()> {
                         env_variable.print(&url);
                         Ok(())
                     }
-                    ("exit", _) => break,
+                    ("exit", _) => {
+                        if let Err(err) = interface.save_history(history_file) {
+                            eprintln!("Save command history failed: {}", err);
+                        };
+                        break;
+                    }
                     _ => Ok(()),
                 }
             }
@@ -170,9 +175,6 @@ pub fn start(url: &str) -> io::Result<()> {
         }
 
         interface.add_history_unique(line.clone());
-        if let Err(err) = interface.save_history(history_file) {
-            eprintln!("Save command history failed: {}", err);
-        };
     }
 
     Ok(())
