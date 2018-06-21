@@ -5,7 +5,7 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
-use cita_tool::{decode_params, encode_input, encode_params, parse_to_h256, pubkey_to_address,
+use cita_tool::{decode_params, encode_input, encode_params, pubkey_to_address,
                 remove_0x, AmendExt, Client, ClientExt, ContractExt, KeyPair, ParamsValue, GroupExt,
                 PrivateKey, PubKey, ResponseValue, StoreExt, UnverifiedTransaction};
 
@@ -913,7 +913,7 @@ pub fn rpc_processor(
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = m.value_of("value").map(|value| parse_to_h256(value));
+            let value = m.value_of("value");
             client.send_transaction(url, code, address, current_height, quota, value, blake2b)
         }
         ("cita_getBlockByHash", Some(m)) => {
@@ -1142,7 +1142,7 @@ pub fn transfer_processor(
     let quota = sub_matches
         .value_of("quota")
         .map(|quota| parse_u64(quota).unwrap());
-    let value = parse_to_h256(sub_matches.value_of("value").unwrap());
+    let value = sub_matches.value_of("value").unwrap();
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let response = client
         .transfer(url, value, address, quota, blake2b)

@@ -15,7 +15,6 @@ use hyper::{self, Body, Client as HyperClient, Request};
 use protobuf::Message;
 use serde_json;
 use tokio::runtime::current_thread::Runtime;
-use types::H256;
 use uuid::Uuid;
 
 const CITA_BLOCK_BUMBER: &str = "cita_blockNumber";
@@ -207,7 +206,7 @@ impl Client {
     }
 
     /// Constructing a UnverifiedTransaction hex string
-    /// If you want to create a contract, set address to ""
+    /// If you want to create a contract, set address to "0x"
     pub fn generate_transaction(
         &mut self,
         url: &str,
@@ -215,9 +214,9 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<H256>,
+        value: Option<&str>,
     ) -> Result<String, ToolError> {
-        let data = decode(code).map_err(ToolError::Decode)?;
+        let data = decode(remove_0x(code)).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
         let mut tx = Transaction::new();
@@ -227,18 +226,18 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
-        tx.set_value(value.unwrap_or(H256::zero()).to_vec());
+        tx.set_value(decode(remove_0x(value.unwrap_or("0x"))).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id(url)?);
-        Ok(encode(
+        Ok(format!("0x{}", encode(
             tx.sha3_sign(*self.sha3_private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
-        ))
+        )))
     }
 
     /// Constructing a UnverifiedTransaction hex string
-    /// If you want to create a contract, set address to ""
+    /// If you want to create a contract, set address to "0x"
     #[cfg(feature = "blake2b_hash")]
     pub fn generate_transaction_by_blake2b(
         &mut self,
@@ -247,9 +246,9 @@ impl Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<H256>,
+        value: Option<&str>,
     ) -> Result<String, ToolError> {
-        let data = decode(code).map_err(ToolError::Decode)?;
+        let data = decode(remove_0x(code)).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
         let mut tx = Transaction::new();
@@ -259,14 +258,14 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(quota.unwrap_or(1_000_000));
-        tx.set_value(value.unwrap_or(H256::zero()).to_vec());
+        tx.set_value(decode(remove_0x(value.unwrap_or("0x"))).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id(url)?);
-        Ok(encode(
+        Ok(format!("0x{}", encode(
             tx.blake2b_sign(*self.blake2b_private_key().unwrap())
                 .take_transaction_with_sig()
                 .write_to_bytes()
                 .unwrap(),
-        ))
+        )))
     }
 
     /// Get chain id
@@ -308,7 +307,7 @@ impl Client {
     pub fn transfer(
         &mut self,
         url: &str,
-        value: H256,
+        value: &str,
         address: &str,
         quota: Option<u64>,
         blake2b: bool,
@@ -382,7 +381,7 @@ where
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<H256>,
+        value: Option<&str>,
         blake2b: bool,
     ) -> Self::RpcResult;
     /// cita_getBlockByHash: Get block by hash
@@ -489,7 +488,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         address: &str,
         current_height: Option<u64>,
         quota: Option<u64>,
-        value: Option<H256>,
+        value: Option<&str>,
         blake2b: bool,
     ) -> Self::RpcResult {
         let byte_code = if !blake2b {
@@ -1358,7 +1357,7 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let content = remove_0x(content);
         let data = format!("0x{}{}", address, content);
-        let value = Some(parse_to_h256(AMEND_CODE));
+        let value = Some(AMEND_CODE);
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 
@@ -1373,7 +1372,7 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
-        let value = Some(parse_to_h256(AMEND_ABI));
+        let value = Some(AMEND_ABI);
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 
@@ -1390,7 +1389,7 @@ impl AmendExt for Client {
         let h256_key = remove_0x(h256_key);
         let h256_value = remove_0x(h256_value);
         let data = format!("0x{}{}{}", address, h256_key, h256_value);
-        let value = Some(parse_to_h256(AMEND_KV_H256));
+        let value = Some(AMEND_KV_H256);
         self.send_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 }
@@ -1420,11 +1419,6 @@ pub fn remove_0x(hex: &str) -> &str {
     hex
 }
 
-/// Convert string to H256
-pub fn parse_to_h256(code: &str) -> H256 {
-    H256::from(encode(code).as_bytes())
-}
-
 /// Get function abi
 fn function_abi(name: &str, inputs: Vec<Param>, tokens: &[Token], constant: bool) -> String {
     let function = Function {
@@ -1435,3 +1429,4 @@ fn function_abi(name: &str, inputs: Vec<Param>, tokens: &[Token], constant: bool
     };
     encode(function.encode_input(tokens).unwrap())
 }
+
