@@ -5,9 +5,11 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
-use cita_tool::{decode_params, encode_input, encode_params, pubkey_to_address, remove_0x,
-                AmendExt, Client, ClientExt, ContractExt, GroupExt, KeyPair, ParamsValue,
-                PrivateKey, PubKey, ResponseValue, StoreExt, UnverifiedTransaction};
+use cita_tool::{
+    decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
+    ClientExt, ContractExt, GroupExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
+    StoreExt, UnverifiedTransaction,
+};
 
 use interactive::GlobalConfig;
 use printer::Printer;

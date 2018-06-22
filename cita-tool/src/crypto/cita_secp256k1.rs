@@ -1,9 +1,9 @@
 use super::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
 use hex::encode;
 use rand::thread_rng;
-use secp256k1::{key::{self, SecretKey},
-                Message as SecpMessage,
-                Secp256k1};
+use secp256k1::{
+    key::{self, SecretKey}, Message as SecpMessage, Secp256k1,
+};
 use std::ops::{Deref, DerefMut};
 use std::{fmt, mem};
 use types::{Address, H256};

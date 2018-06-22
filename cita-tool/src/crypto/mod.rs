@@ -53,12 +53,16 @@ impl PrivateKey {
     pub fn from_str(hex: &str) -> Result<Self, String> {
         if hex.len() > 65 {
             #[cfg(feature = "blake2b_hash")]
-            let private_key = PrivateKey::Blake2b(Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?);
+            let private_key = PrivateKey::Blake2b(
+                Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?
+            );
             #[cfg(not(feature = "blake2b_hash"))]
             let private_key = PrivateKey::Null;
             Ok(private_key)
         } else {
-            Ok(PrivateKey::Sha3(Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?))
+            Ok(PrivateKey::Sha3(
+                Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?
+            ))
         }
     }
 }
@@ -97,7 +101,9 @@ impl PubKey {
             let private_key = PubKey::Null;
             Ok(private_key)
         } else {
-            Ok(PubKey::Sha3(Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?))
+            Ok(PubKey::Sha3(
+                Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?
+            ))
         }
     }
 }
@@ -144,14 +150,14 @@ impl KeyPair {
     /// New from private key
     pub fn from_str(private_key: &str) -> Result<Self, String> {
         match PrivateKey::from_str(private_key)? {
-            PrivateKey::Sha3(private) => Ok(
-                KeyPair::Sha3(Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?),
-            ),
+            PrivateKey::Sha3(private) => Ok(KeyPair::Sha3(
+                Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?
+            )),
             #[cfg(feature = "blake2b_hash")]
             PrivateKey::Blake2b(private) => {
-                Ok(
-                    KeyPair::Blake2b(Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?),
-                )
+                Ok(KeyPair::Blake2b(
+                    Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?
+                ))
             }
             PrivateKey::Null => Ok(KeyPair::Null),
         }
