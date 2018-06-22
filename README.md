@@ -29,7 +29,7 @@ Just like the relationship between redis-cli and redis.
 ### clone and build
 
 ```bash
-$ git clone git@github.com:driftluo/cita-cli.git
+$ git clone https://github.com/driftluo/cita-cli.git
 $ cd cita-cli
 $ cargo build
 ```
