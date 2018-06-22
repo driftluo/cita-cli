@@ -88,11 +88,6 @@ pub fn build_interactive() -> App<'static, 'static> {
                         .help("Switching json format"),
                 ),
         )
-        .subcommand(
-            SubCommand::with_name("exit")
-                .visible_alias("quit")
-                .about("Exit the interactive interface"),
-        )
         .subcommand(SubCommand::with_name("info").about("Display global variables"))
         .subcommand(rpc_command())
         .subcommand(key_command())
@@ -101,6 +96,11 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(transfer_command())
         .subcommand(store_command())
         .subcommand(amend_command())
+        .subcommand(
+            SubCommand::with_name("exit")
+                .visible_alias("quit")
+                .about("Exit the interactive interface"),
+        )
 }
 
 /// Ethereum abi sub command
@@ -115,8 +115,8 @@ pub fn abi_command() -> App<'static, 'static> {
         .long("no-lenient")
         .help("Don't allow short representation of input params");
 
-    App::new("abi")
-        .about("Abi operation, encode parameter, generate code based on abi and parameters")
+    App::new("ethabi")
+        .about("ABI operation, encode parameter, generate code based on abi and parameters")
         .subcommand(
             SubCommand::with_name("encode")
                 .subcommand(
@@ -1052,7 +1052,7 @@ pub fn key_processor(
 /// Account transfer command, only applies to charge mode
 pub fn transfer_command() -> App<'static, 'static> {
     App::new("transfer")
-        .about("Account transfer command")
+        .about("Transfer value from address to address")
         .arg(
             Arg::with_name("address")
                 .long("address")
@@ -1125,7 +1125,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .validator(|address| is_hex(address.as_ref()))
         .help("Group address");
 
-    App::new("contract")
+    App::new("scm")
         .about("System contract manager")
         .subcommand(
             SubCommand::with_name("NodeManager")
