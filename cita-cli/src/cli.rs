@@ -115,7 +115,7 @@ pub fn abi_command() -> App<'static, 'static> {
         .long("no-lenient")
         .help("Don't allow short representation of input params");
 
-    App::new("abi")
+    App::new("ethabi")
         .about("Abi operation, encode parameter, generate code based on abi and parameters")
         .subcommand(
             SubCommand::with_name("encode")
@@ -1158,7 +1158,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .validator(|address| is_hex(address.as_ref()))
         .help("Group address");
 
-    App::new("contract")
+    App::new("scm")
         .about("System contract manager")
         .subcommand(
             SubCommand::with_name("NodeManager")

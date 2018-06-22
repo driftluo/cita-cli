@@ -46,9 +46,9 @@ fn main() {
 
     if let Err(err) = match matches.subcommand() {
         ("rpc", Some(m)) => rpc_processor(m, &printer, None, &env_variable),
-        ("abi", Some(m)) => abi_processor(m, &printer),
+        ("ethabi", Some(m)) => abi_processor(m, &printer),
         ("key", Some(m)) => key_processor(m, &printer, &env_variable),
-        ("contract", Some(m)) => contract_processor(m, &printer, None, &env_variable),
+        ("scm", Some(m)) => contract_processor(m, &printer, None, &env_variable),
         ("transfer", Some(m)) => transfer_processor(m, &printer, None, &env_variable),
         ("store", Some(m)) => store_processor(m, &printer, None, &env_variable),
         ("amend", Some(m)) => amend_processor(m, &printer, None, &env_variable),
