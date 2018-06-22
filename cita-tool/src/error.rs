@@ -24,4 +24,7 @@ pub enum ToolError {
     /// Hex decode error
     #[fail(display = "hex decode error: {}", _0)]
     Decode(FromHexError),
+    /// Customize error
+    #[fail(display = "customize error: {}", _0)]
+    Customize(String),
 }

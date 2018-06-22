@@ -6,8 +6,10 @@ use std::{str, u64};
 use super::encode_params;
 #[cfg(feature = "blake2b_hash")]
 use super::Blake2bPrivKey;
-use super::{JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey,
-            ToolError, Transaction};
+use super::{
+    JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey, ToolError,
+    Transaction,
+};
 use ethabi::{Function, Param, Token};
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
@@ -48,12 +50,11 @@ pub const ABI_ADDRESS: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 pub const AMEND_ADDRESS: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
 
 ///amend the abi data
-pub const AMEND_ABI: &str = "0x0000000000000000000000000000000000000000000000000000000000000001";
+pub const AMEND_ABI: &str = "0x1";
 ///amend the account code
-pub const AMEND_CODE: &str = "0x0000000000000000000000000000000000000000000000000000000000000002";
+pub const AMEND_CODE: &str = "0x2";
 ///amend the kv of db
-pub const AMEND_KV_H256: &str =
-    "0x0000000000000000000000000000000000000000000000000000000000000003";
+pub const AMEND_KV_H256: &str = "0x3";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -232,8 +233,9 @@ impl Client {
         Ok(format!(
             "0x{}",
             encode(
-                tx.sha3_sign(*self.sha3_private_key().unwrap())
-                    .take_transaction_with_sig()
+                tx.sha3_sign(*self.sha3_private_key().ok_or(ToolError::Customize(
+                    "The provided private key do not match the algorithm".to_string()
+                ))?).take_transaction_with_sig()
                     .write_to_bytes()
                     .unwrap(),
             )
@@ -267,8 +269,9 @@ impl Client {
         Ok(format!(
             "0x{}",
             encode(
-                tx.blake2b_sign(*self.blake2b_private_key().unwrap())
-                    .take_transaction_with_sig()
+                tx.blake2b_sign(*self.blake2b_private_key().ok_or(ToolError::Customize(
+                    "The provided private key do not match the algorithm".to_string()
+                ))?).take_transaction_with_sig()
                     .write_to_bytes()
                     .unwrap(),
             )
@@ -1403,6 +1406,7 @@ impl AmendExt for Client {
 /// assert_eq!("0b", d);
 /// println!("a = {}, b = {}, c = {}, d= {}", a, b, c, d);
 /// ```
+#[inline]
 pub fn remove_0x(hex: &str) -> &str {
     {
         let tmp = hex.as_bytes();

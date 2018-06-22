@@ -25,8 +25,10 @@ use std::rc::Rc;
 
 use dotenv::dotenv;
 
-use cli::{abi_processor, amend_processor, build_cli, contract_processor, key_processor,
-          rpc_processor, store_processor, transfer_processor};
+use cli::{
+    abi_processor, amend_processor, build_cli, contract_processor, key_processor, rpc_processor,
+    store_processor, transfer_processor,
+};
 use interactive::GlobalConfig;
 use printer::Printer;
 
