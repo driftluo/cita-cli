@@ -1,6 +1,7 @@
 extern crate ansi_term;
 extern crate atty;
 extern crate cita_tool;
+#[macro_use]
 extern crate clap;
 extern crate dotenv;
 extern crate linefeed;
