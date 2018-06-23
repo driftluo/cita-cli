@@ -425,11 +425,12 @@ impl GlobalConfig {
     }
 }
 
-fn remove_private(private_key: &str, blake_2b: bool) -> String {
+fn remove_private(line: &str, blake_2b: bool) -> String {
     let len = if blake_2b { 128 + 2 } else { 64 + 2 };
-    private_key
-        .split_whitespace()
+    shell_words::split(line)
+        .unwrap()
+        .into_iter()
         .filter(|key| !(key.starts_with("0x") && key.len() == len))
-        .collect::<Vec<&str>>()
+        .collect::<Vec<String>>()
         .join(" ")
 }
