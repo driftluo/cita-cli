@@ -426,17 +426,10 @@ impl GlobalConfig {
 }
 
 fn remove_private(private_key: &str, blake_2b: bool) -> String {
-    if blake_2b {
-        private_key
-            .split_whitespace()
-            .filter(|key| !(key.starts_with("0x") && key.len() == 128 + 2))
-            .collect::<Vec<&str>>()
-            .join(" ")
-    } else {
-        private_key
-            .split_whitespace()
-            .filter(|key| !(key.starts_with("0x") && key.len() == 64 + 2))
-            .collect::<Vec<&str>>()
-            .join(" ")
-    }
+    let len = if blake_2b { 128 + 2 } else { 64 + 2 };
+    private_key
+        .split_whitespace()
+        .filter(|key| !(key.starts_with("0x") && key.len() == len))
+        .collect::<Vec<&str>>()
+        .join(" ")
 }
