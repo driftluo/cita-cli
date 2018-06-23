@@ -12,13 +12,13 @@ Just like the relationship between redis-cli and redis.
 
 ## Todo
 
-- ~Send transaction, support sha3hash and blake2b~
-- ~Support interactive command line~
-- Support system contract
-- Init cita
-- Kill cita process
-- Start cita process
-- Monitoring status
+- [x] Send transaction, support sha3hash and blake2b
+- [x] Support interactive command line
+- [ ] Support system contract
+- [ ] Init cita
+- [ ] Kill cita process
+- [ ] Start cita process
+- [ ] Monitoring status
 
 ## Usage
 
@@ -58,7 +58,7 @@ $ ./target/debug/cita-cli
 [url: http://127.0.0.1:1337] [encryption: sha3_hash] [color: true]
 cita> switch --host http://121.196.200.225:1337
 [url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
-cita> rpc cita_blockNumber 
+cita> rpc blockNumber
 {
   "jsonrpc": "2.0",
   "result": "0x5fbb2",
@@ -72,11 +72,11 @@ cita> key create
 }
 cita> info
 [url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
-cita> abi encode params --param uint256 16
+cita> ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-cita> abi encode function ../HelloWorld.abi update --param 16
+cita> ethabi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
-cita> abi encode params --param address 08d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb --param uint256 16
+cita> ethabi encode params --param address 08d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb --param uint256 16
 "00000000000000000000000008d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb0000000000000000000000000000000000000000000000000000000000000010"
 cita> exit
 ```
@@ -85,7 +85,7 @@ cita> exit
 
 - Get chain height
 ```bash
-$ ./target/debug/cita-cli rpc cita_blockNumber --url http://121.196.200.225:1337
+$ ./target/debug/cita-cli rpc blockNumber --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": "0x1bc7f",
@@ -95,7 +95,7 @@ $ ./target/debug/cita-cli rpc cita_blockNumber --url http://121.196.200.225:1337
 
 - Send transaction
 ```bash
-$ ./target/debug/cita-cli rpc cita_sendTransaction \
+$ ./target/debug/cita-cli rpc sendRawTransaction \
     --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
     --code "606060405234156100105760006000fd5b610015565b60e0806100236000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604b5780636d4ce63c14606c576045565b60006000fd5b341560565760006000fd5b606a60048080359060200190919050506093565b005b341560775760006000fd5b607d60a3565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060b1565b905600a165627a7a72305820942223976c6dd48a3aa1d4749f45ad270915cfacd9c0bf3583c018d4c86f9da20029" \
     --height 111146 \
@@ -112,7 +112,7 @@ $ ./target/debug/cita-cli rpc cita_sendTransaction \
 
 - Get transaction receipt
 ```bash
-$ ./target/debug/cita-cli rpc eth_getTransactionReceipt \
+$ ./target/debug/cita-cli rpc getTransactionReceipt \
     --hash "0x16251c374ee87eae41cbd9203eea481b861738a19c19df9d3c6603b9fbe84478" \
     --url http://121.196.200.225:1337
 {
@@ -136,7 +136,7 @@ $ ./target/debug/cita-cli rpc eth_getTransactionReceipt \
 
 - Call contract function
 ```bash
-$ ./target/debug/cita-cli rpc cita_sendTransaction \
+$ ./target/debug/cita-cli rpc sendRawTransaction \
     --private-key "352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
     --address "73552bc4e960a1d53013b40074569ea05b950b4d" \
     --code "60fe47b10000000000000000000000000000000000000000000000000000000000000001" \
@@ -153,7 +153,7 @@ $ ./target/debug/cita-cli rpc cita_sendTransaction \
 
 - Get eth-call result
 ```bash
-$ ./target/debug/cita-cli rpc eth_call \
+$ ./target/debug/cita-cli rpc call \
     --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 \
     --data 0x6d4ce63c \
     --height latest \
@@ -187,8 +187,8 @@ $ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c
 
 - ABI generate
 ```bash
-$ ./target/debug/cita-cli abi encode params --param uint256 16
+$ ./target/debug/cita-cli ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-$ ./target/debug/cita-cli abi encode function ../HelloWorld.abi update --param 16
+$ ./target/debug/cita-cli ethabi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
