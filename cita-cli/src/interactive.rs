@@ -176,7 +176,7 @@ pub fn start(url: &str) -> io::Result<()> {
             printer.eprintln(&format!("{}", err), true);
         }
 
-        interface.add_history_unique(line.clone());
+        interface.add_history_unique(remove_private(&line, env_variable.blake2b()));
     }
 
     Ok(())
@@ -422,5 +422,21 @@ impl GlobalConfig {
             .collect::<Vec<String>>()
             .join("\n");
         println!("{}", output);
+    }
+}
+
+fn remove_private(private_key: &str, blake_2b: bool) -> String {
+    if blake_2b {
+        private_key
+            .split_whitespace()
+            .filter(|key| !(key.starts_with("0x") && key.len() == 128 + 2))
+            .collect::<Vec<&str>>()
+            .join(" ")
+    } else {
+        private_key
+            .split_whitespace()
+            .filter(|key| !(key.starts_with("0x") && key.len() == 64 + 2))
+            .collect::<Vec<&str>>()
+            .join(" ")
     }
 }
