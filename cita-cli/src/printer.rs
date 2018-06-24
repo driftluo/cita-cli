@@ -8,7 +8,7 @@ use atty;
 use serde_json;
 
 use cita_tool::{JsonRpcResponse, KeyPair};
-use highlight;
+use json_color::Colorizer;
 
 pub fn is_a_tty(stderr: bool) -> bool {
     let stream = if stderr {
@@ -144,7 +144,9 @@ impl Printable for JsonRpcResponse {
     fn rc_string(&self, _format: OutputFormat, color: bool) -> Rc<String> {
         let content = format!("{:?}", self);
         let content = if color {
-            highlight::highlight(content.as_str(), "json")
+            Colorizer::arbitrary()
+                .colorize_json_str(content.as_str())
+                .unwrap()
         } else {
             content
         };
@@ -160,11 +162,10 @@ impl Printable for serde_json::Value {
             }
             _ => {}
         }
-        let content = serde_json::to_string_pretty(self).unwrap();
         let content = if color {
-            highlight::highlight(content.as_str(), "json")
+            Colorizer::arbitrary().colorize_json_value(self).unwrap()
         } else {
-            content
+            serde_json::to_string_pretty(self).unwrap()
         };
         Rc::new(content)
     }
