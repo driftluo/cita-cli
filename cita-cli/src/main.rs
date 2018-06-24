@@ -10,16 +10,15 @@ extern crate serde;
 #[macro_use]
 extern crate serde_json;
 extern crate shell_words;
-// #[cfg(feature = "color")]
+#[cfg(feature = "syntect")]
 extern crate syntect;
 
 mod cli;
-mod printer;
-// #[cfg(feature = "color")]
-#[allow(dead_code)]
+#[cfg(feature = "syntect")]
 mod highlight;
 mod interactive;
 mod json_color;
+mod printer;
 
 use std::collections::HashMap;
 use std::env;

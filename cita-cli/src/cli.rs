@@ -5,10 +5,13 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
+use cita_tool::basic_client::{AmendExt, Client, ClientExt, GroupExt, StoreExt};
+use cita_tool::system_contract_client::{
+    ContractClient, GroupManagementExt, NodeManagementExt, QuotaManagementExt,
+};
 use cita_tool::{
-    decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
-    ClientExt, ContractClient, ContractExt, GroupExt, GroupManagementExt, KeyPair, ParamsValue,
-    PrivateKey, PubKey, ResponseValue, StoreExt, UnverifiedTransaction,
+    decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, KeyPair, ParamsValue,
+    PrivateKey, PubKey, ResponseValue, UnverifiedTransaction,
 };
 
 use interactive::GlobalConfig;
@@ -1483,7 +1486,7 @@ pub fn contract_processor(
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
-                let authorities = client
+                let authorities = ContractClient::node_management(Some(client))
                     .get_authorities(url.unwrap_or_else(|| get_url(m)))
                     .map_err(|err| format!("{}", err))?;
                 let is_color = !sub_matches.is_present("no-color") && env_variable.color();
@@ -1493,54 +1496,60 @@ pub fn contract_processor(
             ("getStatus", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.node_status(url, address)
+                ContractClient::node_management(Some(client)).node_status(url, address)
             }
             ("deleteNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.downgrade_consensus_node(url, address, blake2b)
+                ContractClient::node_management(Some(client))
+                    .downgrade_consensus_node(url, address, blake2b)
             }
             ("newNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.new_consensus_node(url, address, blake2b)
+                ContractClient::node_management(Some(client))
+                    .new_consensus_node(url, address, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.approve_node(url, address, blake2b)
+                ContractClient::node_management(Some(client)).approve_node(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", _) => client.get_bql(url.unwrap_or_else(|| get_url(m))),
-            ("getDefaultAQL", _) => client.get_default_bql(url.unwrap_or_else(|| get_url(m))),
-            ("getAccounts", _) => client.get_accounts(url.unwrap_or_else(|| get_url(m))),
-            ("getQuotas", _) => client.get_quotas(url.unwrap_or_else(|| get_url(m))),
+            ("getBQL", _) => ContractClient::quota_management(Some(client))
+                .get_bql(url.unwrap_or_else(|| get_url(m))),
+            ("getDefaultAQL", _) => ContractClient::quota_management(Some(client))
+                .get_default_aql(url.unwrap_or_else(|| get_url(m))),
+            ("getAccounts", _) => ContractClient::quota_management(Some(client))
+                .get_accounts(url.unwrap_or_else(|| get_url(m))),
+            ("getQuotas", _) => ContractClient::quota_management(Some(client))
+                .get_quotas(url.unwrap_or_else(|| get_url(m))),
             ("getAQL", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.get_aql(url, address)
+                ContractClient::quota_management(Some(client)).get_aql(url, address)
             }
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.set_bql(url, quota, blake2b)
+                ContractClient::quota_management(Some(client)).set_bql(url, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.set_default_aql(url, quota, blake2b)
+                ContractClient::quota_management(Some(client)).set_default_aql(url, quota, blake2b)
             }
             ("setAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1548,19 +1557,19 @@ pub fn contract_processor(
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.set_aql(url, address, quota, blake2b)
+                ContractClient::quota_management(Some(client)).set_aql(url, address, quota, blake2b)
             }
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.is_admin(url, address)
+                ContractClient::quota_management(Some(client)).is_admin(url, address)
             }
             ("addAdmin", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                client.add_admin(url, address, blake2b)
+                ContractClient::quota_management(Some(client)).add_admin(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },

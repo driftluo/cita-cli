@@ -9,13 +9,13 @@ clap = "^2.31.2"
 ansi_term = "^0.10.0"
 colored = "^1.6.0"
 atty = "^0.2.10"
-syntect = "^2.0.1"
 serde = "^1.0.66"
 serde_json = "^1.0.17"
-lazy_static = "^1.0"
 shell-words = "^0.1.0"
 linefeed = "^0.5.0"
 cita-tool = { path = "../cita-tool" }
+syntect = { version = "^2.0.1", optional = true }
+## lazy_static = "^1.0"
 
 [features]
 default = []
