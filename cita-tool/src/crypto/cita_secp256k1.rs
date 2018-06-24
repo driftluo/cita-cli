@@ -1,4 +1,4 @@
-use super::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
+use crypto::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
 use hex::encode;
 use rand::thread_rng;
 use secp256k1::{
