@@ -18,7 +18,7 @@ use shell_words;
 
 use cli::{
     abi_processor, amend_processor, build_interactive, contract_processor, key_processor,
-    rpc_processor, store_processor, transfer_processor, parse_privkey
+    parse_privkey, rpc_processor, store_processor, transfer_processor,
 };
 use printer::Printer;
 
@@ -176,7 +176,7 @@ pub fn start(url: &str) -> io::Result<()> {
             printer.eprintln(&format!("{}", err), true);
         }
 
-        interface.add_history_unique(remove_private(&line, env_variable.blake2b()));
+        interface.add_history_unique(remove_private(&line));
     }
 
     Ok(())
@@ -425,7 +425,7 @@ impl GlobalConfig {
     }
 }
 
-fn remove_private(line: &str, blake_2b: bool) -> String {
+fn remove_private(line: &str) -> String {
     shell_words::split(line)
         .unwrap()
         .into_iter()

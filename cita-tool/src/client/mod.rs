@@ -1,7 +1,7 @@
 /// Basic client api, for Low-level interface
-pub mod basic_client;
+pub mod basic;
 /// System contract client api, call system contract more easy
-pub mod system_contract_client;
+pub mod system_contract;
 
 use std::str;
 

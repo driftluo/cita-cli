@@ -1,5 +1,5 @@
-use super::basic_client::{Client, ClientExt};
-use super::remove_0x;
+use client::basic::{Client, ClientExt};
+use client::remove_0x;
 
 use std::str::{self, FromStr};
 
