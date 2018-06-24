@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::{str, u64};
+
 use failure::Fail;
 use serde;
-use std::collections::HashMap;
-use std::{str, u64};
 
 use super::encode_params;
 #[cfg(feature = "blake2b_hash")]
@@ -10,7 +12,7 @@ use super::{
     JsonRpcParams, JsonRpcResponse, ParamsValue, PrivateKey, ResponseValue, Sha3PrivKey, ToolError,
     Transaction,
 };
-use ethabi::{Function, Param, Token};
+use ethabi::{Address, Contract, Function, Param, Token};
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
 use hyper::{self, Body, Client as HyperClient, Request};
@@ -18,6 +20,8 @@ use protobuf::Message;
 use serde_json;
 use tokio::runtime::current_thread::Runtime;
 use uuid::Uuid;
+
+use abi::contract_encode_input;
 
 const BLOCK_BUMBER: &str = "blockNumber";
 const GET_META_DATA: &str = "getMetaData";
@@ -1258,6 +1262,208 @@ pub trait GroupExt: ClientExt<JsonRpcResponse, ToolError> {
 }
 
 impl GroupExt for Client {}
+
+/// Contract Client
+pub struct ContractClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+impl ContractClient {
+    /// Create a Contract Client
+    pub fn new(client: Client, address_str: &str, contract_json: &str) -> Self {
+        let address = Address::from_str(remove_0x(address_str)).unwrap();
+        let contract = Contract::load(contract_json.as_bytes()).unwrap();
+        ContractClient {
+            client,
+            address,
+            contract,
+        }
+    }
+
+    /// Create a Group Management contract client
+    pub fn group_management(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../contract_abi/GroupManagement.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
+        let client = client.unwrap_or_else(|| Client::new().unwrap());
+        Self::new(client, ADDRESS, ABI)
+    }
+
+    /// Call/SendTx a contract method
+    pub fn contract_call(
+        &mut self,
+        url: &str,
+        name: &str,
+        values: &[&str],
+        blake2b: Option<bool>,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
+        let code = format!("0x{}", code);
+        let to_address = format!("{:?}", self.address);
+        if let Some(blake2b) = blake2b {
+            self.client.send_raw_transaction(
+                url,
+                code.as_str(),
+                to_address.as_str(),
+                None,
+                None,
+                None,
+                blake2b,
+            )
+        } else {
+            self.client.call(
+                url,
+                None,
+                to_address.as_str(),
+                Some(code.as_str()),
+                "latest",
+            )
+        }
+    }
+}
+
+/// GroupManagement System Contract
+pub trait GroupManagementExt {
+    /// Rpc response
+    type RpcResult;
+
+    /// Create a new group
+    fn new_group(
+        &mut self,
+        url: &str,
+        origin: &str,
+        name: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Delete the group
+    fn delete_group(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Update the group name
+    fn update_group_name(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        name: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Add accounts
+    fn add_accounts(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Delete accounts
+    fn delete_accounts(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult;
+
+    /// Check the target group in the scope of the origin group
+    ///   Scope: the origin group is the ancestor of the target group
+    fn check_scope(&mut self, url: &str, origin: &str, target: &str) -> Self::RpcResult;
+
+    /// Query all groups
+    fn query_groups(&mut self, url: &str) -> Self::RpcResult;
+}
+
+impl GroupManagementExt for ContractClient {
+    type RpcResult = Result<JsonRpcResponse, ToolError>;
+    /// Create a new group
+    fn new_group(
+        &mut self,
+        url: &str,
+        origin: &str,
+        name: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = vec![origin, name, accounts];
+        self.contract_call(url, "newGroup", values.as_slice(), Some(blake2b))
+    }
+
+    /// Delete the group
+    fn delete_group(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = vec![origin, target];
+        self.contract_call(url, "deleteGroup", values.as_slice(), Some(blake2b))
+    }
+
+    /// Update the group name
+    fn update_group_name(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        name: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = vec![origin, target, name];
+        self.contract_call(url, "updateGroupName", values.as_slice(), Some(blake2b))
+    }
+
+    /// Add accounts
+    fn add_accounts(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = vec![origin, target, accounts];
+        self.contract_call(url, "addAccounts", values.as_slice(), Some(blake2b))
+    }
+
+    /// Delete accounts
+    fn delete_accounts(
+        &mut self,
+        url: &str,
+        origin: &str,
+        target: &str,
+        accounts: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = vec![origin, target, accounts];
+        self.contract_call(url, "deleteAccounts", values.as_slice(), Some(blake2b))
+    }
+
+    /// Check the target group in the scope of the origin group
+    ///   Scope: the origin group is the ancestor of the target group
+    fn check_scope(&mut self, url: &str, origin: &str, target: &str) -> Self::RpcResult {
+        let values = vec![origin, target];
+        self.contract_call(url, "checkScope", values.as_slice(), None)
+    }
+
+    /// Query all groups
+    fn query_groups(&mut self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "queryGroups", vec![].as_slice(), None)
+    }
+}
 
 /// Store data or contract ABI to chain
 pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {

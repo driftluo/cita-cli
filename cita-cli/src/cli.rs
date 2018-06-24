@@ -7,8 +7,8 @@ use serde_json::{self, Value};
 
 use cita_tool::{
     decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, AmendExt, Client,
-    ClientExt, ContractExt, GroupExt, KeyPair, ParamsValue, PrivateKey, PubKey, ResponseValue,
-    StoreExt, UnverifiedTransaction,
+    ClientExt, ContractClient, ContractExt, GroupExt, GroupManagementExt, KeyPair, ParamsValue,
+    PrivateKey, PubKey, ResponseValue, StoreExt, UnverifiedTransaction,
 };
 
 use interactive::GlobalConfig;
@@ -1161,6 +1161,28 @@ pub fn contract_command() -> App<'static, 'static> {
         .required(true)
         .validator(|address| is_hex(address.as_ref()))
         .help("Group address");
+    let group_origin_arg = Arg::with_name("origin")
+        .long("origin")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("Group origin address");
+    let group_target_arg = Arg::with_name("target")
+        .long("target")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("Group target address");
+    let group_name_arg = Arg::with_name("name")
+        .long("name")
+        .takes_value(true)
+        .required(true)
+        .help("The group name");
+    let group_accounts_arg = Arg::with_name("accounts")
+        .long("accounts")
+        .takes_value(true)
+        .required(true)
+        .help("Group account address list");
 
     App::new("scm")
         .about("System contract manager")
@@ -1369,12 +1391,40 @@ pub fn contract_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("GroupManagement")
                 .about("User management using group struct (group_management.sol)")
-                .subcommand(SubCommand::with_name("newGroup"))
-                .subcommand(SubCommand::with_name("deleteGroup"))
-                .subcommand(SubCommand::with_name("updateGroupName"))
-                .subcommand(SubCommand::with_name("addAccounts"))
-                .subcommand(SubCommand::with_name("deleteAccounts"))
-                .subcommand(SubCommand::with_name("checkScope"))
+                .subcommand(
+                    SubCommand::with_name("newGroup")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_name_arg.clone())
+                        .arg(group_accounts_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deleteGroup")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_target_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("updateGroupName")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_target_arg.clone())
+                        .arg(group_name_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("addAccounts")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_target_arg.clone())
+                        .arg(group_accounts_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deleteAccounts")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_target_arg.clone())
+                        .arg(group_accounts_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("checkScope")
+                        .arg(group_origin_arg.clone())
+                        .arg(group_target_arg.clone()),
+                )
                 .subcommand(SubCommand::with_name("queryGroups")),
         )
         .subcommand(
@@ -1511,6 +1561,65 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 client.add_admin(url, address, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("GroupManagement", Some(m)) => match m.subcommand() {
+            ("newGroup", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let name = m.value_of("name").unwrap();
+                let accounts = m.value_of("accounts").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.new_group(url, origin, name, accounts, blake2b)
+            }
+            ("deleteGroup", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let target = m.value_of("target").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.delete_group(url, origin, target, blake2b)
+            }
+            ("updateGroupName", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let target = m.value_of("target").unwrap();
+                let name = m.value_of("name").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.update_group_name(url, origin, target, name, blake2b)
+            }
+            ("addAccounts", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let target = m.value_of("target").unwrap();
+                let accounts = m.value_of("accounts").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.add_accounts(url, origin, target, accounts, blake2b)
+            }
+            ("deleteAccounts", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let target = m.value_of("target").unwrap();
+                let accounts = m.value_of("accounts").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.delete_accounts(url, origin, target, accounts, blake2b)
+            }
+            ("checkScope", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let origin = m.value_of("origin").unwrap();
+                let target = m.value_of("target").unwrap();
+                let mut client = ContractClient::group_management(Some(client));
+                client.check_scope(url, origin, target)
+            }
+            ("queryGroups", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let mut client = ContractClient::group_management(Some(client));
+                client.query_groups(url)
             }
             _ => return Err(m.usage().to_owned()),
         },
