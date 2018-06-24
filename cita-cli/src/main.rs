@@ -1,10 +1,12 @@
 extern crate ansi_term;
 extern crate atty;
 extern crate cita_tool;
+extern crate colored;
 #[macro_use]
 extern crate clap;
 extern crate dotenv;
 extern crate linefeed;
+extern crate serde;
 #[macro_use]
 extern crate serde_json;
 extern crate shell_words;
@@ -14,8 +16,10 @@ extern crate syntect;
 mod cli;
 mod printer;
 // #[cfg(feature = "color")]
+#[allow(dead_code)]
 mod highlight;
 mod interactive;
+mod json_color;
 
 use std::collections::HashMap;
 use std::env;
