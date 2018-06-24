@@ -18,7 +18,7 @@ use shell_words;
 
 use cli::{
     abi_processor, amend_processor, build_interactive, contract_processor, key_processor,
-    rpc_processor, store_processor, transfer_processor,
+    rpc_processor, store_processor, transfer_processor, parse_privkey
 };
 use printer::Printer;
 
@@ -426,11 +426,10 @@ impl GlobalConfig {
 }
 
 fn remove_private(line: &str, blake_2b: bool) -> String {
-    let len = if blake_2b { 128 + 2 } else { 64 + 2 };
     shell_words::split(line)
         .unwrap()
         .into_iter()
-        .filter(|key| !(key.starts_with("0x") && key.len() == len))
+        .filter(|key| parse_privkey(key).is_err())
         .collect::<Vec<String>>()
         .join(" ")
 }
