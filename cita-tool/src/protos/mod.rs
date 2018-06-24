@@ -1,10 +1,10 @@
 pub mod transaction;
 
 pub use self::transaction::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
-use super::remove_0x;
+use client::remove_0x;
 #[cfg(feature = "blake2b_hash")]
-use super::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
-use super::{sha3_sign, CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey};
+use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
+use crypto::{sha3_sign, CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};

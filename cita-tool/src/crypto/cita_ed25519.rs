@@ -1,4 +1,4 @@
-use super::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
+use crypto::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
 use hex::encode;
 use sodiumoxide::crypto::sign::{gen_keypair, keypair_from_privkey, sign_detached, SecretKey};
 use std::fmt;
