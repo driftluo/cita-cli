@@ -2,22 +2,12 @@ use std::fs::File;
 
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
-use ethabi::{decode, encode, Contract, Function};
+use ethabi::{decode, encode, Contract};
 use hex::{decode as hex_decode, encode as hex_encode};
 
 use error::ToolError;
 
-fn load_function(path: &str, function: &str) -> Result<Function, String> {
-    let file = File::open(path).map_err(|e| format!("{}", e))?;
-    let contract = Contract::load(file).map_err(|e| format!("{}", e))?;
-    let function = contract
-        .function(function)
-        .map_err(|e| format!("{}", e))?
-        .clone();
-    Ok(function)
-}
-
-fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, String> {
+pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, String> {
     params
         .iter()
         .map(|&(ref param, value)| match lenient {
@@ -28,15 +18,14 @@ fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token
         .map_err(|e| format!("{}", e))
 }
 
-/// According to the given abi file, encode the function and parameter values
-pub fn encode_input(
-    path: &str,
+/// According to the contract, encode the function and parameter values
+pub fn contract_encode_input(
+    contract: &Contract,
     function: &str,
     values: &[String],
     lenient: bool,
 ) -> Result<String, ToolError> {
-    let function = load_function(path, function).map_err(ToolError::Abi)?;
-
+    let function = contract.function(function).unwrap().clone();
     let params: Vec<_> = function
         .inputs
         .iter()
@@ -50,6 +39,18 @@ pub fn encode_input(
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
     Ok(hex_encode(result))
+}
+
+/// According to the given abi file, encode the function and parameter values
+pub fn encode_input(
+    path: &str,
+    function: &str,
+    values: &[String],
+    lenient: bool,
+) -> Result<String, ToolError> {
+    let file = File::open(path).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let contract = Contract::load(file).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    contract_encode_input(&contract, function, values, lenient)
 }
 
 /// According to type, encode the value of the parameter

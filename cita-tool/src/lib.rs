@@ -42,7 +42,10 @@ pub mod protos;
 pub mod rpctypes;
 
 pub use abi::{decode_params, encode_input, encode_params};
-pub use client::{remove_0x, AmendExt, Client, ClientExt, ContractExt, GroupExt, StoreExt};
+pub use client::{
+    remove_0x, AmendExt, Client, ClientExt, ContractClient, ContractExt, GroupExt,
+    GroupManagementExt, StoreExt,
+};
 #[cfg(feature = "blake2b_hash")]
 pub use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature};
 pub use crypto::{
