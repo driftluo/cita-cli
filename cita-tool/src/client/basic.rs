@@ -1,6 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::{str, u64};
-use std::cell::RefCell;
 
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, Future, Stream};
@@ -401,12 +401,7 @@ where
         blake2b: bool,
     ) -> Self::RpcResult;
     /// getBlockByHash: Get block by hash
-    fn get_block_by_hash(
-        &self,
-        url: &str,
-        hash: &str,
-        transaction_info: bool,
-    ) -> Self::RpcResult;
+    fn get_block_by_hash(&self, url: &str, hash: &str, transaction_info: bool) -> Self::RpcResult;
     /// getBlockByNumber: Get block by number
     fn get_block_by_number(
         &self,
@@ -547,12 +542,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         // }
     }
 
-    fn get_block_by_hash(
-        &self,
-        url: &str,
-        hash: &str,
-        transaction_info: bool,
-    ) -> Self::RpcResult {
+    fn get_block_by_hash(&self, url: &str, hash: &str, transaction_info: bool) -> Self::RpcResult {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
