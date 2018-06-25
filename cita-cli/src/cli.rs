@@ -7,7 +7,8 @@ use serde_json::{self, Value};
 
 use cita_tool::client::basic::{AmendExt, Client, ClientExt, StoreExt, Transfer};
 use cita_tool::client::system_contract::{
-    ContractClient, GroupExt, GroupManagementExt, NodeManagementExt, QuotaManagementExt,
+    AuthorizationExt, ContractClient, GroupExt, GroupManagementExt, NodeManagementExt,
+    PermissionExt, PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
 };
 use cita_tool::{
     decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, KeyPair, ParamsValue,
@@ -1158,12 +1159,18 @@ pub fn transfer_processor(
 
 /// System contract
 pub fn contract_command() -> App<'static, 'static> {
-    let group_address_arg = Arg::with_name("address")
+    let address_arg = Arg::with_name("address")
         .long("address")
         .takes_value(true)
         .required(true)
-        .validator(|address| is_hex(address.as_ref()))
-        .help("Group address");
+        .validator(|address| is_hex(address.as_ref()));
+    let name_arg = Arg::with_name("name")
+        .long("name")
+        .takes_value(true)
+        .required(true);
+
+    let group_address_arg = address_arg.clone().help("Group address");
+    let group_name_arg = name_arg.clone().help("Group name");
     let group_origin_arg = Arg::with_name("origin")
         .long("origin")
         .takes_value(true)
@@ -1176,16 +1183,57 @@ pub fn contract_command() -> App<'static, 'static> {
         .required(true)
         .validator(|address| is_hex(address.as_ref()))
         .help("Group target address");
-    let group_name_arg = Arg::with_name("name")
-        .long("name")
-        .takes_value(true)
-        .required(true)
-        .help("The group name");
     let group_accounts_arg = Arg::with_name("accounts")
         .long("accounts")
         .takes_value(true)
         .required(true)
         .help("Group account address list");
+
+    let account_address_arg = Arg::with_name("account")
+        .long("account")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("Account address");
+    let contract_address_arg = Arg::with_name("contract")
+        .long("contract")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("The contract address");
+    let funcion_hash_arg = Arg::with_name("function-hash")
+        .long("function-hash")
+        .takes_value(true)
+        .required(true)
+        .validator(|hash| is_hex(hash.as_ref()))
+        .help("The function hash");
+    let contracts_address_arg = Arg::with_name("contracts")
+        .long("contracts")
+        .takes_value(true)
+        .required(true)
+        .help("Contract address list");
+    let function_hashes_arg = Arg::with_name("function-hashes")
+        .long("function-hashes")
+        .takes_value(true)
+        .required(true)
+        .help("Function hash list");
+
+    let role_address_arg = address_arg.clone().help("Role address");
+    let role_name_arg = name_arg.clone().help("Role name");
+
+    let permission_address_arg = Arg::with_name("permission")
+        .long("permission")
+        .takes_value(true)
+        .required(true)
+        .validator(|address| is_hex(address.as_ref()))
+        .help("Permission address");
+    let permission_name_arg = name_arg.clone().help("Permission name");
+    // TODO: how to deal with complex ethabi value like an array
+    let permissions_address_arg = Arg::with_name("permissions")
+        .long("permissions")
+        .takes_value(true)
+        .required(true)
+        .help("Permission address list");
 
     App::new("scm")
         .about("System contract manager")
@@ -1469,6 +1517,180 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(group_address_arg.clone()),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("Role")
+                .about("Role.sol")
+                .subcommand(
+                    SubCommand::with_name("queryRole")
+                        .about("Query the information of the role")
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryName")
+                        .about("Query the name of the role")
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryPermissions")
+                        .about("Query the permissions of the role")
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("lengthOfPermissions")
+                        .about("Query the length of the permissions")
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("inPermissions")
+                        .about("Check the duplicate permission")
+                        .arg(role_address_arg.clone())
+                        .arg(permission_address_arg.clone()),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("RoleManagement")
+                .about("RoleManagement.sol")
+                .subcommand(
+                    SubCommand::with_name("newRole")
+                        .about("Create a new role")
+                        .arg(role_name_arg.clone())
+                        .arg(permissions_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deleteRole")
+                        .about("Delete the role")
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("updateRoleName")
+                        .about("Update role's name")
+                        .arg(role_address_arg.clone())
+                        .arg(role_name_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("addPermissions")
+                        .about("Add permissions of role")
+                        .arg(role_address_arg.clone())
+                        .arg(permissions_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deletePermissions")
+                        .about("Delete permissions of role")
+                        .arg(role_address_arg.clone())
+                        .arg(permissions_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("setRole")
+                        .about("Set the role to the account")
+                        .arg(account_address_arg.clone())
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("cancelRole")
+                        .about("Cancel the account's role")
+                        .arg(account_address_arg.clone())
+                        .arg(role_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("clearRole")
+                        .about("Clear the account's role")
+                        .arg(account_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryRoles")
+                        .about("Query the roles of the account")
+                        .arg(account_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryAccounts")
+                        .about("Query the accounts that have the role")
+                        .arg(role_address_arg.clone()),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("Authorization")
+                .about("Authorization.sol")
+                .subcommand(
+                    SubCommand::with_name("queryPermissions")
+                        .about("Query the account's permissions")
+                        .arg(account_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryAccounts")
+                        .about("Query the permission's accounts")
+                        .arg(permission_address_arg.clone()),
+                )
+                .subcommand(SubCommand::with_name("queryAllAccounts").about("Query all accounts"))
+                .subcommand(
+                    SubCommand::with_name("checkPermission")
+                        .about("Check Permission")
+                        .arg(account_address_arg.clone())
+                        .arg(contract_address_arg.clone())
+                        .arg(funcion_hash_arg.clone()),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("Permission")
+                .about("Permission.sol")
+                .subcommand(
+                    SubCommand::with_name("inPermission")
+                        .about("Check resource in the permission")
+                        .arg(permission_address_arg.clone())
+                        .arg(contract_address_arg.clone())
+                        .arg(funcion_hash_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryInfo")
+                        .about("Query the information of the permission")
+                        .arg(permission_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryName")
+                        .about("Query the name of the permission")
+                        .arg(permission_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("queryResource")
+                        .about("Query the resource of the permission")
+                        .arg(permission_address_arg.clone()),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("PermissionManagement")
+                .about("PermissionManagement.sol")
+                .subcommand(
+                    SubCommand::with_name("newPermission")
+                        .about("Create a new permission")
+                        .arg(permission_name_arg.clone())
+                        .arg(contracts_address_arg.clone())
+                        .arg(function_hashes_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deletePermission")
+                        .about("Delete the permission")
+                        .arg(permission_address_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("updatePermissionName")
+                        .about("Update the permission name")
+                        .arg(permission_address_arg.clone())
+                        .arg(permission_name_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("addResources")
+                        .about("Add the resources of permission")
+                        .arg(permission_address_arg.clone())
+                        .arg(contracts_address_arg.clone())
+                        .arg(function_hashes_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("deleteResources")
+                        .about("Delete the resources of permission")
+                        .arg(permission_address_arg.clone())
+                        .arg(contracts_address_arg.clone())
+                        .arg(function_hashes_arg.clone()),
+                ),
+        )
 }
 
 /// System contract processor
@@ -1580,6 +1802,52 @@ pub fn contract_processor(
             }
             _ => return Err(m.usage().to_owned()),
         },
+        ("Group", Some(m)) => match m.subcommand() {
+            ("queryInfo", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = GroupExt::create(Some(client));
+                GroupExt::query_info(&client, url, address)
+            }
+            ("queryName", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = GroupExt::create(Some(client));
+                GroupExt::query_name(&client, url, address)
+            }
+            ("queryAccounts", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = GroupExt::create(Some(client));
+                GroupExt::query_accounts(&client, url, address)
+            }
+            ("queryChild", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                <ContractClient as GroupExt>::create(Some(client)).query_child(url, address)
+            }
+            ("queryChildLength", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                <ContractClient as GroupExt>::create(Some(client)).query_child_length(url, address)
+            }
+            ("queryParent", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                <ContractClient as GroupExt>::create(Some(client)).query_parent(url, address)
+            }
+            ("inGroup", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let account_address = m.value_of("account").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                <ContractClient as GroupExt>::create(Some(client)).in_group(
+                    url,
+                    address,
+                    account_address,
+                )
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
         ("GroupManagement", Some(m)) => match m.subcommand() {
             ("newGroup", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1639,46 +1907,205 @@ pub fn contract_processor(
             }
             _ => return Err(m.usage().to_owned()),
         },
-        ("Group", Some(m)) => match m.subcommand() {
-            ("queryInfo", Some(m)) => {
+        ("Role", Some(m)) => match m.subcommand() {
+            ("queryRole", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_info(url, address)
+                let client: ContractClient = RoleExt::create(Some(client));
+                RoleExt::query_role(&client, url, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = GroupExt::create(Some(client));
-                client.query_name(url, address)
+                let client: ContractClient = RoleExt::create(Some(client));
+                RoleExt::query_name(&client, url, address)
+            }
+            ("queryPermissions", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = RoleExt::create(Some(client));
+                RoleExt::query_permissions(&client, url, address)
+            }
+            ("lengthOfPermissions", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = RoleExt::create(Some(client));
+                RoleExt::length_of_permissions(&client, url, address)
+            }
+            ("inPermissions", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let permission = m.value_of("permission").unwrap();
+                let url = url.unwrap_or_else(|| get_url(m));
+                let client: ContractClient = RoleExt::create(Some(client));
+                RoleExt::in_permissions(&client, url, address, permission)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("RoleManagement", Some(m)) => match m.subcommand() {
+            ("newRole", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let name = m.value_of("name").unwrap();
+                let permissions = m.value_of("permissions").unwrap();
+                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                RoleManagementExt::new_role(&mut client, url, name, permissions, blake2b)
+            }
+            ("deleteRole", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let account = m.value_of("account").unwrap();
+                let role = m.value_of("role").unwrap();
+                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                RoleManagementExt::set_role(&mut client, url, account, role, blake2b)
+            }
+            ("cancelRole", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let account = m.value_of("account").unwrap();
+                let role = m.value_of("role").unwrap();
+                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                RoleManagementExt::cancel_role(&mut client, url, account, role, blake2b)
+            }
+            ("clearRole", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let account = m.value_of("account").unwrap();
+                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                RoleManagementExt::clear_role(&mut client, url, account, blake2b)
+            }
+            ("queryRoles", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let account = m.value_of("account").unwrap();
+                let client: ContractClient = RoleManagementExt::create(Some(client));
+                RoleManagementExt::query_roles(&client, url, account)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("Authorization", Some(m)) => match m.subcommand() {
+            ("queryPermissions", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let account = m.value_of("account").unwrap();
+                let client: ContractClient = AuthorizationExt::create(Some(client));
+                AuthorizationExt::query_permissions(&client, url, account)
             }
             ("queryAccounts", Some(m)) => {
-                let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_accounts(url, address)
+                let permission = m.value_of("permission").unwrap();
+                let client: ContractClient = AuthorizationExt::create(Some(client));
+                AuthorizationExt::query_accounts(&client, url, permission)
             }
-            ("queryChild", Some(m)) => {
-                let address = m.value_of("address").unwrap();
+            ("queryAllAccounts", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_child(url, address)
+                let client: ContractClient = AuthorizationExt::create(Some(client));
+                AuthorizationExt::query_all_accounts(&client, url)
             }
-            ("queryChildLength", Some(m)) => {
-                let address = m.value_of("address").unwrap();
+            ("checkPermission", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_child_length(url, address)
+                let account = m.value_of("account").unwrap();
+                let contract = m.value_of("contract").unwrap();
+                let function_hash = m.value_of("function-hash").unwrap();
+                let client: ContractClient = AuthorizationExt::create(Some(client));
+                AuthorizationExt::check_permission(&client, url, account, contract, function_hash)
             }
-            ("queryParent", Some(m)) => {
-                let address = m.value_of("address").unwrap();
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("Permission", Some(m)) => match m.subcommand() {
+            ("inPermission", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_parent(url, address)
+                let permission = m.value_of("permission").unwrap();
+                let contract = m.value_of("contract").unwrap();
+                let function_hash = m.value_of("function-hash").unwrap();
+                let client: ContractClient = PermissionExt::create(Some(client));
+                PermissionExt::in_permission(&client, url, permission, contract, function_hash)
             }
-            ("inGroup", Some(m)) => {
-                let address = m.value_of("address").unwrap();
-                let account_address = m.value_of("account").unwrap();
+            ("queryInfo", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).in_group(
+                let permission = m.value_of("permission").unwrap();
+                let client: ContractClient = PermissionExt::create(Some(client));
+                PermissionExt::query_info(&client, url, permission)
+            }
+            ("queryName", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let client: ContractClient = PermissionExt::create(Some(client));
+                PermissionExt::query_name(&client, url, permission)
+            }
+            ("queryResource", Some(m)) => {
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let client: ContractClient = PermissionExt::create(Some(client));
+                PermissionExt::query_resource(&client, url, permission)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("PermissionManagement", Some(m)) => match m.subcommand() {
+            ("newPermission", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let name = m.value_of("name").unwrap();
+                let contracts = m.value_of("contracts").unwrap();
+                let function_hashes = m.value_of("function-hashes").unwrap();
+                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                PermissionManagementExt::new_permission(
+                    &mut client,
                     url,
-                    address,
-                    account_address,
+                    name,
+                    contracts,
+                    function_hashes,
+                    blake2b,
+                )
+            }
+            ("deletePermission", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                PermissionManagementExt::delete_permission(&mut client, url, permission, blake2b)
+            }
+            ("updatePermissionName", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let name = m.value_of("name").unwrap();
+                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                PermissionManagementExt::update_permission_name(
+                    &mut client,
+                    url,
+                    permission,
+                    name,
+                    blake2b,
+                )
+            }
+            ("addResources", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let contracts = m.value_of("contracts").unwrap();
+                let function_hashes = m.value_of("function-hashes").unwrap();
+                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                PermissionManagementExt::add_resources(
+                    &mut client,
+                    url,
+                    permission,
+                    contracts,
+                    function_hashes,
+                    blake2b,
+                )
+            }
+            ("deleteResources", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                let url = url.unwrap_or_else(|| get_url(m));
+                let permission = m.value_of("permission").unwrap();
+                let contracts = m.value_of("contracts").unwrap();
+                let function_hashes = m.value_of("function-hashes").unwrap();
+                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                PermissionManagementExt::delete_resources(
+                    &mut client,
+                    url,
+                    permission,
+                    contracts,
+                    function_hashes,
+                    blake2b,
                 )
             }
             _ => return Err(m.usage().to_owned()),
@@ -1715,7 +2142,11 @@ pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
 fn is_hex(hex: &str) -> Result<(), String> {
     let tmp = hex.as_bytes();
     if tmp.len() < 2 {
-        Err("Must not be a hexadecimal string".to_string())
+        if tmp.is_empty() {
+            Ok(())
+        } else {
+            Err("Must be a hexadecimal string".to_string())
+        }
     } else if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
         Ok(())
     } else {
