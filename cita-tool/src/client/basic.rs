@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{str, u64};
 
 use failure::Fail;
@@ -21,7 +22,7 @@ use error::ToolError;
 use protos::Transaction;
 use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 
-const BLOCK_BUMBER: &str = "blockNumber";
+const BLOCK_NUMBER: &str = "blockNumber";
 const GET_META_DATA: &str = "getMetaData";
 const SEND_RAW_TRANSACTION: &str = "sendRawTransaction";
 const PEER_COUNT: &str = "peerCount";
@@ -61,7 +62,7 @@ pub const AMEND_KV_H256: &str = "0x3";
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
 pub struct Client {
-    id: RefCell<u64>,
+    id: AtomicUsize,
     run_time: RefCell<Runtime>,
     chain_id: Option<u32>,
     sha3_private_key: Option<Sha3PrivKey>,
@@ -75,7 +76,7 @@ impl Client {
     pub fn new() -> Result<Self, ToolError> {
         let run_time = Runtime::new().map_err(ToolError::Stdio)?;
         Ok(Client {
-            id: RefCell::new(0),
+            id: AtomicUsize::new(0),
             run_time: RefCell::new(run_time),
             chain_id: None,
             sha3_private_key: None,
@@ -158,11 +159,11 @@ impl Client {
         urls: Vec<&str>,
         params: JsonRpcParams,
     ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
-        {
-            let mut id = self.id.borrow_mut();
-            *id = id.overflowing_add(1).0
-        }
-        let params = params.insert("id", ParamsValue::Int(*self.id.borrow()));
+        self.id.fetch_add(1, Ordering::Relaxed);
+        let params = params.insert(
+            "id",
+            ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
+        );
         let client = HyperClient::new();
         let mut reqs = Vec::new();
         urls.iter().for_each(|url| {
@@ -191,11 +192,11 @@ impl Client {
         let mut reqs = Vec::new();
         params
             .map(|param| {
-                {
-                    let mut id = self.id.borrow_mut();
-                    *id = id.overflowing_add(1).0
-                }
-                param.insert("id", ParamsValue::Int(*self.id.borrow()))
+                self.id.fetch_add(1, Ordering::Relaxed);
+                param.insert(
+                    "id",
+                    ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
+                )
             })
             .for_each(|param| {
                 let req: Request<Body> = Request::builder()
@@ -309,26 +310,16 @@ impl Client {
     /// Get block height
     pub fn get_current_height(&self, url: &str) -> Result<Option<u64>, ToolError> {
         let params =
-            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(BLOCK_BUMBER)));
+            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(BLOCK_NUMBER)));
         let response = self.send_request(vec![url], params)?.pop().unwrap();
 
         if let Some(ResponseValue::Singe(ParamsValue::String(height))) = response.result() {
             Ok(Some(u64::from_str_radix(remove_0x(&height), 16).unwrap()))
         } else {
-            Ok(None)
+            Err(ToolError::Customize(
+                "Corresponding address does not respond".to_string(),
+            ))
         }
-    }
-
-    /// Account transfer, only applies to charge mode
-    pub fn transfer(
-        &mut self,
-        url: &str,
-        value: &str,
-        address: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Result<JsonRpcResponse, ToolError> {
-        self.send_raw_transaction(url, "0x", address, None, quota, Some(value), blake2b)
     }
 
     /// Start run
@@ -480,7 +471,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 
     fn get_block_number(&self, url: &str) -> Self::RpcResult {
         let params =
-            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(BLOCK_BUMBER)));
+            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(BLOCK_NUMBER)));
         Ok(self.send_request(vec![url], params)?.pop().unwrap())
 
         // if let ResponseValue::Singe(ParamsValue::String(height)) = result.result().unwrap() {
@@ -1014,3 +1005,20 @@ impl AmendExt for Client {
         self.send_raw_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 }
+
+/// Account transfer, only applies to charge mode
+pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
+    /// Account transfer, only applies to charge mode
+    fn transfer(
+        &mut self,
+        url: &str,
+        value: &str,
+        address: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        self.send_raw_transaction(url, "0x", address, None, quota, Some(value), blake2b)
+    }
+}
+
+impl Transfer for Client {}
