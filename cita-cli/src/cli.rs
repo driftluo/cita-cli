@@ -5,7 +5,7 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
-use cita_tool::client::basic::{AmendExt, Client, ClientExt, StoreExt};
+use cita_tool::client::basic::{AmendExt, Client, ClientExt, StoreExt, Transfer};
 use cita_tool::client::system_contract::{
     ContractClient, GroupExt, GroupManagementExt, NodeManagementExt, QuotaManagementExt,
 };
