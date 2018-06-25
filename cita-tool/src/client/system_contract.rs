@@ -127,7 +127,6 @@ impl ContractCall for ContractClient {
             "latest",
         )
     }
-
 }
 
 /// Group System Contract
@@ -310,7 +309,7 @@ pub trait RoleExt: ContractCall {
     /// @return true if in permissions, otherwise false
     fn in_permissions(&self, url: &str, address: &str, permission: &str) -> Self::RpcResult {
         let values = [permission];
-        self.contract_call_to_address(url, "lengthOfPermissions", &values, address)
+        self.contract_call_to_address(url, "inPermissions", &values, address)
     }
 }
 
@@ -333,7 +332,13 @@ pub trait RoleManagementExt: ContractCall {
     /// @param name: The name of role
     /// @param permissions: The permissions of role
     /// @return New role's address
-    fn new_role(&mut self, url: &str, name: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+    fn new_role(
+        &mut self,
+        url: &str,
+        name: &str,
+        permissions: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [name, permissions];
         self.contract_send_tx(url, "newRole", &values, None, blake2b)
     }
@@ -352,7 +357,13 @@ pub trait RoleManagementExt: ContractCall {
     /// @param role: The address of role
     /// @param name: The new name of role
     /// @return true if successed, otherwise false
-    fn update_role_name(&mut self, url: &str, role: &str, name: &str, blake2b: bool) -> Self::RpcResult {
+    fn update_role_name(
+        &mut self,
+        url: &str,
+        role: &str,
+        name: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [role, name];
         self.contract_send_tx(url, "updateRoleName", &values, None, blake2b)
     }
@@ -362,7 +373,13 @@ pub trait RoleManagementExt: ContractCall {
     /// @param role: The address of role
     /// @param permissions: The permissions of role
     /// @return true if successed, otherwise false
-    fn add_permissions(&mut self, url: &str, role: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+    fn add_permissions(
+        &mut self,
+        url: &str,
+        role: &str,
+        permissions: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [role, permissions];
         self.contract_send_tx(url, "addPermissions", &values, None, blake2b)
     }
@@ -372,7 +389,13 @@ pub trait RoleManagementExt: ContractCall {
     /// @param role: The address of role
     /// @param permissions: The permissions of role
     /// @return true if successed, otherwise false
-    fn delete_permissions(&mut self, url: &str, role: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+    fn delete_permissions(
+        &mut self,
+        url: &str,
+        role: &str,
+        permissions: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [role, permissions];
         self.contract_send_tx(url, "deletePermissions", &values, None, blake2b)
     }
@@ -392,7 +415,13 @@ pub trait RoleManagementExt: ContractCall {
     /// @param account: The account to be canceled
     /// @param role: The role to be canceled
     /// @return true if successed, otherwise false
-    fn cancel_role(&mut self, url: &str, account: &str, role: &str, blake2b: bool) -> Self::RpcResult {
+    fn cancel_role(
+        &mut self,
+        url: &str,
+        account: &str,
+        role: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [account, role];
         self.contract_send_tx(url, "cancelRole", &values, None, blake2b)
     }
@@ -432,7 +461,6 @@ impl RoleManagementExt for ContractClient {
         Self::new(client, ADDRESS, ABI)
     }
 }
-
 
 /// Authorization system contract
 pub trait AuthorizationExt: ContractCall {
@@ -477,11 +505,7 @@ pub trait AuthorizationExt: ContractCall {
         countract: &str,
         func: &str,
     ) -> Self::RpcResult {
-        let values = [
-            remove_0x(account),
-            remove_0x(countract),
-            remove_0x(func),
-        ];
+        let values = [remove_0x(account), remove_0x(countract), remove_0x(func)];
         self.contract_call(url, "checkPermission", &values, None)
     }
 }
@@ -504,7 +528,13 @@ pub trait PermissionExt: ContractCall {
     /// @param contract: The contract address of the resource
     /// @param func: The function signature of the resource
     /// @return true if in permission, otherwise false
-    fn in_permission(&self, url: &str, address: &str, contract: &str, func: &str) -> Self::RpcResult {
+    fn in_permission(
+        &self,
+        url: &str,
+        address: &str,
+        contract: &str,
+        func: &str,
+    ) -> Self::RpcResult {
         let values = [contract, func];
         self.contract_call_to_address(url, "inPermission", &values, address)
     }
@@ -551,7 +581,14 @@ pub trait PermissionManagementExt: ContractCall {
     /// @param contracts: The contracts of resource
     /// @param funcs: The function signature of the resource
     /// @return New permission's address
-    fn new_permission(&mut self, url: &str, name: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+    fn new_permission(
+        &mut self,
+        url: &str,
+        name: &str,
+        contracts: &str,
+        funcs: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [name, contracts, funcs];
         self.contract_send_tx(url, "newPermission", &values, None, blake2b)
     }
@@ -570,7 +607,13 @@ pub trait PermissionManagementExt: ContractCall {
     /// @param permission: The address of permission
     /// @param name: The new name
     /// @return true if successed, otherwise false
-    fn update_permission_name(&mut self, url: &str, permission: &str, name: &str, blake2b: bool) -> Self::RpcResult {
+    fn update_permission_name(
+        &mut self,
+        url: &str,
+        permission: &str,
+        name: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [permission, name];
         self.contract_send_tx(url, "updatePermissionName", &values, None, blake2b)
     }
@@ -581,7 +624,14 @@ pub trait PermissionManagementExt: ContractCall {
     /// @param contracts: The contracts of resource
     /// @param funcs: The function signature of resource
     /// @return true if successed, otherwise false
-    fn add_resources(&mut self, url: &str, permission: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+    fn add_resources(
+        &mut self,
+        url: &str,
+        permission: &str,
+        contracts: &str,
+        funcs: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [permission, contracts, funcs];
         self.contract_send_tx(url, "addResources", &values, None, blake2b)
     }
@@ -592,7 +642,14 @@ pub trait PermissionManagementExt: ContractCall {
     /// @param contracts: The contracts of resource
     /// @param funcs: The function signature of resource
     /// @return true if successed, otherwise false
-    fn delete_resources(&mut self, url: &str, permission: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+    fn delete_resources(
+        &mut self,
+        url: &str,
+        permission: &str,
+        contracts: &str,
+        funcs: &str,
+        blake2b: bool,
+    ) -> Self::RpcResult {
         let values = [permission, contracts, funcs];
         self.contract_send_tx(url, "deleteResources", &values, None, blake2b)
     }
@@ -679,7 +736,7 @@ pub trait QuotaManagementExt: ContractCall {
 
     /// Get account quota upper limit of the specific account
     fn get_aql(&self, url: &str, address: &str) -> Self::RpcResult {
-        let values= [remove_0x(address)];
+        let values = [remove_0x(address)];
         self.contract_call(url, "getAQL", &values, None)
     }
 
