@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::{str, u64};
 use std::cell::RefCell;
 
-use ethabi::{Function, Param, Token};
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
@@ -894,77 +893,6 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
     }
 }
 
-/// Group.sol query actions
-pub trait GroupExt: ClientExt<JsonRpcResponse, ToolError> {
-    /// Call a group query function
-    fn group_query(&mut self, url: &str, function_hash: &str, address: &str) -> Self::RpcResult {
-        let address = remove_0x(address);
-        let function_hash = format!("0x{}", remove_0x(function_hash));
-        self.call(url, None, address, Some(function_hash.as_str()), "latest")
-    }
-
-    /// Query the information of the group
-    fn group_query_info(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryInfo";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Query the name of the group
-    fn group_query_name(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryName";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Query the accounts of the group
-    fn group_query_accounts(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryAccounts";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Query the child of the group
-    fn group_query_children(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryChild";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Alias for group_query_children
-    fn group_query_child(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query_children(url, address)
-    }
-
-    /// Query the length of children of the group
-    fn group_query_children_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryChildLength";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Alias for group_query_children_length
-    fn group_query_child_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query_children_length(url, address)
-    }
-
-    /// Query the parent of the group
-    fn group_query_parent(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "queryParent";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-
-    /// Check the account in the group
-    fn group_in_group(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        const FUNCTION_NAME: &'static str = "inGroup";
-        let function_hash = function_abi(FUNCTION_NAME, vec![], &vec![], false);
-        self.group_query(url, function_hash.as_str(), address)
-    }
-}
-
-impl GroupExt for Client {}
-
 /// Store data or contract ABI to chain
 pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Store data to chain, data can be get back by `getTransaction` rpc call
@@ -1095,15 +1023,4 @@ impl AmendExt for Client {
         let value = Some(AMEND_KV_H256);
         self.send_raw_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
-}
-
-/// Get function abi
-fn function_abi(name: &str, inputs: Vec<Param>, tokens: &[Token], constant: bool) -> String {
-    let function = Function {
-        inputs,
-        constant,
-        name: name.to_owned(),
-        outputs: vec![],
-    };
-    encode(function.encode_input(tokens).unwrap())
 }

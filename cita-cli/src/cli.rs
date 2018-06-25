@@ -5,9 +5,9 @@ use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
-use cita_tool::client::basic::{AmendExt, Client, ClientExt, GroupExt, StoreExt};
+use cita_tool::client::basic::{AmendExt, Client, ClientExt, StoreExt};
 use cita_tool::client::system_contract::{
-    ContractClient, GroupManagementExt, NodeManagementExt, QuotaManagementExt,
+    ContractClient, GroupExt, GroupManagementExt, NodeManagementExt, QuotaManagementExt,
 };
 use cita_tool::{
     decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, KeyPair, ParamsValue,
@@ -1636,37 +1636,38 @@ pub fn contract_processor(
             ("queryInfo", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_info(url, address)
+                ContractClient::group(Some(client)).query_info(url, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_name(url, address)
+                ContractClient::group(Some(client)).query_name(url, address)
             }
             ("queryAccounts", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_accounts(url, address)
+                ContractClient::group(Some(client)).query_accounts(url, address)
             }
             ("queryChild", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_child(url, address)
+                ContractClient::group(Some(client)).query_child(url, address)
             }
             ("queryChildLength", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_child_length(url, address)
+                ContractClient::group(Some(client)).query_child_length(url, address)
             }
             ("queryParent", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_query_parent(url, address)
+                ContractClient::group(Some(client)).query_parent(url, address)
             }
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
+                let account_address = m.value_of("account").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                client.group_in_group(url, address)
+                ContractClient::group(Some(client)).in_group(url, address, account_address)
             }
             _ => return Err(m.usage().to_owned()),
         },

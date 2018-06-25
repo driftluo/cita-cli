@@ -96,6 +96,80 @@ impl ContractClient {
     }
 }
 
+/// Group System Contract
+pub trait GroupExt {
+    /// Rpc response
+    type RpcResult;
+    /// Call a group query function
+    fn group_query(
+        &mut self,
+        url: &str,
+        function_name: &str,
+        values: &[&str],
+        address: &str,
+    ) -> Self::RpcResult;
+    /// Query the information of the group
+    fn query_info(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Query the name of the group
+    fn query_name(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Query the accounts of the group
+    fn query_accounts(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Query the child of the group
+    fn query_children(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Alias for group_query_children
+    fn query_child(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Query the length of children of the group
+    fn query_children_length(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Alias for group_query_children_length
+    fn query_child_length(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Query the parent of the group
+    fn query_parent(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    /// Check the account in the group
+    fn in_group(&mut self, url: &str, address: &str, account_address: &str) -> Self::RpcResult;
+}
+
+impl GroupExt for ContractClient {
+    type RpcResult = Result<JsonRpcResponse, ToolError>;
+
+    fn group_query(
+        &mut self,
+        url: &str,
+        function_name: &str,
+        values: &[&str],
+        address: &str,
+    ) -> Self::RpcResult {
+        let address = Address::from_str(remove_0x(address)).unwrap();
+        self.contract_call(url, function_name, values, Some(address), None)
+    }
+    fn query_info(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryInfo", &[], address)
+    }
+    fn query_name(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryName", &[], address)
+    }
+    fn query_accounts(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryAccounts", &[], address)
+    }
+    fn query_children(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.query_child(url, address)
+    }
+    fn query_child(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryChild", &[], address)
+    }
+    fn query_children_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.query_child_length(url, address)
+    }
+    fn query_child_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryChildLength", &[], address)
+    }
+    fn query_parent(&mut self, url: &str, address: &str) -> Self::RpcResult {
+        self.group_query(url, "queryParent", &[], address)
+    }
+    fn in_group(&mut self, url: &str, address: &str, account_address: &str) -> Self::RpcResult {
+        self.group_query(url, "inGroup", &[account_address], address)
+    }
+}
+
 /// GroupManagement System Contract
 pub trait GroupManagementExt {
     /// Rpc response
@@ -195,7 +269,13 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, name];
-        self.contract_call(url, "updateGroupName", values.as_slice(), None, Some(blake2b))
+        self.contract_call(
+            url,
+            "updateGroupName",
+            values.as_slice(),
+            None,
+            Some(blake2b),
+        )
     }
 
     /// Add accounts
@@ -221,7 +301,13 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, accounts];
-        self.contract_call(url, "deleteAccounts", values.as_slice(), None, Some(blake2b))
+        self.contract_call(
+            url,
+            "deleteAccounts",
+            values.as_slice(),
+            None,
+            Some(blake2b),
+        )
     }
 
     /// Check the target group in the scope of the origin group
@@ -283,7 +369,8 @@ impl NodeManagementExt for ContractClient {
 
     fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
         if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) =
-            self.contract_call(url, "listNode", &[], None, None)?.result()
+            self.contract_call(url, "listNode", &[], None, None)?
+                .result()
         {
             Ok(remove_0x(&authorities)
                 .as_bytes()
