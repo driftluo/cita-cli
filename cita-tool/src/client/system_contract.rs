@@ -60,6 +60,18 @@ pub trait ContractCall {
         values: &[&str],
         to_addr: Option<Address>,
     ) -> Self::RpcResult;
+
+    /// Call a contract method with a to_address
+    fn contract_call_to_address(
+        &self,
+        url: &str,
+        function_name: &str,
+        values: &[&str],
+        address: &str,
+    ) -> Self::RpcResult {
+        let address = Address::from_str(remove_0x(address)).unwrap();
+        self.contract_call(url, function_name, values, Some(address))
+    }
 }
 
 impl ContractCall for ContractClient {
@@ -115,6 +127,7 @@ impl ContractCall for ContractClient {
             "latest",
         )
     }
+
 }
 
 /// Group System Contract
@@ -122,52 +135,41 @@ pub trait GroupExt: ContractCall {
     /// Create a ContractClient
     fn create(client: Option<Client>) -> Self;
 
-    /// Call a group query function
-    fn group_query(
-        &self,
-        url: &str,
-        function_name: &str,
-        values: &[&str],
-        address: &str,
-    ) -> Self::RpcResult {
-        let address = Address::from_str(remove_0x(address)).unwrap();
-        self.contract_call(url, function_name, values, Some(address))
-    }
     /// Query the information of the group
     fn query_info(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryInfo", &[], address)
+        self.contract_call_to_address(url, "queryInfo", &[], address)
     }
     /// Query the name of the group
     fn query_name(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryName", &[], address)
+        self.contract_call_to_address(url, "queryName", &[], address)
     }
     /// Query the accounts of the group
     fn query_accounts(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryAccounts", &[], address)
+        self.contract_call_to_address(url, "queryAccounts", &[], address)
     }
-    /// Query the child of the group
+    /// Alias for query_child
     fn query_children(&self, url: &str, address: &str) -> Self::RpcResult {
         self.query_child(url, address)
     }
-    /// Alias for group_query_children
+    /// Query the children of the group
     fn query_child(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryChild", &[], address)
+        self.contract_call_to_address(url, "queryChild", &[], address)
     }
-    /// Query the length of children of the group
+    /// Alias for query_child_length
     fn query_children_length(&self, url: &str, address: &str) -> Self::RpcResult {
         self.query_child_length(url, address)
     }
-    /// Alias for group_query_children_length
+    /// Query the length of children of the group
     fn query_child_length(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryChildLength", &[], address)
+        self.contract_call_to_address(url, "queryChildLength", &[], address)
     }
     /// Query the parent of the group
     fn query_parent(&self, url: &str, address: &str) -> Self::RpcResult {
-        self.group_query(url, "queryParent", &[], address)
+        self.contract_call_to_address(url, "queryParent", &[], address)
     }
     /// Check the account in the group
     fn in_group(&self, url: &str, address: &str, account_address: &str) -> Self::RpcResult {
-        self.group_query(url, "inGroup", &[account_address], address)
+        self.contract_call_to_address(url, "inGroup", &[account_address], address)
     }
 }
 
@@ -194,8 +196,8 @@ pub trait GroupManagementExt: ContractCall {
         accounts: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![origin, name, accounts];
-        self.contract_send_tx(url, "newGroup", values.as_slice(), None, blake2b)
+        let values = [origin, name, accounts];
+        self.contract_send_tx(url, "newGroup", &values, None, blake2b)
     }
 
     /// Delete the group
@@ -206,8 +208,8 @@ pub trait GroupManagementExt: ContractCall {
         target: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![origin, target];
-        self.contract_send_tx(url, "deleteGroup", values.as_slice(), None, blake2b)
+        let values = [origin, target];
+        self.contract_send_tx(url, "deleteGroup", &values, None, blake2b)
     }
 
     /// Update the group name
@@ -219,8 +221,8 @@ pub trait GroupManagementExt: ContractCall {
         name: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![origin, target, name];
-        self.contract_send_tx(url, "updateGroupName", values.as_slice(), None, blake2b)
+        let values = [origin, target, name];
+        self.contract_send_tx(url, "updateGroupName", &values, None, blake2b)
     }
 
     /// Add accounts
@@ -232,8 +234,8 @@ pub trait GroupManagementExt: ContractCall {
         accounts: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![origin, target, accounts];
-        self.contract_send_tx(url, "addAccounts", values.as_slice(), None, blake2b)
+        let values = [origin, target, accounts];
+        self.contract_send_tx(url, "addAccounts", &values, None, blake2b)
     }
 
     /// Delete accounts
@@ -245,20 +247,20 @@ pub trait GroupManagementExt: ContractCall {
         accounts: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![origin, target, accounts];
-        self.contract_send_tx(url, "deleteAccounts", values.as_slice(), None, blake2b)
+        let values = [origin, target, accounts];
+        self.contract_send_tx(url, "deleteAccounts", &values, None, blake2b)
     }
 
     /// Check the target group in the scope of the origin group
     ///   Scope: the origin group is the ancestor of the target group
     fn check_scope(&self, url: &str, origin: &str, target: &str) -> Self::RpcResult {
-        let values = vec![origin, target];
-        self.contract_call(url, "checkScope", values.as_slice(), None)
+        let values = [origin, target];
+        self.contract_call(url, "checkScope", &values, None)
     }
 
     /// Query all groups
     fn query_groups(&self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "queryGroups", vec![].as_slice(), None)
+        self.contract_call(url, "queryGroups", &[], None)
     }
 }
 
@@ -266,6 +268,340 @@ impl GroupManagementExt for ContractClient {
     fn create(client: Option<Client>) -> Self {
         static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
         static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
+
+/// Role system contract
+pub trait RoleExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Query the information of the role
+    ///
+    /// @return The information of role: name and permissions
+    fn query_role(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryRole", &[], address)
+    }
+
+    /// Query the name of the role
+    ///
+    /// @return The name of role
+    fn query_name(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryName", &[], address)
+    }
+
+    /// Query the permissions of the role
+    ///
+    /// @return The permissions of role
+    fn query_permissions(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryPermissions", &[], address)
+    }
+
+    /// Query the length of the permissions
+    ///
+    /// @return The number of permission
+    fn length_of_permissions(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "lengthOfPermissions", &[], address)
+    }
+
+    /// Check the duplicate permission
+    ///
+    /// @return true if in permissions, otherwise false
+    fn in_permissions(&self, url: &str, address: &str, permission: &str) -> Self::RpcResult {
+        let values = [permission];
+        self.contract_call_to_address(url, "lengthOfPermissions", &values, address)
+    }
+}
+
+impl RoleExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/Role.abi");
+        // NOTE: There is no default address for Role
+        static ADDRESS: &str = "0x";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
+
+/// RoleManagement system contract
+pub trait RoleManagementExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Create a new role
+    ///
+    /// @param name: The name of role
+    /// @param permissions: The permissions of role
+    /// @return New role's address
+    fn new_role(&mut self, url: &str, name: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [name, permissions];
+        self.contract_send_tx(url, "newRole", &values, None, blake2b)
+    }
+
+    /// Delete the role
+    ///
+    /// @param role: The address of role
+    /// @return true if successed, otherwise false
+    fn delete_role(&mut self, url: &str, role: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [role];
+        self.contract_send_tx(url, "deleteRole", &values, None, blake2b)
+    }
+
+    /// Update role's name
+    ///
+    /// @param role: The address of role
+    /// @param name: The new name of role
+    /// @return true if successed, otherwise false
+    fn update_role_name(&mut self, url: &str, role: &str, name: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [role, name];
+        self.contract_send_tx(url, "updateRoleName", &values, None, blake2b)
+    }
+
+    /// Add permissions of role
+    ///
+    /// @param role: The address of role
+    /// @param permissions: The permissions of role
+    /// @return true if successed, otherwise false
+    fn add_permissions(&mut self, url: &str, role: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [role, permissions];
+        self.contract_send_tx(url, "addPermissions", &values, None, blake2b)
+    }
+
+    /// Delete permissions of role
+    ///
+    /// @param role: The address of role
+    /// @param permissions: The permissions of role
+    /// @return true if successed, otherwise false
+    fn delete_permissions(&mut self, url: &str, role: &str, permissions: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [role, permissions];
+        self.contract_send_tx(url, "deletePermissions", &values, None, blake2b)
+    }
+
+    /// Set the role to the account
+    ///
+    /// @param account: The account to be setted
+    /// @param role: The role to be setted
+    /// @return true if successed, otherwise false
+    fn set_role(&mut self, url: &str, account: &str, role: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [account, role];
+        self.contract_send_tx(url, "setRole", &values, None, blake2b)
+    }
+
+    /// Cancel the account's role
+    ///
+    /// @param account: The account to be canceled
+    /// @param role: The role to be canceled
+    /// @return true if successed, otherwise false
+    fn cancel_role(&mut self, url: &str, account: &str, role: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [account, role];
+        self.contract_send_tx(url, "cancelRole", &values, None, blake2b)
+    }
+
+    /// Clear the account's role
+    ///
+    /// @param account: The account to be cleared
+    /// @return true if successed, otherwise false
+    fn clear_role(&mut self, url: &str, account: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [account];
+        self.contract_send_tx(url, "clearRole", &values, None, blake2b)
+    }
+
+    /// Query the roles of the account
+    ///
+    /// @param account: The account to be queried
+    /// @return The roles of the account
+    fn query_roles(&self, url: &str, account: &str) -> Self::RpcResult {
+        let values = [remove_0x(account)];
+        self.contract_call(url, "queryRoles", &values, None)
+    }
+
+    /// Query the accounts that have the role
+    ///
+    /// @param role: The role to be queried
+    /// @return The accounts that have the role
+    fn query_accounts(&self, url: &str, role: &str) -> Self::RpcResult {
+        let values = [remove_0x(role)];
+        self.contract_call(url, "queryAccounts", &values, None)
+    }
+}
+
+impl RoleManagementExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/RoleManagement.abi");
+        static ADDRESS: &str = "0xe3b5ddb80addb513b5c981e27bb030a86a8821ee";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
+
+
+/// Authorization system contract
+pub trait AuthorizationExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Query the account's permissions
+    ///
+    /// @param account: The account to be queried
+    /// @return The permissions of account
+    fn query_permissions(&self, url: &str, account: &str) -> Self::RpcResult {
+        let values = [remove_0x(account)];
+        self.contract_call(url, "queryPermissions", &values, None)
+    }
+
+    /// Query the permission's accounts
+    ///
+    /// @param permission: The permission to be queried
+    /// @return The accounts of permission
+    fn query_accounts(&self, url: &str, permission: &str) -> Self::RpcResult {
+        let values = [remove_0x(permission)];
+        self.contract_call(url, "queryAccounts", &values, None)
+    }
+
+    /// Query all accounts
+    ///
+    /// @return All the accounts
+    fn query_all_accounts(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "queryAllAccounts", &[], None)
+    }
+
+    /// Check Permission
+    ///
+    /// @param account: The account to be checked
+    /// @param contract: The contract of resource
+    /// @param func: The function signature of resource
+    /// @return true if passed, otherwise false
+    fn check_permission(
+        &self,
+        url: &str,
+        account: &str,
+        countract: &str,
+        func: &str,
+    ) -> Self::RpcResult {
+        let values = [
+            remove_0x(account),
+            remove_0x(countract),
+            remove_0x(func),
+        ];
+        self.contract_call(url, "checkPermission", &values, None)
+    }
+}
+
+impl AuthorizationExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/Authorization.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241b4";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
+
+/// Permission system contract
+pub trait PermissionExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Check resource in the permission
+    ///
+    /// @param contract: The contract address of the resource
+    /// @param func: The function signature of the resource
+    /// @return true if in permission, otherwise false
+    fn in_permission(&self, url: &str, address: &str, contract: &str, func: &str) -> Self::RpcResult {
+        let values = [contract, func];
+        self.contract_call_to_address(url, "inPermission", &values, address)
+    }
+
+    /// Query the information of the permission
+    ///
+    /// @return The information of permission: name and resources
+    fn query_info(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryInfo", &[], address)
+    }
+
+    /// Query the name of the permission
+    ///
+    /// @return The name of permission
+    fn query_name(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryName", &[], address)
+    }
+
+    /// Query the resource of the permission
+    ///
+    /// @return The resources of permission
+    fn query_resource(&self, url: &str, address: &str) -> Self::RpcResult {
+        self.contract_call_to_address(url, "queryResource", &[], address)
+    }
+}
+
+impl PermissionExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/Permission.abi");
+        // NOTE: There is no default address for Permission
+        static ADDRESS: &str = "0x";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
+
+/// PermissionManagement system contract
+pub trait PermissionManagementExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Create a new permission
+    ///
+    /// @param name: The name of permission
+    /// @param contracts: The contracts of resource
+    /// @param funcs: The function signature of the resource
+    /// @return New permission's address
+    fn new_permission(&mut self, url: &str, name: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [name, contracts, funcs];
+        self.contract_send_tx(url, "newPermission", &values, None, blake2b)
+    }
+
+    /// Delete the permission
+    ///
+    /// @param permission: The address of permission
+    /// @return true if successed, otherwise false
+    fn delete_permission(&mut self, url: &str, permission: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [permission];
+        self.contract_send_tx(url, "deletePermission", &values, None, blake2b)
+    }
+
+    /// Update the permission name
+    ///
+    /// @param permission: The address of permission
+    /// @param name: The new name
+    /// @return true if successed, otherwise false
+    fn update_permission_name(&mut self, url: &str, permission: &str, name: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [permission, name];
+        self.contract_send_tx(url, "updatePermissionName", &values, None, blake2b)
+    }
+
+    /// Add the resources of permission
+    ///
+    /// @param permission: The address of permission
+    /// @param contracts: The contracts of resource
+    /// @param funcs: The function signature of resource
+    /// @return true if successed, otherwise false
+    fn add_resources(&mut self, url: &str, permission: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [permission, contracts, funcs];
+        self.contract_send_tx(url, "addResources", &values, None, blake2b)
+    }
+
+    /// Delete the resources of permission
+    ///
+    /// @param permission: The address of permission
+    /// @param contracts: The contracts of resource
+    /// @param funcs: The function signature of resource
+    /// @return true if successed, otherwise false
+    fn delete_resources(&mut self, url: &str, permission: &str, contracts: &str, funcs: &str, blake2b: bool) -> Self::RpcResult {
+        let values = [permission, contracts, funcs];
+        self.contract_send_tx(url, "deleteResources", &values, None, blake2b)
+    }
+}
+
+impl PermissionManagementExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/PermissionManagement.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241b2";
         Self::new(client, ADDRESS, ABI)
     }
 }
@@ -282,14 +618,14 @@ pub trait NodeManagementExt: ContractCall {
         address: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![remove_0x(address)];
-        self.contract_send_tx(url, "deleteNode", values.as_slice(), None, blake2b)
+        let values = [remove_0x(address)];
+        self.contract_send_tx(url, "deleteNode", &values, None, blake2b)
     }
 
     /// Get node status
     fn node_status(&self, url: &str, address: &str) -> Self::RpcResult {
-        let values = vec![remove_0x(address)];
-        self.contract_call(url, "getStatus", values.as_slice(), None)
+        let values = [remove_0x(address)];
+        self.contract_call(url, "getStatus", &values, None)
     }
 
     /// Get authorities
@@ -297,14 +633,14 @@ pub trait NodeManagementExt: ContractCall {
 
     /// Applying to promote nodes as consensus nodes
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_send_tx(url, "newNode", value.as_slice(), None, blake2b)
+        let values = [remove_0x(address)];
+        self.contract_send_tx(url, "newNode", &values, None, blake2b)
     }
 
     /// Approve node upgrades to consensus nodes
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_send_tx(url, "approveNode", value.as_slice(), None, blake2b)
+        let values = [remove_0x(address)];
+        self.contract_send_tx(url, "approveNode", &values, None, blake2b)
     }
 }
 
@@ -343,8 +679,8 @@ pub trait QuotaManagementExt: ContractCall {
 
     /// Get account quota upper limit of the specific account
     fn get_aql(&self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "getAQL", value.as_slice(), None)
+        let values= [remove_0x(address)];
+        self.contract_call(url, "getAQL", &values, None)
     }
 
     /// Get default account quota limit
@@ -365,15 +701,15 @@ pub trait QuotaManagementExt: ContractCall {
     /// Set block quota limit
     fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![quota_limit.as_str()];
-        self.contract_send_tx(url, "setBQL", value.as_slice(), None, blake2b)
+        let values = [quota_limit.as_str()];
+        self.contract_send_tx(url, "setBQL", &values, None, blake2b)
     }
 
     /// Set default account quota limit
     fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![quota_limit.as_str()];
-        self.contract_send_tx(url, "setDefaultAQL", value.as_slice(), None, blake2b)
+        let values = [quota_limit.as_str()];
+        self.contract_send_tx(url, "setDefaultAQL", &values, None, blake2b)
     }
 
     /// Set account quota upper limit of the specific account
@@ -385,20 +721,20 @@ pub trait QuotaManagementExt: ContractCall {
         blake2b: bool,
     ) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![remove_0x(address), quota_limit.as_str()];
-        self.contract_send_tx(url, "setAQL", value.as_slice(), None, blake2b)
+        let values = [remove_0x(address), quota_limit.as_str()];
+        self.contract_send_tx(url, "setAQL", &values, None, blake2b)
     }
 
     /// Check if the account is admin
     fn is_admin(&self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "isAdmin", value.as_slice(), None)
+        let values = [remove_0x(address)];
+        self.contract_call(url, "isAdmin", &values, None)
     }
 
     /// Add admin account
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_send_tx(url, "addAdmin", value.as_slice(), None, blake2b)
+        let values = [remove_0x(address)];
+        self.contract_send_tx(url, "addAdmin", &values, None, blake2b)
     }
 }
 
