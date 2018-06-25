@@ -17,7 +17,8 @@ pub struct ContractClient {
 
 impl ContractClient {
     /// Create a Contract Client
-    pub fn new(client: Client, address_str: &str, contract_json: &str) -> Self {
+    pub fn new(client: Option<Client>, address_str: &str, contract_json: &str) -> Self {
+        let client = client.unwrap_or_else(|| Client::new().unwrap());
         let address = Address::from_str(remove_0x(address_str)).unwrap();
         let contract = Contract::load(contract_json.as_bytes()).unwrap();
         ContractClient {
@@ -32,7 +33,6 @@ impl ContractClient {
         static ABI: &str = include_str!("../../contract_abi/Group.abi");
         // NOTE: This is `rootGroupAddr` address
         static ADDRESS: &str = "0x00000000000000000000000000000000013241b6";
-        let client = client.unwrap_or_else(|| Client::new().unwrap());
         Self::new(client, ADDRESS, ABI)
     }
 
@@ -40,7 +40,6 @@ impl ContractClient {
     pub fn group_management(client: Option<Client>) -> Self {
         static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
         static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
-        let client = client.unwrap_or_else(|| Client::new().unwrap());
         Self::new(client, ADDRESS, ABI)
     }
 
@@ -48,7 +47,6 @@ impl ContractClient {
     pub fn node_management(client: Option<Client>) -> Self {
         static ABI: &str = include_str!("../../contract_abi/NodeManager.abi");
         static ADDRESS: &str = "0x00000000000000000000000000000000013241a2";
-        let client = client.unwrap_or_else(|| Client::new().unwrap());
         Self::new(client, ADDRESS, ABI)
     }
 
@@ -56,7 +54,6 @@ impl ContractClient {
     pub fn quota_management(client: Option<Client>) -> Self {
         static ABI: &str = include_str!("../../contract_abi/QuotaManager.abi");
         static ADDRESS: &str = "0x00000000000000000000000000000000013241a3";
-        let client = client.unwrap_or_else(|| Client::new().unwrap());
         Self::new(client, ADDRESS, ABI)
     }
 
