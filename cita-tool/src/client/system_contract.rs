@@ -27,55 +27,21 @@ impl ContractClient {
             contract,
         }
     }
-
-    /// Group query actions
-    pub fn group(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/Group.abi");
-        // NOTE: This is `rootGroupAddr` address
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241b6";
-        Self::new(client, ADDRESS, ABI)
-    }
-
-    /// Create a Group Management contract client
-    pub fn group_management(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
-        Self::new(client, ADDRESS, ABI)
-    }
-
-    /// Create a Node Management contract client
-    pub fn node_management(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/NodeManager.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241a2";
-        Self::new(client, ADDRESS, ABI)
-    }
-
-    /// Create a Quota Management contract client
-    pub fn quota_management(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/QuotaManager.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241a3";
-        Self::new(client, ADDRESS, ABI)
-    }
-
-    fn prepare_call_args(
-        &self,
-        name: &str,
-        values: &[&str],
-        to_addr: Option<Address>,
-    ) -> Result<(String, String), ToolError> {
-        let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
-        let code = format!("0x{}", code);
-        let to_address = to_addr.unwrap_or(self.address);
-        let to_address = format!("{:?}", to_address);
-        Ok((code, to_address))
-    }
 }
 
 /// Call/SendTx to a contract method
 pub trait ContractCall {
     /// Rpc response
     type RpcResult;
+
+    /// Prepare contract call arguments
+    fn prepare_call_args(
+        &self,
+        name: &str,
+        values: &[&str],
+        to_addr: Option<Address>,
+    ) -> Result<(String, String), ToolError>;
+
     /// SendTx a contract method
     fn contract_send_tx(
         &mut self,
@@ -98,6 +64,20 @@ pub trait ContractCall {
 
 impl ContractCall for ContractClient {
     type RpcResult = Result<JsonRpcResponse, ToolError>;
+
+    fn prepare_call_args(
+        &self,
+        name: &str,
+        values: &[&str],
+        to_addr: Option<Address>,
+    ) -> Result<(String, String), ToolError> {
+        let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
+        let code = format!("0x{}", code);
+        let to_address = to_addr.unwrap_or(self.address);
+        let to_address = format!("{:?}", to_address);
+        Ok((code, to_address))
+    }
 
     fn contract_send_tx(
         &mut self,
@@ -139,6 +119,9 @@ impl ContractCall for ContractClient {
 
 /// Group System Contract
 pub trait GroupExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
     /// Call a group query function
     fn group_query(
         &self,
@@ -188,10 +171,20 @@ pub trait GroupExt: ContractCall {
     }
 }
 
-impl GroupExt for ContractClient {}
+impl GroupExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/Group.abi");
+        // NOTE: This is `rootGroupAddr` address
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241b6";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
 
 /// GroupManagement System Contract
 pub trait GroupManagementExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
     /// Create a new group
     fn new_group(
         &mut self,
@@ -269,10 +262,19 @@ pub trait GroupManagementExt: ContractCall {
     }
 }
 
-impl GroupManagementExt for ContractClient {}
+impl GroupManagementExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
+        Self::new(client, ADDRESS, ABI)
+    }
+}
 
 /// NodeManager system contract
 pub trait NodeManagementExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
     /// Downgrade consensus node to ordinary node
     fn downgrade_consensus_node(
         &mut self,
@@ -280,13 +282,13 @@ pub trait NodeManagementExt: ContractCall {
         address: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![address];
+        let values = vec![remove_0x(address)];
         self.contract_send_tx(url, "deleteNode", values.as_slice(), None, blake2b)
     }
 
     /// Get node status
     fn node_status(&self, url: &str, address: &str) -> Self::RpcResult {
-        let values = vec![address];
+        let values = vec![remove_0x(address)];
         self.contract_call(url, "getStatus", values.as_slice(), None)
     }
 
@@ -295,18 +297,24 @@ pub trait NodeManagementExt: ContractCall {
 
     /// Applying to promote nodes as consensus nodes
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_send_tx(url, "newNode", value.as_slice(), None, blake2b)
     }
 
     /// Approve node upgrades to consensus nodes
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_send_tx(url, "approveNode", value.as_slice(), None, blake2b)
     }
 }
 
 impl NodeManagementExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/NodeManager.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241a2";
+        Self::new(client, ADDRESS, ABI)
+    }
+
     fn get_authorities(&self, url: &str) -> Result<Vec<String>, ToolError> {
         if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) =
             self.contract_call(url, "listNode", &[], None)?.result()
@@ -325,6 +333,9 @@ impl NodeManagementExt for ContractClient {
 
 /// QuotaManager system contract
 pub trait QuotaManagementExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
     /// Get block quota upper limit
     fn get_bql(&self, url: &str) -> Self::RpcResult {
         self.contract_call(url, "getBQL", &[], None)
@@ -332,7 +343,7 @@ pub trait QuotaManagementExt: ContractCall {
 
     /// Get account quota upper limit of the specific account
     fn get_aql(&self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "getAQL", value.as_slice(), None)
     }
 
@@ -374,21 +385,27 @@ pub trait QuotaManagementExt: ContractCall {
         blake2b: bool,
     ) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![address, quota_limit.as_str()];
+        let value = vec![remove_0x(address), quota_limit.as_str()];
         self.contract_send_tx(url, "setAQL", value.as_slice(), None, blake2b)
     }
 
     /// Check if the account is admin
     fn is_admin(&self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "isAdmin", value.as_slice(), None)
     }
 
     /// Add admin account
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_send_tx(url, "addAdmin", value.as_slice(), None, blake2b)
     }
 }
 
-impl QuotaManagementExt for ContractClient {}
+impl QuotaManagementExt for ContractClient {
+    fn create(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/QuotaManager.abi");
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241a3";
+        Self::new(client, ADDRESS, ABI)
+    }
+}

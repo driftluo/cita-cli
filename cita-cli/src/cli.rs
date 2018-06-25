@@ -1486,7 +1486,8 @@ pub fn contract_processor(
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
-                let authorities = ContractClient::node_management(Some(client))
+                let client: ContractClient = NodeManagementExt::create(Some(client));
+                let authorities = client
                     .get_authorities(url.unwrap_or_else(|| get_url(m)))
                     .map_err(|err| format!("{}", err))?;
                 let is_color = !sub_matches.is_present("no-color") && env_variable.color();
@@ -1496,60 +1497,64 @@ pub fn contract_processor(
             ("getStatus", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::node_management(Some(client)).node_status(url, address)
+                let client: ContractClient = NodeManagementExt::create(Some(client));
+                client.node_status(url, address)
             }
             ("deleteNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::node_management(Some(client))
-                    .downgrade_consensus_node(url, address, blake2b)
+                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                client.downgrade_consensus_node(url, address, blake2b)
             }
             ("newNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::node_management(Some(client))
-                    .new_consensus_node(url, address, blake2b)
+                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                client.new_consensus_node(url, address, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::node_management(Some(client)).approve_node(url, address, blake2b)
+                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                client.approve_node(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", _) => ContractClient::quota_management(Some(client))
+            ("getBQL", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
                 .get_bql(url.unwrap_or_else(|| get_url(m))),
-            ("getDefaultAQL", _) => ContractClient::quota_management(Some(client))
+            ("getDefaultAQL", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
                 .get_default_aql(url.unwrap_or_else(|| get_url(m))),
-            ("getAccounts", _) => ContractClient::quota_management(Some(client))
+            ("getAccounts", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
                 .get_accounts(url.unwrap_or_else(|| get_url(m))),
-            ("getQuotas", _) => ContractClient::quota_management(Some(client))
+            ("getQuotas", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
                 .get_quotas(url.unwrap_or_else(|| get_url(m))),
             ("getAQL", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::quota_management(Some(client)).get_aql(url, address)
+                <ContractClient as QuotaManagementExt>::create(Some(client)).get_aql(url, address)
             }
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::quota_management(Some(client)).set_bql(url, quota, blake2b)
+                <ContractClient as QuotaManagementExt>::create(Some(client))
+                    .set_bql(url, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::quota_management(Some(client)).set_default_aql(url, quota, blake2b)
+                <ContractClient as QuotaManagementExt>::create(Some(client))
+                    .set_default_aql(url, quota, blake2b)
             }
             ("setAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1557,19 +1562,21 @@ pub fn contract_processor(
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::quota_management(Some(client)).set_aql(url, address, quota, blake2b)
+                <ContractClient as QuotaManagementExt>::create(Some(client))
+                    .set_aql(url, address, quota, blake2b)
             }
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::quota_management(Some(client)).is_admin(url, address)
+                <ContractClient as QuotaManagementExt>::create(Some(client)).is_admin(url, address)
             }
             ("addAdmin", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                ContractClient::quota_management(Some(client)).add_admin(url, address, blake2b)
+                <ContractClient as QuotaManagementExt>::create(Some(client))
+                    .add_admin(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1580,7 +1587,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.new_group(url, origin, name, accounts, blake2b)
             }
             ("deleteGroup", Some(m)) => {
@@ -1588,7 +1595,7 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.delete_group(url, origin, target, blake2b)
             }
             ("updateGroupName", Some(m)) => {
@@ -1597,7 +1604,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.update_group_name(url, origin, target, name, blake2b)
             }
             ("addAccounts", Some(m)) => {
@@ -1606,7 +1613,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.add_accounts(url, origin, target, accounts, blake2b)
             }
             ("deleteAccounts", Some(m)) => {
@@ -1615,19 +1622,19 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.delete_accounts(url, origin, target, accounts, blake2b)
             }
             ("checkScope", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.check_scope(url, origin, target)
             }
             ("queryGroups", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                let mut client = ContractClient::group_management(Some(client));
+                let mut client: ContractClient = GroupManagementExt::create(Some(client));
                 client.query_groups(url)
             }
             _ => return Err(m.usage().to_owned()),
@@ -1636,38 +1643,43 @@ pub fn contract_processor(
             ("queryInfo", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_info(url, address)
+                <ContractClient as GroupExt>::create(Some(client)).query_info(url, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_name(url, address)
+                let client: ContractClient = GroupExt::create(Some(client));
+                client.query_name(url, address)
             }
             ("queryAccounts", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_accounts(url, address)
+                <ContractClient as GroupExt>::create(Some(client)).query_accounts(url, address)
             }
             ("queryChild", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_child(url, address)
+                <ContractClient as GroupExt>::create(Some(client)).query_child(url, address)
             }
             ("queryChildLength", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_child_length(url, address)
+                <ContractClient as GroupExt>::create(Some(client)).query_child_length(url, address)
             }
             ("queryParent", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).query_parent(url, address)
+                <ContractClient as GroupExt>::create(Some(client)).query_parent(url, address)
             }
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let account_address = m.value_of("account").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                ContractClient::group(Some(client)).in_group(url, address, account_address)
+                <ContractClient as GroupExt>::create(Some(client)).in_group(
+                    url,
+                    address,
+                    account_address,
+                )
             }
             _ => return Err(m.usage().to_owned()),
         },
