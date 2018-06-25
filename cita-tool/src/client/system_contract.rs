@@ -57,39 +57,56 @@ impl ContractClient {
         Self::new(client, ADDRESS, ABI)
     }
 
-    /// Call/SendTx a contract method
-    pub fn contract_call(
-        &mut self,
-        url: &str,
-        name: &str,
-        values: &[&str],
-        to_addr: Option<Address>,
-        blake2b: Option<bool>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    fn prepare_args(&self,
+                    name: &str,
+                    values: &[&str],
+                    to_addr: Option<Address>,
+    ) -> Result<(String, String), ToolError> {
         let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
         let code = format!("0x{}", code);
         let to_address = to_addr.unwrap_or(self.address);
         let to_address = format!("{:?}", to_address);
-        if let Some(blake2b) = blake2b {
-            self.client.send_raw_transaction(
-                url,
-                code.as_str(),
-                to_address.as_str(),
-                None,
-                None,
-                None,
-                blake2b,
-            )
-        } else {
-            self.client.call(
-                url,
-                None,
-                to_address.as_str(),
-                Some(code.as_str()),
-                "latest",
-            )
-        }
+        Ok((code, to_address))
+    }
+
+    /// SendTx a contract method
+    pub fn contract_send_tx(
+        &mut self,
+        url: &str,
+        name: &str,
+        values: &[&str],
+        to_addr: Option<Address>,
+        blake2b: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let (code, to_address) = self.prepare_args(name, values, to_addr)?;
+        self.client.send_raw_transaction(
+            url,
+            code.as_str(),
+            to_address.as_str(),
+            None,
+            None,
+            None,
+            blake2b,
+        )
+    }
+
+    /// Call a contract method
+    pub fn contract_call(
+        &self,
+        url: &str,
+        name: &str,
+        values: &[&str],
+        to_addr: Option<Address>,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let (code, to_address) = self.prepare_args(name, values, to_addr)?;
+        self.client.call(
+            url,
+            None,
+            to_address.as_str(),
+            Some(code.as_str()),
+            "latest",
+        )
     }
 }
 
@@ -99,70 +116,70 @@ pub trait GroupExt {
     type RpcResult;
     /// Call a group query function
     fn group_query(
-        &mut self,
+        &self,
         url: &str,
         function_name: &str,
         values: &[&str],
         address: &str,
     ) -> Self::RpcResult;
     /// Query the information of the group
-    fn query_info(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_info(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Query the name of the group
-    fn query_name(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_name(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Query the accounts of the group
-    fn query_accounts(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_accounts(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Query the child of the group
-    fn query_children(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_children(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Alias for group_query_children
-    fn query_child(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_child(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Query the length of children of the group
-    fn query_children_length(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_children_length(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Alias for group_query_children_length
-    fn query_child_length(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_child_length(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Query the parent of the group
-    fn query_parent(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn query_parent(&self, url: &str, address: &str) -> Self::RpcResult;
     /// Check the account in the group
-    fn in_group(&mut self, url: &str, address: &str, account_address: &str) -> Self::RpcResult;
+    fn in_group(&self, url: &str, address: &str, account_address: &str) -> Self::RpcResult;
 }
 
 impl GroupExt for ContractClient {
     type RpcResult = Result<JsonRpcResponse, ToolError>;
 
     fn group_query(
-        &mut self,
+        &self,
         url: &str,
         function_name: &str,
         values: &[&str],
         address: &str,
     ) -> Self::RpcResult {
         let address = Address::from_str(remove_0x(address)).unwrap();
-        self.contract_call(url, function_name, values, Some(address), None)
+        self.contract_call(url, function_name, values, Some(address))
     }
-    fn query_info(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_info(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryInfo", &[], address)
     }
-    fn query_name(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_name(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryName", &[], address)
     }
-    fn query_accounts(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_accounts(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryAccounts", &[], address)
     }
-    fn query_children(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_children(&self, url: &str, address: &str) -> Self::RpcResult {
         self.query_child(url, address)
     }
-    fn query_child(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_child(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryChild", &[], address)
     }
-    fn query_children_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_children_length(&self, url: &str, address: &str) -> Self::RpcResult {
         self.query_child_length(url, address)
     }
-    fn query_child_length(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_child_length(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryChildLength", &[], address)
     }
-    fn query_parent(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn query_parent(&self, url: &str, address: &str) -> Self::RpcResult {
         self.group_query(url, "queryParent", &[], address)
     }
-    fn in_group(&mut self, url: &str, address: &str, account_address: &str) -> Self::RpcResult {
+    fn in_group(&self, url: &str, address: &str, account_address: &str) -> Self::RpcResult {
         self.group_query(url, "inGroup", &[account_address], address)
     }
 }
@@ -223,10 +240,10 @@ pub trait GroupManagementExt {
 
     /// Check the target group in the scope of the origin group
     ///   Scope: the origin group is the ancestor of the target group
-    fn check_scope(&mut self, url: &str, origin: &str, target: &str) -> Self::RpcResult;
+    fn check_scope(&self, url: &str, origin: &str, target: &str) -> Self::RpcResult;
 
     /// Query all groups
-    fn query_groups(&mut self, url: &str) -> Self::RpcResult;
+    fn query_groups(&self, url: &str) -> Self::RpcResult;
 }
 
 impl GroupManagementExt for ContractClient {
@@ -241,7 +258,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, name, accounts];
-        self.contract_call(url, "newGroup", values.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "newGroup", values.as_slice(), None, blake2b)
     }
 
     /// Delete the group
@@ -253,7 +270,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target];
-        self.contract_call(url, "deleteGroup", values.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "deleteGroup", values.as_slice(), None, blake2b)
     }
 
     /// Update the group name
@@ -266,12 +283,12 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, name];
-        self.contract_call(
+        self.contract_send_tx(
             url,
             "updateGroupName",
             values.as_slice(),
             None,
-            Some(blake2b),
+            blake2b,
         )
     }
 
@@ -285,7 +302,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, accounts];
-        self.contract_call(url, "addAccounts", values.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "addAccounts", values.as_slice(), None, blake2b)
     }
 
     /// Delete accounts
@@ -298,25 +315,25 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, accounts];
-        self.contract_call(
+        self.contract_send_tx(
             url,
             "deleteAccounts",
             values.as_slice(),
             None,
-            Some(blake2b),
+            blake2b,
         )
     }
 
     /// Check the target group in the scope of the origin group
     ///   Scope: the origin group is the ancestor of the target group
-    fn check_scope(&mut self, url: &str, origin: &str, target: &str) -> Self::RpcResult {
+    fn check_scope(&self, url: &str, origin: &str, target: &str) -> Self::RpcResult {
         let values = vec![origin, target];
-        self.contract_call(url, "checkScope", values.as_slice(), None, None)
+        self.contract_call(url, "checkScope", values.as_slice(), None)
     }
 
     /// Query all groups
-    fn query_groups(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "queryGroups", vec![].as_slice(), None, None)
+    fn query_groups(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "queryGroups", vec![].as_slice(), None)
     }
 }
 
@@ -334,10 +351,10 @@ pub trait NodeManagementExt {
     ) -> Self::RpcResult;
 
     /// Get node status
-    fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn node_status(&self, url: &str, address: &str) -> Self::RpcResult;
 
     /// Get authorities
-    fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError>;
+    fn get_authorities(&self, url: &str) -> Result<Vec<String>, ToolError>;
 
     /// Applying to promote nodes as consensus nodes
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
@@ -356,17 +373,17 @@ impl NodeManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![address];
-        self.contract_call(url, "deleteNode", values.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "deleteNode", values.as_slice(), None, blake2b)
     }
 
-    fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn node_status(&self, url: &str, address: &str) -> Self::RpcResult {
         let values = vec![address];
-        self.contract_call(url, "getStatus", values.as_slice(), None, None)
+        self.contract_call(url, "getStatus", values.as_slice(), None)
     }
 
-    fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
+    fn get_authorities(&self, url: &str) -> Result<Vec<String>, ToolError> {
         if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) =
-            self.contract_call(url, "listNode", &[], None, None)?
+            self.contract_call(url, "listNode", &[], None)?
                 .result()
         {
             Ok(remove_0x(&authorities)
@@ -382,12 +399,12 @@ impl NodeManagementExt for ContractClient {
 
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let value = vec![address];
-        self.contract_call(url, "newNode", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "newNode", value.as_slice(), None, blake2b)
     }
 
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let value = vec![address];
-        self.contract_call(url, "approveNode", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "approveNode", value.as_slice(), None, blake2b)
     }
 }
 
@@ -397,19 +414,19 @@ pub trait QuotaManagementExt {
     type RpcResult;
 
     /// Get block quota upper limit
-    fn get_bql(&mut self, url: &str) -> Self::RpcResult;
+    fn get_bql(&self, url: &str) -> Self::RpcResult;
 
     /// Get account quota upper limit of the specific account
-    fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn get_aql(&self, url: &str, address: &str) -> Self::RpcResult;
 
     /// Get default account quota limit
-    fn get_default_aql(&mut self, url: &str) -> Self::RpcResult;
+    fn get_default_aql(&self, url: &str) -> Self::RpcResult;
 
     /// Get accounts
-    fn get_accounts(&mut self, url: &str) -> Self::RpcResult;
+    fn get_accounts(&self, url: &str) -> Self::RpcResult;
 
     /// Get quotas
-    fn get_quotas(&mut self, url: &str) -> Self::RpcResult;
+    fn get_quotas(&self, url: &str) -> Self::RpcResult;
 
     /// Set block quota limit
     fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult;
@@ -427,7 +444,7 @@ pub trait QuotaManagementExt {
     ) -> Self::RpcResult;
 
     /// Check if the account is admin
-    fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult;
+    fn is_admin(&self, url: &str, address: &str) -> Self::RpcResult;
 
     /// Add admin account
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult;
@@ -436,37 +453,37 @@ pub trait QuotaManagementExt {
 impl QuotaManagementExt for ContractClient {
     type RpcResult = Result<JsonRpcResponse, ToolError>;
 
-    fn get_bql(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getBQL", &[], None, None)
+    fn get_bql(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "getBQL", &[], None)
     }
 
-    fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn get_aql(&self, url: &str, address: &str) -> Self::RpcResult {
         let value = vec![address];
-        self.contract_call(url, "getAQL", value.as_slice(), None, None)
+        self.contract_call(url, "getAQL", value.as_slice(), None)
     }
 
-    fn get_default_aql(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getDefaultAQL", &[], None, None)
+    fn get_default_aql(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "getDefaultAQL", &[], None)
     }
 
-    fn get_accounts(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getAccounts", &[], None, None)
+    fn get_accounts(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "getAccounts", &[], None)
     }
 
-    fn get_quotas(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getQuotas", &[], None, None)
+    fn get_quotas(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "getQuotas", &[], None)
     }
 
     fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
         let value = vec![quota_limit.as_str()];
-        self.contract_call(url, "setBQL", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "setBQL", value.as_slice(), None, blake2b)
     }
 
     fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
         let value = vec![quota_limit.as_str()];
-        self.contract_call(url, "setDefaultAQL", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "setDefaultAQL", value.as_slice(), None, blake2b)
     }
 
     fn set_aql(
@@ -478,16 +495,16 @@ impl QuotaManagementExt for ContractClient {
     ) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
         let value = vec![address, quota_limit.as_str()];
-        self.contract_call(url, "setAQL", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "setAQL", value.as_slice(), None, blake2b)
     }
 
-    fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult {
+    fn is_admin(&self, url: &str, address: &str) -> Self::RpcResult {
         let value = vec![address];
-        self.contract_call(url, "isAdmin", value.as_slice(), None, None)
+        self.contract_call(url, "isAdmin", value.as_slice(), None)
     }
 
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let value = vec![address];
-        self.contract_call(url, "addAdmin", value.as_slice(), None, Some(blake2b))
+        self.contract_send_tx(url, "addAdmin", value.as_slice(), None, blake2b)
     }
 }
