@@ -27,6 +27,15 @@ impl ContractClient {
         }
     }
 
+    /// Group query actions
+    pub fn group(client: Option<Client>) -> Self {
+        static ABI: &str = include_str!("../../contract_abi/Group.abi");
+        // NOTE: This is `rootGroupAddr` address
+        static ADDRESS: &str = "0x00000000000000000000000000000000013241b6";
+        let client = client.unwrap_or_else(|| Client::new().unwrap());
+        Self::new(client, ADDRESS, ABI)
+    }
+
     /// Create a Group Management contract client
     pub fn group_management(client: Option<Client>) -> Self {
         static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
@@ -57,12 +66,14 @@ impl ContractClient {
         url: &str,
         name: &str,
         values: &[&str],
+        to_addr: Option<Address>,
         blake2b: Option<bool>,
     ) -> Result<JsonRpcResponse, ToolError> {
         let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
         let code = format!("0x{}", code);
-        let to_address = format!("{:?}", self.address);
+        let to_address = to_addr.unwrap_or(self.address);
+        let to_address = format!("{:?}", to_address);
         if let Some(blake2b) = blake2b {
             self.client.send_raw_transaction(
                 url,
@@ -159,7 +170,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, name, accounts];
-        self.contract_call(url, "newGroup", values.as_slice(), Some(blake2b))
+        self.contract_call(url, "newGroup", values.as_slice(), None, Some(blake2b))
     }
 
     /// Delete the group
@@ -171,7 +182,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target];
-        self.contract_call(url, "deleteGroup", values.as_slice(), Some(blake2b))
+        self.contract_call(url, "deleteGroup", values.as_slice(), None, Some(blake2b))
     }
 
     /// Update the group name
@@ -184,7 +195,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, name];
-        self.contract_call(url, "updateGroupName", values.as_slice(), Some(blake2b))
+        self.contract_call(url, "updateGroupName", values.as_slice(), None, Some(blake2b))
     }
 
     /// Add accounts
@@ -197,7 +208,7 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, accounts];
-        self.contract_call(url, "addAccounts", values.as_slice(), Some(blake2b))
+        self.contract_call(url, "addAccounts", values.as_slice(), None, Some(blake2b))
     }
 
     /// Delete accounts
@@ -210,19 +221,19 @@ impl GroupManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let values = vec![origin, target, accounts];
-        self.contract_call(url, "deleteAccounts", values.as_slice(), Some(blake2b))
+        self.contract_call(url, "deleteAccounts", values.as_slice(), None, Some(blake2b))
     }
 
     /// Check the target group in the scope of the origin group
     ///   Scope: the origin group is the ancestor of the target group
     fn check_scope(&mut self, url: &str, origin: &str, target: &str) -> Self::RpcResult {
         let values = vec![origin, target];
-        self.contract_call(url, "checkScope", values.as_slice(), None)
+        self.contract_call(url, "checkScope", values.as_slice(), None, None)
     }
 
     /// Query all groups
     fn query_groups(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "queryGroups", vec![].as_slice(), None)
+        self.contract_call(url, "queryGroups", vec![].as_slice(), None, None)
     }
 }
 
@@ -261,18 +272,18 @@ impl NodeManagementExt for ContractClient {
         address: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![remove_0x(address)];
-        self.contract_call(url, "deleteNode", values.as_slice(), Some(blake2b))
+        let values = vec![address];
+        self.contract_call(url, "deleteNode", values.as_slice(), None, Some(blake2b))
     }
 
     fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let values = vec![remove_0x(address)];
-        self.contract_call(url, "getStatus", values.as_slice(), None)
+        let values = vec![address];
+        self.contract_call(url, "getStatus", values.as_slice(), None, None)
     }
 
     fn get_authorities(&mut self, url: &str) -> Result<Vec<String>, ToolError> {
         if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) =
-            self.contract_call(url, "listNode", &[], None)?.result()
+            self.contract_call(url, "listNode", &[], None, None)?.result()
         {
             Ok(remove_0x(&authorities)
                 .as_bytes()
@@ -286,13 +297,13 @@ impl NodeManagementExt for ContractClient {
     }
 
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "newNode", value.as_slice(), Some(blake2b))
+        let value = vec![address];
+        self.contract_call(url, "newNode", value.as_slice(), None, Some(blake2b))
     }
 
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "approveNode", value.as_slice(), Some(blake2b))
+        let value = vec![address];
+        self.contract_call(url, "approveNode", value.as_slice(), None, Some(blake2b))
     }
 }
 
@@ -342,36 +353,36 @@ impl QuotaManagementExt for ContractClient {
     type RpcResult = Result<JsonRpcResponse, ToolError>;
 
     fn get_bql(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getBQL", &[], None)
+        self.contract_call(url, "getBQL", &[], None, None)
     }
 
     fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "getAQL", value.as_slice(), None)
+        let value = vec![address];
+        self.contract_call(url, "getAQL", value.as_slice(), None, None)
     }
 
     fn get_default_aql(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getDefaultAQL", &[], None)
+        self.contract_call(url, "getDefaultAQL", &[], None, None)
     }
 
     fn get_accounts(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getAccounts", &[], None)
+        self.contract_call(url, "getAccounts", &[], None, None)
     }
 
     fn get_quotas(&mut self, url: &str) -> Self::RpcResult {
-        self.contract_call(url, "getQuotas", &[], None)
+        self.contract_call(url, "getQuotas", &[], None, None)
     }
 
     fn set_bql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
         let value = vec![quota_limit.as_str()];
-        self.contract_call(url, "setBQL", value.as_slice(), Some(blake2b))
+        self.contract_call(url, "setBQL", value.as_slice(), None, Some(blake2b))
     }
 
     fn set_default_aql(&mut self, url: &str, quota_limit: u64, blake2b: bool) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
         let value = vec![quota_limit.as_str()];
-        self.contract_call(url, "setDefaultAQL", value.as_slice(), Some(blake2b))
+        self.contract_call(url, "setDefaultAQL", value.as_slice(), None, Some(blake2b))
     }
 
     fn set_aql(
@@ -382,17 +393,17 @@ impl QuotaManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![remove_0x(address), quota_limit.as_str()];
-        self.contract_call(url, "setAQL", value.as_slice(), Some(blake2b))
+        let value = vec![address, quota_limit.as_str()];
+        self.contract_call(url, "setAQL", value.as_slice(), None, Some(blake2b))
     }
 
     fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "isAdmin", value.as_slice(), None)
+        let value = vec![address];
+        self.contract_call(url, "isAdmin", value.as_slice(), None, None)
     }
 
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![remove_0x(address)];
-        self.contract_call(url, "addAdmin", value.as_slice(), Some(blake2b))
+        let value = vec![address];
+        self.contract_call(url, "addAdmin", value.as_slice(), None, Some(blake2b))
     }
 }
