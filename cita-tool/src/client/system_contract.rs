@@ -261,12 +261,12 @@ impl NodeManagementExt for ContractClient {
         address: &str,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let values = vec![address];
+        let values = vec![remove_0x(address)];
         self.contract_call(url, "deleteNode", values.as_slice(), Some(blake2b))
     }
 
     fn node_status(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let values = vec![address];
+        let values = vec![remove_0x(address)];
         self.contract_call(url, "getStatus", values.as_slice(), None)
     }
 
@@ -286,12 +286,12 @@ impl NodeManagementExt for ContractClient {
     }
 
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "newNode", value.as_slice(), Some(blake2b))
     }
 
     fn approve_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "approveNode", value.as_slice(), Some(blake2b))
     }
 }
@@ -346,7 +346,7 @@ impl QuotaManagementExt for ContractClient {
     }
 
     fn get_aql(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "getAQL", value.as_slice(), None)
     }
 
@@ -382,17 +382,17 @@ impl QuotaManagementExt for ContractClient {
         blake2b: bool,
     ) -> Self::RpcResult {
         let quota_limit = format!("{}", quota_limit);
-        let value = vec![address, quota_limit.as_str()];
+        let value = vec![remove_0x(address), quota_limit.as_str()];
         self.contract_call(url, "setAQL", value.as_slice(), Some(blake2b))
     }
 
     fn is_admin(&mut self, url: &str, address: &str) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "isAdmin", value.as_slice(), None)
     }
 
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
-        let value = vec![address];
+        let value = vec![remove_0x(address)];
         self.contract_call(url, "addAdmin", value.as_slice(), Some(blake2b))
     }
 }

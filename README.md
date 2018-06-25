@@ -26,7 +26,7 @@ Just like the relationship between redis-cli and redis.
 
 ![A asciicast of cita-cli](./asciicast.svg)
 
-### clone and build
+### Clone and Build
 
 ```bash
 $ git clone https://github.com/driftluo/cita-cli.git
@@ -44,6 +44,34 @@ $ cd cita-cli/cita-cli
 $ cargo build --features blake2b_hash
 $ cd ..
 ```
+
+#### Compile the Linux cross-platform version
+
+- First, install `musl-gcc`, default on `/usr/local/musl`
+
+```bash
+$ wget https://www.musl-libc.org/releases/musl-1.1.19.tar.gz
+$ tar -xzvf musl-1.1.19.tar.gz
+$ cd musl-1.1.19/
+$ ./configure && make && sudo make install
+$ sudo ln -sf /usr/local/musl/bin/musl-gcc /usr/local/bin/musl-gcc
+```
+
+- Second, add `x86_64-unknown-linux-musl` toolchain
+
+```bash
+$ rustup target add x86_64-unknown-linux-musl
+```
+
+- Third, build
+
+```bash
+$ cargo build --target x86_64-unknown-linux-musl
+```
+
+> Note: only for sha3 version, since blake2b is dynamically linked,
+> first need to be changed to static link,
+> then need to use musl-gcc to recompile libsodium the entire library
 
 ### Examples
 
