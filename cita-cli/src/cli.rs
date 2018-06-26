@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Read;
+use std::sync::Arc;
 
 use ansi_term::Colour::Yellow;
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
@@ -38,6 +39,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .subcommand(transfer_command().arg(arg_url.clone()))
         .subcommand(store_command().arg(arg_url.clone()))
         .subcommand(amend_command().arg(arg_url.clone()))
+        .subcommand(search_command())
         .arg(
             Arg::with_name("blake2b")
                 .long("blake2b")
@@ -96,6 +98,7 @@ pub fn build_interactive() -> App<'static, 'static> {
                         .help("Switching json format"),
                 ),
         )
+        .subcommand(search_command())
         .subcommand(SubCommand::with_name("info").about("Display global variables"))
         .subcommand(rpc_command())
         .subcommand(key_command())
@@ -109,6 +112,36 @@ pub fn build_interactive() -> App<'static, 'static> {
                 .visible_alias("quit")
                 .about("Exit the interactive interface"),
         )
+}
+
+/// Search command tree
+pub fn search_command() -> App<'static, 'static> {
+    App::new("search").about("Search command tree").arg(
+        Arg::with_name("keyword")
+            .multiple(true)
+            .takes_value(true)
+            .required(true)
+            .index(1),
+    )
+}
+
+/// Processor search command
+pub fn search_processor<'a, 'b>(app: Arc<App<'a, 'b>>, sub_matches: &ArgMatches) {
+    let keyword = sub_matches
+        .values_of("keyword")
+        .unwrap()
+        .map(|s| s.to_owned())
+        .collect::<Vec<String>>()
+        .join(" ");
+    let mut value: Vec<Vec<String>> = Vec::new();
+    search_app(app, None, &mut value);
+    let result = value
+        .into_iter()
+        .map(|cmd| cmd.join(" "))
+        .filter(|cmd| cmd.to_lowercase().contains(&keyword))
+        .collect::<Vec<String>>()
+        .join("\n");
+    println!("{}", result);
 }
 
 /// Ethereum abi sub command
@@ -2136,6 +2169,7 @@ fn parse_u64(height: &str) -> Result<u64, String> {
 
 /// Attempt to resolve the private key
 pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
+    let _ = is_hex(hash)?;
     Ok(PrivateKey::from_str(remove_0x(hash))?)
 }
 
@@ -2170,4 +2204,34 @@ fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {
     #[cfg(not(feature = "blake2b_hash"))]
     let blake2b = false;
     blake2b
+}
+
+/// Search command tree
+fn search_app<'a, 'b>(
+    app: Arc<App<'a, 'b>>,
+    prefix: Option<Vec<String>>,
+    commands: &mut Vec<Vec<String>>,
+) {
+    for inner_app in &app.p.subcommands {
+        if inner_app.p.subcommands.is_empty() {
+            if prefix.is_some() {
+                let mut sub_command = prefix.clone().unwrap();
+                sub_command.push(inner_app.p.meta.name.clone());
+                commands.push(sub_command);
+            } else {
+                commands.push(vec![inner_app.p.meta.name.clone()]);
+            }
+        } else {
+            let prefix: Option<Vec<String>> = if prefix.is_some() {
+                prefix.clone().map(|mut x| {
+                    x.push(inner_app.p.meta.name.clone());
+                    x
+                })
+            } else {
+                Some(vec![inner_app.p.meta.name.clone()])
+            };
+
+            search_app(Arc::new(inner_app.to_owned()), prefix, commands);
+        };
+    }
 }
