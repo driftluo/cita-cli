@@ -26,12 +26,13 @@ use std::env;
 use std::iter::FromIterator;
 use std::process;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use dotenv::dotenv;
 
 use cli::{
     abi_processor, amend_processor, build_cli, contract_processor, key_processor, rpc_processor,
-    store_processor, transfer_processor,
+    search_processor, store_processor, transfer_processor,
 };
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -49,7 +50,8 @@ fn main() {
 
     let printer = Printer::default();
     let env_variable = GlobalConfig::new();
-    let matches = build_cli(&default_jsonrpc_url).get_matches();
+    let parser = build_cli(&default_jsonrpc_url);
+    let matches = parser.clone().get_matches();
 
     if let Err(err) = match matches.subcommand() {
         ("rpc", Some(m)) => rpc_processor(m, &printer, None, &env_variable),
@@ -59,6 +61,10 @@ fn main() {
         ("transfer", Some(m)) => transfer_processor(m, &printer, None, &env_variable),
         ("store", Some(m)) => store_processor(m, &printer, None, &env_variable),
         ("amend", Some(m)) => amend_processor(m, &printer, None, &env_variable),
+        ("search", Some(m)) => {
+            search_processor(Arc::new(parser), m);
+            Ok(())
+        }
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())

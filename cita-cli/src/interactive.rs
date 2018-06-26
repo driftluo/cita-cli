@@ -18,7 +18,7 @@ use shell_words;
 
 use cli::{
     abi_processor, amend_processor, build_interactive, contract_processor, key_processor,
-    parse_privkey, rpc_processor, store_processor, transfer_processor,
+    parse_privkey, rpc_processor, search_processor, store_processor, transfer_processor,
 };
 use printer::Printer;
 
@@ -164,20 +164,7 @@ pub fn start(url: &str) -> io::Result<()> {
                         Ok(())
                     }
                     ("search", Some(m)) => {
-                        let keyword = m.values_of("keyword")
-                            .unwrap()
-                            .map(|s| s.to_owned())
-                            .collect::<Vec<String>>()
-                            .join(" ");
-                        let mut value: Vec<Vec<String>> = Vec::new();
-                        CitaCompleter::search_command(Arc::new(parser.clone()), None, &mut value);
-                        let result = value
-                            .into_iter()
-                            .map(|cmd| cmd.join(" "))
-                            .filter(|cmd| cmd.to_lowercase().contains(&keyword))
-                            .collect::<Vec<String>>()
-                            .join("\n");
-                        println!("{}", result);
+                        search_processor(Arc::new(parser.clone()), m);
                         Ok(())
                     }
                     ("exit", _) => {
@@ -306,35 +293,6 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
             Some(app)
         } else {
             None
-        }
-    }
-
-    fn search_command(
-        app: Arc<clap::App<'a, 'b>>,
-        prefix: Option<Vec<String>>,
-        commands: &mut Vec<Vec<String>>,
-    ) {
-        for inner_app in &app.p.subcommands {
-            if inner_app.p.subcommands.is_empty() {
-                if prefix.is_some() {
-                    let mut sub_command = prefix.clone().unwrap();
-                    sub_command.push(inner_app.p.meta.name.clone());
-                    commands.push(sub_command);
-                } else {
-                    commands.push(vec![inner_app.p.meta.name.clone()]);
-                }
-            } else {
-                let prefix: Option<Vec<String>> = if prefix.is_some() {
-                    prefix.clone().map(|mut x| {
-                        x.push(inner_app.p.meta.name.clone());
-                        x
-                    })
-                } else {
-                    Some(vec![inner_app.p.meta.name.clone()])
-                };
-
-                Self::search_command(Arc::new(inner_app.to_owned()), prefix, commands);
-            };
         }
     }
 }
