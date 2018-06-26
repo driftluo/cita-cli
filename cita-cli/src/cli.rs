@@ -96,6 +96,17 @@ pub fn build_interactive() -> App<'static, 'static> {
                         .help("Switching json format"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("search")
+                .about("Search command tree")
+                .arg(
+                    Arg::with_name("keyword")
+                        .multiple(true)
+                        .takes_value(true)
+                        .required(true)
+                        .index(1),
+                ),
+        )
         .subcommand(SubCommand::with_name("info").about("Display global variables"))
         .subcommand(rpc_command())
         .subcommand(key_command())
@@ -2136,6 +2147,7 @@ fn parse_u64(height: &str) -> Result<u64, String> {
 
 /// Attempt to resolve the private key
 pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
+    let _ = is_hex(hash)?;
     Ok(PrivateKey::from_str(remove_0x(hash))?)
 }
 
