@@ -62,8 +62,9 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut parser = build_interactive();
+    let complete = Arc::new(CitaCompleter::new(parser.clone()));
 
-    interface.set_completer(Arc::new(CitaCompleter::new(parser.clone())));
+    interface.set_completer(complete.clone());
     let style = Red.bold();
     let text = "cita> ";
 
@@ -162,6 +163,23 @@ pub fn start(url: &str) -> io::Result<()> {
                         env_variable.print(&url);
                         Ok(())
                     }
+                    ("search", Some(m)) => {
+                        let keyword = m.values_of("keyword")
+                            .unwrap()
+                            .map(|s| s.to_owned())
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        let mut value: Vec<Vec<String>> = Vec::new();
+                        CitaCompleter::search_command(Arc::new(parser.clone()), None, &mut value);
+                        let result = value
+                            .into_iter()
+                            .map(|cmd| cmd.join(" "))
+                            .filter(|cmd| cmd.to_lowercase().contains(&keyword))
+                            .collect::<Vec<String>>()
+                            .join("\n");
+                        println!("{}", result);
+                        Ok(())
+                    }
                     ("exit", _) => {
                         if let Err(err) = interface.save_history(history_file) {
                             eprintln!("Save command history failed: {}", err);
@@ -186,15 +204,17 @@ struct CitaCompleter<'a, 'b>
 where
     'a: 'b,
 {
-    clap_app: clap::App<'a, 'b>,
+    clap_app: Arc<clap::App<'a, 'b>>,
 }
 
 impl<'a, 'b> CitaCompleter<'a, 'b> {
     fn new(clap_app: clap::App<'a, 'b>) -> Self {
-        CitaCompleter { clap_app }
+        CitaCompleter {
+            clap_app: Arc::new(clap_app),
+        }
     }
 
-    fn get_completions<'p>(app: &'p clap::App<'a, 'b>, args: &[String]) -> Vec<Completion> {
+    fn get_completions(app: Arc<clap::App<'a, 'b>>, args: &[String]) -> Vec<Completion> {
         let args_set = args.iter().collect::<HashSet<&String>>();
         let switched_completions =
             |short: Option<char>, long: Option<&str>, multiple: bool, required: bool| {
@@ -259,10 +279,10 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
             .concat()
     }
 
-    fn find_subcommand<'s, 'p, Iter: iter::Iterator<Item = &'s str>>(
-        app: &'p clap::App<'a, 'b>,
+    fn find_subcommand<'s, Iter: iter::Iterator<Item = &'s str>>(
+        app: Arc<clap::App<'a, 'b>>,
         mut prefix_names: iter::Peekable<Iter>,
-    ) -> Option<&'p clap::App<'a, 'b>> {
+    ) -> Option<Arc<clap::App<'a, 'b>>> {
         if let Some(name) = prefix_names.next() {
             for inner_app in &(app.p.subcommands) {
                 if inner_app.p.meta.name == name
@@ -275,9 +295,9 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                         .unwrap_or(false)
                 {
                     return if prefix_names.peek().is_none() {
-                        Some(inner_app)
+                        Some(Arc::new(inner_app.to_owned()))
                     } else {
-                        Self::find_subcommand(inner_app, prefix_names)
+                        Self::find_subcommand(Arc::new(inner_app.to_owned()), prefix_names)
                     };
                 }
             }
@@ -286,6 +306,35 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
             Some(app)
         } else {
             None
+        }
+    }
+
+    fn search_command(
+        app: Arc<clap::App<'a, 'b>>,
+        prefix: Option<Vec<String>>,
+        commands: &mut Vec<Vec<String>>,
+    ) {
+        for inner_app in &app.p.subcommands {
+            if inner_app.p.subcommands.is_empty() {
+                if prefix.is_some() {
+                    let mut sub_command = prefix.clone().unwrap();
+                    sub_command.push(inner_app.p.meta.name.clone());
+                    commands.push(sub_command);
+                } else {
+                    commands.push(vec![inner_app.p.meta.name.clone()]);
+                }
+            } else {
+                let prefix: Option<Vec<String>> = if prefix.is_some() {
+                    prefix.clone().map(|mut x| {
+                        x.push(inner_app.p.meta.name.clone());
+                        x
+                    })
+                } else {
+                    Some(vec![inner_app.p.meta.name.clone()])
+                };
+
+                Self::search_command(Arc::new(inner_app.to_owned()), prefix, commands);
+            };
         }
     }
 }
@@ -303,17 +352,16 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
     ) -> Option<Vec<Completion>> {
         let line = prompter.buffer();
         let args = shell_words::split(&line[..start]).unwrap();
-        Self::find_subcommand(&self.clap_app, args.iter().map(|s| s.as_str()).peekable()).map(
-            |current_app| {
-                let word_lower = word.to_lowercase();
-                Self::get_completions(current_app, &args)
-                    .into_iter()
-                    .filter(|s| {
-                        word.is_empty() || s.completion.to_lowercase().contains(&word_lower)
-                    })
-                    .collect::<Vec<_>>()
-            },
-        )
+        Self::find_subcommand(
+            self.clap_app.clone(),
+            args.iter().map(|s| s.as_str()).peekable(),
+        ).map(|current_app| {
+            let word_lower = word.to_lowercase();
+            Self::get_completions(current_app, &args)
+                .into_iter()
+                .filter(|s| word.is_empty() || s.completion.to_lowercase().contains(&word_lower))
+                .collect::<Vec<_>>()
+        })
     }
 }
 
@@ -426,10 +474,14 @@ impl GlobalConfig {
 }
 
 fn remove_private(line: &str) -> String {
-    shell_words::split(line)
-        .unwrap()
-        .into_iter()
-        .filter(|key| parse_privkey(key).is_err())
-        .collect::<Vec<String>>()
-        .join(" ")
+    let args = shell_words::split(line).unwrap();
+    if args.contains(&"private".to_string()) || args.contains(&"privkey".to_string()) {
+        args.clone()
+            .into_iter()
+            .filter(|key| parse_privkey(key).is_err())
+            .collect::<Vec<String>>()
+            .join(" ")
+    } else {
+        args.join(" ")
+    }
 }
