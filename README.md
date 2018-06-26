@@ -16,7 +16,7 @@ Just like the relationship between redis-cli and redis.
 
 - [x] Send transaction, support sha3hash and blake2b
 - [x] Support interactive command line
-- [ ] Support system contract
+- [x] Support system contract
 - [ ] Init cita
 - [ ] Kill cita process
 - [ ] Start cita process
@@ -31,7 +31,7 @@ Just like the relationship between redis-cli and redis.
 ### Clone and Build
 
 ```bash
-$ git clone https://github.com/driftluo/cita-cli.git
+$ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli
 $ cargo build
 ```
@@ -41,7 +41,7 @@ If you want to support both the blake2b and sha3 algorithms, first install the S
 ```bash
 $ sudo apt install libsodium*
 
-$ git clone https://github.com/driftluo/cita-cli.git
+$ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
 $ cargo build --features blake2b_hash
 $ cd ..

@@ -432,14 +432,15 @@ impl GlobalConfig {
 }
 
 fn remove_private(line: &str) -> String {
-    let args = shell_words::split(line).unwrap();
-    if args.contains(&"private".to_string()) || args.contains(&"privkey".to_string()) {
-        args.clone()
-            .into_iter()
-            .filter(|key| parse_privkey(key).is_err())
-            .collect::<Vec<String>>()
-            .join(" ")
+    if line.contains("private") || line.contains("privkey") {
+        shell_words::join(
+            shell_words::split(line)
+                .unwrap()
+                .into_iter()
+                .filter(|key| parse_privkey(key).is_err())
+                .collect::<Vec<String>>(),
+        )
     } else {
-        args.join(" ")
+        line.to_string()
     }
 }
