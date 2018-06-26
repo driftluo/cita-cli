@@ -20,11 +20,7 @@ install:
   - export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
   - export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
-jobs:
-  include:
-    - stage: Format
-      script: cargo fmt -- --write-mode check
-    - stage: Build
-      script: cargo build --all-features --all
-    - stage: Test
-      script: cargo test --all-features --all
+script:
+  # For speed up the CI process
+  #   See: https://docs.travis-ci.com/user/build-stages/#Data-persistence-between-stages-and-jobs
+  - cargo fmt -- --write-mode check && cargo build --features blake2b_hash --all && cargo test --features blake2b_hash --all
