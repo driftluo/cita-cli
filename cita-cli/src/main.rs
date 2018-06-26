@@ -15,6 +15,7 @@ extern crate syntect;
 
 mod cli;
 #[cfg(feature = "syntect")]
+#[allow(dead_code)]
 mod highlight;
 mod interactive;
 mod json_color;
