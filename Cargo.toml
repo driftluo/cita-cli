@@ -1,2 +1,2 @@
 [workspace]
-members = ["cita-cli", "cita-tool"]
+members = ["cita-cli", "cita-tool", "tool-derive"]
