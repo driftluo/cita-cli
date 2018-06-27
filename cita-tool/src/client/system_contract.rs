@@ -6,27 +6,17 @@ use std::str::{self, FromStr};
 use abi::contract_encode_input;
 use error::ToolError;
 use ethabi::{Address, Contract};
-use rpctypes::{JsonRpcResponse, ParamsValue, ResponseValue};
+use rpctypes::JsonRpcResponse;
 
-/// Contract Client
-pub struct ContractClient {
+/// Group Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241b6")]
+#[contract(path = "../../contract_abi/Group.abi")]
+#[contract(name = "GroupExt")]
+pub struct GroupClient {
     client: Client,
     address: Address,
     contract: Contract,
-}
-
-impl ContractClient {
-    /// Create a Contract Client
-    pub fn new(client: Option<Client>, address_str: &str, contract_json: &str) -> Self {
-        let client = client.unwrap_or_else(|| Client::new().unwrap());
-        let address = Address::from_str(remove_0x(address_str)).unwrap();
-        let contract = Contract::load(contract_json.as_bytes()).unwrap();
-        ContractClient {
-            client,
-            address,
-            contract,
-        }
-    }
 }
 
 /// Call/SendTx to a contract method
@@ -74,61 +64,6 @@ pub trait ContractCall {
     }
 }
 
-impl ContractCall for ContractClient {
-    type RpcResult = Result<JsonRpcResponse, ToolError>;
-
-    fn prepare_call_args(
-        &self,
-        name: &str,
-        values: &[&str],
-        to_addr: Option<Address>,
-    ) -> Result<(String, String), ToolError> {
-        let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let code = contract_encode_input(&self.contract, name, values.as_slice(), true)?;
-        let code = format!("0x{}", code);
-        let to_address = to_addr.unwrap_or(self.address);
-        let to_address = format!("{:?}", to_address);
-        Ok((code, to_address))
-    }
-
-    fn contract_send_tx(
-        &mut self,
-        url: &str,
-        name: &str,
-        values: &[&str],
-        to_addr: Option<Address>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
-        let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
-        self.client.send_raw_transaction(
-            url,
-            code.as_str(),
-            to_address.as_str(),
-            None,
-            None,
-            None,
-            blake2b,
-        )
-    }
-
-    fn contract_call(
-        &self,
-        url: &str,
-        name: &str,
-        values: &[&str],
-        to_addr: Option<Address>,
-    ) -> Self::RpcResult {
-        let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
-        self.client.call(
-            url,
-            None,
-            to_address.as_str(),
-            Some(code.as_str()),
-            "latest",
-        )
-    }
-}
-
 /// Group System Contract
 pub trait GroupExt: ContractCall {
     /// Create a ContractClient
@@ -172,13 +107,15 @@ pub trait GroupExt: ContractCall {
     }
 }
 
-impl GroupExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/Group.abi");
-        // NOTE: This is `rootGroupAddr` address
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241b6";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Group manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241C2")]
+#[contract(path = "../../contract_abi/GroupManagement.abi")]
+#[contract(name = "GroupManagementExt")]
+pub struct GroupManageClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// GroupManagement System Contract
@@ -263,12 +200,15 @@ pub trait GroupManagementExt: ContractCall {
     }
 }
 
-impl GroupManagementExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/GroupManagement.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241C2";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Role Client
+#[derive(ContractExt)]
+#[contract(addr = "0x")]
+#[contract(path = "../../contract_abi/Role.abi")]
+#[contract(name = "RoleExt")]
+pub struct RoleClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// Role system contract
@@ -313,13 +253,15 @@ pub trait RoleExt: ContractCall {
     }
 }
 
-impl RoleExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/Role.abi");
-        // NOTE: There is no default address for Role
-        static ADDRESS: &str = "0x";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Role manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0xe3b5ddb80addb513b5c981e27bb030a86a8821ee")]
+#[contract(path = "../../contract_abi/RoleManagement.abi")]
+#[contract(name = "RoleManagementExt")]
+pub struct RoleManageClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// RoleManagement system contract
@@ -454,12 +396,15 @@ pub trait RoleManagementExt: ContractCall {
     }
 }
 
-impl RoleManagementExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/RoleManagement.abi");
-        static ADDRESS: &str = "0xe3b5ddb80addb513b5c981e27bb030a86a8821ee";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Role manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241b4")]
+#[contract(path = "../../contract_abi/Authorization.abi")]
+#[contract(name = "AuthorizationExt")]
+pub struct AuthorizationClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// Authorization system contract
@@ -510,12 +455,15 @@ pub trait AuthorizationExt: ContractCall {
     }
 }
 
-impl AuthorizationExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/Authorization.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241b4";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Permission Client
+#[derive(ContractExt)]
+#[contract(addr = "0x")]
+#[contract(path = "../../contract_abi/Permission.abi")]
+#[contract(name = "PermissionExt")]
+pub struct PermissionClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// Permission system contract
@@ -561,13 +509,15 @@ pub trait PermissionExt: ContractCall {
     }
 }
 
-impl PermissionExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/Permission.abi");
-        // NOTE: There is no default address for Permission
-        static ADDRESS: &str = "0x";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Permission manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241b2")]
+#[contract(path = "../../contract_abi/PermissionManagement.abi")]
+#[contract(name = "PermissionManagementExt")]
+pub struct PermissionManageClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// PermissionManagement system contract
@@ -655,12 +605,15 @@ pub trait PermissionManagementExt: ContractCall {
     }
 }
 
-impl PermissionManagementExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/PermissionManagement.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241b2";
-        Self::new(client, ADDRESS, ABI)
-    }
+/// Node manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241a2")]
+#[contract(path = "../../contract_abi/NodeManager.abi")]
+#[contract(name = "NodeManagementExt")]
+pub struct NodeManageClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// NodeManager system contract
@@ -686,7 +639,9 @@ pub trait NodeManagementExt: ContractCall {
     }
 
     /// Get authorities
-    fn get_authorities(&self, url: &str) -> Result<Vec<String>, ToolError>;
+    fn get_authorities(&self, url: &str) -> Self::RpcResult {
+        self.contract_call(url, "listNode", &[], None)
+    }
 
     /// Applying to promote nodes as consensus nodes
     fn new_consensus_node(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
@@ -701,27 +656,15 @@ pub trait NodeManagementExt: ContractCall {
     }
 }
 
-impl NodeManagementExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/NodeManager.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241a2";
-        Self::new(client, ADDRESS, ABI)
-    }
-
-    fn get_authorities(&self, url: &str) -> Result<Vec<String>, ToolError> {
-        if let Some(ResponseValue::Singe(ParamsValue::String(authorities))) =
-            self.contract_call(url, "listNode", &[], None)?.result()
-        {
-            Ok(remove_0x(&authorities)
-                .as_bytes()
-                .chunks(64)
-                .skip(2)
-                .map(|data| format!("0x{}", str::from_utf8(&data[24..]).unwrap()))
-                .collect::<Vec<String>>())
-        } else {
-            Ok(Vec::new())
-        }
-    }
+/// Node manage Client
+#[derive(ContractExt)]
+#[contract(addr = "0x00000000000000000000000000000000013241a3")]
+#[contract(path = "../../contract_abi/QuotaManager.abi")]
+#[contract(name = "QuotaManagementExt")]
+pub struct QuotaManageClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
 }
 
 /// QuotaManager system contract
@@ -792,13 +735,5 @@ pub trait QuotaManagementExt: ContractCall {
     fn add_admin(&mut self, url: &str, address: &str, blake2b: bool) -> Self::RpcResult {
         let values = [remove_0x(address)];
         self.contract_send_tx(url, "addAdmin", &values, None, blake2b)
-    }
-}
-
-impl QuotaManagementExt for ContractClient {
-    fn create(client: Option<Client>) -> Self {
-        static ABI: &str = include_str!("../../contract_abi/QuotaManager.abi");
-        static ADDRESS: &str = "0x00000000000000000000000000000000013241a3";
-        Self::new(client, ADDRESS, ABI)
     }
 }

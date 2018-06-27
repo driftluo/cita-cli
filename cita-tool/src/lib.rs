@@ -27,6 +27,8 @@ extern crate sha3;
 extern crate sodiumoxide;
 extern crate tokio;
 extern crate uuid;
+#[macro_use]
+extern crate tool_derive;
 
 /// Ethabi
 mod abi;

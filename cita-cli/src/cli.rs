@@ -8,9 +8,14 @@ use serde_json::{self, Value};
 
 use cita_tool::client::basic::{AmendExt, Client, ClientExt, StoreExt, Transfer};
 use cita_tool::client::system_contract::{
-    AuthorizationExt, ContractClient, GroupExt, GroupManagementExt, NodeManagementExt,
-    PermissionExt, PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
+    AuthorizationClient, GroupClient, GroupManageClient, NodeManageClient, PermissionClient,
+    PermissionManageClient, QuotaManageClient, RoleClient, RoleManageClient,
 };
+use cita_tool::client::system_contract::{
+    AuthorizationExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
+    PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
+};
+
 use cita_tool::{
     decode_params, encode_input, encode_params, pubkey_to_address, remove_0x, KeyPair, ParamsValue,
     PrivateKey, PubKey, ResponseValue, UnverifiedTransaction,
@@ -1741,18 +1746,13 @@ pub fn contract_processor(
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
-                let client: ContractClient = NodeManagementExt::create(Some(client));
-                let authorities = client
-                    .get_authorities(url.unwrap_or_else(|| get_url(m)))
-                    .map_err(|err| format!("{}", err))?;
-                let is_color = !sub_matches.is_present("no-color") && env_variable.color();
-                printer.println(&json!(authorities), is_color);
-                return Ok(());
+                let client = NodeManageClient::create(Some(client));
+                client.get_authorities(url.unwrap_or_else(|| get_url(m)))
             }
             ("getStatus", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                let client: ContractClient = NodeManagementExt::create(Some(client));
+                let client = NodeManageClient::create(Some(client));
                 client.node_status(url, address)
             }
             ("deleteNode", Some(m)) => {
@@ -1760,7 +1760,7 @@ pub fn contract_processor(
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                let mut client = NodeManageClient::create(Some(client));
                 client.downgrade_consensus_node(url, address, blake2b)
             }
             ("newNode", Some(m)) => {
@@ -1768,7 +1768,7 @@ pub fn contract_processor(
                 client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                let mut client = NodeManageClient::create(Some(client));
                 client.new_consensus_node(url, address, blake2b)
             }
             ("approveNode", Some(m)) => {
@@ -1776,40 +1776,39 @@ pub fn contract_processor(
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                let mut client: ContractClient = NodeManagementExt::create(Some(client));
+                let mut client = NodeManageClient::create(Some(client));
                 client.approve_node(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
-                .get_bql(url.unwrap_or_else(|| get_url(m))),
-            ("getDefaultAQL", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
+            ("getBQL", _) => {
+                QuotaManageClient::create(Some(client)).get_bql(url.unwrap_or_else(|| get_url(m)))
+            }
+            ("getDefaultAQL", _) => QuotaManageClient::create(Some(client))
                 .get_default_aql(url.unwrap_or_else(|| get_url(m))),
-            ("getAccounts", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
+            ("getAccounts", _) => QuotaManageClient::create(Some(client))
                 .get_accounts(url.unwrap_or_else(|| get_url(m))),
-            ("getQuotas", _) => <ContractClient as QuotaManagementExt>::create(Some(client))
+            ("getQuotas", _) => QuotaManageClient::create(Some(client))
                 .get_quotas(url.unwrap_or_else(|| get_url(m))),
             ("getAQL", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as QuotaManagementExt>::create(Some(client)).get_aql(url, address)
+                QuotaManageClient::create(Some(client)).get_aql(url, address)
             }
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as QuotaManagementExt>::create(Some(client))
-                    .set_bql(url, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_bql(url, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as QuotaManagementExt>::create(Some(client))
-                    .set_default_aql(url, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_default_aql(url, quota, blake2b)
             }
             ("setAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1817,21 +1816,19 @@ pub fn contract_processor(
                 let quota = parse_u64(m.value_of("quota").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                <ContractClient as QuotaManagementExt>::create(Some(client))
-                    .set_aql(url, address, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_aql(url, address, quota, blake2b)
             }
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as QuotaManagementExt>::create(Some(client)).is_admin(url, address)
+                QuotaManageClient::create(Some(client)).is_admin(url, address)
             }
             ("addAdmin", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                <ContractClient as QuotaManagementExt>::create(Some(client))
-                    .add_admin(url, address, blake2b)
+                QuotaManageClient::create(Some(client)).add_admin(url, address, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1839,45 +1836,41 @@ pub fn contract_processor(
             ("queryInfo", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = GroupExt::create(Some(client));
+                let client = GroupClient::create(Some(client));
                 GroupExt::query_info(&client, url, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = GroupExt::create(Some(client));
+                let client = GroupClient::create(Some(client));
                 GroupExt::query_name(&client, url, address)
             }
             ("queryAccounts", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = GroupExt::create(Some(client));
+                let client = GroupClient::create(Some(client));
                 GroupExt::query_accounts(&client, url, address)
             }
             ("queryChild", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_child(url, address)
+                GroupClient::create(Some(client)).query_child(url, address)
             }
             ("queryChildLength", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_child_length(url, address)
+                GroupClient::create(Some(client)).query_child_length(url, address)
             }
             ("queryParent", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).query_parent(url, address)
+                GroupClient::create(Some(client)).query_parent(url, address)
             }
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let account_address = m.value_of("account").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                <ContractClient as GroupExt>::create(Some(client)).in_group(
-                    url,
-                    address,
-                    account_address,
-                )
+                GroupClient::create(Some(client)).in_group(url, address, account_address)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1888,7 +1881,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.new_group(url, origin, name, accounts, blake2b)
             }
             ("deleteGroup", Some(m)) => {
@@ -1896,7 +1889,7 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.delete_group(url, origin, target, blake2b)
             }
             ("updateGroupName", Some(m)) => {
@@ -1905,7 +1898,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.update_group_name(url, origin, target, name, blake2b)
             }
             ("addAccounts", Some(m)) => {
@@ -1914,7 +1907,7 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.add_accounts(url, origin, target, accounts, blake2b)
             }
             ("deleteAccounts", Some(m)) => {
@@ -1923,19 +1916,19 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.delete_accounts(url, origin, target, accounts, blake2b)
             }
             ("checkScope", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.check_scope(url, origin, target)
             }
             ("queryGroups", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                let mut client: ContractClient = GroupManagementExt::create(Some(client));
+                let mut client = GroupManageClient::create(Some(client));
                 client.query_groups(url)
             }
             _ => return Err(m.usage().to_owned()),
@@ -1944,33 +1937,33 @@ pub fn contract_processor(
             ("queryRole", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = RoleExt::create(Some(client));
-                RoleExt::query_role(&client, url, address)
+                let client = RoleClient::create(Some(client));
+                client.query_role(url, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = RoleExt::create(Some(client));
-                RoleExt::query_name(&client, url, address)
+                let client = RoleClient::create(Some(client));
+                client.query_name(url, address)
             }
             ("queryPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = RoleExt::create(Some(client));
-                RoleExt::query_permissions(&client, url, address)
+                let client = RoleClient::create(Some(client));
+                client.query_permissions(url, address)
             }
             ("lengthOfPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = RoleExt::create(Some(client));
-                RoleExt::length_of_permissions(&client, url, address)
+                let client = RoleClient::create(Some(client));
+                client.length_of_permissions(url, address)
             }
             ("inPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let permission = m.value_of("permission").unwrap();
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = RoleExt::create(Some(client));
-                RoleExt::in_permissions(&client, url, address, permission)
+                let client = RoleClient::create(Some(client));
+                client.in_permissions(url, address, permission)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1980,7 +1973,7 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let name = m.value_of("name").unwrap();
                 let permissions = m.value_of("permissions").unwrap();
-                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                let mut client = RoleManageClient::create(Some(client));
                 RoleManagementExt::new_role(&mut client, url, name, permissions, blake2b)
             }
             ("deleteRole", Some(m)) => {
@@ -1988,7 +1981,7 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
-                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                let mut client = RoleManageClient::create(Some(client));
                 RoleManagementExt::set_role(&mut client, url, account, role, blake2b)
             }
             ("cancelRole", Some(m)) => {
@@ -1996,20 +1989,20 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
-                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                let mut client = RoleManageClient::create(Some(client));
                 RoleManagementExt::cancel_role(&mut client, url, account, role, blake2b)
             }
             ("clearRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
-                let mut client: ContractClient = RoleManagementExt::create(Some(client));
+                let mut client = RoleManageClient::create(Some(client));
                 RoleManagementExt::clear_role(&mut client, url, account, blake2b)
             }
             ("queryRoles", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
-                let client: ContractClient = RoleManagementExt::create(Some(client));
+                let client = RoleManageClient::create(Some(client));
                 RoleManagementExt::query_roles(&client, url, account)
             }
             _ => return Err(m.usage().to_owned()),
@@ -2018,18 +2011,18 @@ pub fn contract_processor(
             ("queryPermissions", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
-                let client: ContractClient = AuthorizationExt::create(Some(client));
+                let client = AuthorizationClient::create(Some(client));
                 AuthorizationExt::query_permissions(&client, url, account)
             }
             ("queryAccounts", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
-                let client: ContractClient = AuthorizationExt::create(Some(client));
+                let client = AuthorizationClient::create(Some(client));
                 AuthorizationExt::query_accounts(&client, url, permission)
             }
             ("queryAllAccounts", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
-                let client: ContractClient = AuthorizationExt::create(Some(client));
+                let client = AuthorizationClient::create(Some(client));
                 AuthorizationExt::query_all_accounts(&client, url)
             }
             ("checkPermission", Some(m)) => {
@@ -2037,7 +2030,7 @@ pub fn contract_processor(
                 let account = m.value_of("account").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
-                let client: ContractClient = AuthorizationExt::create(Some(client));
+                let client = AuthorizationClient::create(Some(client));
                 AuthorizationExt::check_permission(&client, url, account, contract, function_hash)
             }
             _ => return Err(m.usage().to_owned()),
@@ -2048,25 +2041,25 @@ pub fn contract_processor(
                 let permission = m.value_of("permission").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
-                let client: ContractClient = PermissionExt::create(Some(client));
+                let client = PermissionClient::create(Some(client));
                 PermissionExt::in_permission(&client, url, permission, contract, function_hash)
             }
             ("queryInfo", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
-                let client: ContractClient = PermissionExt::create(Some(client));
+                let client = PermissionClient::create(Some(client));
                 PermissionExt::query_info(&client, url, permission)
             }
             ("queryName", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
-                let client: ContractClient = PermissionExt::create(Some(client));
+                let client = PermissionClient::create(Some(client));
                 PermissionExt::query_name(&client, url, permission)
             }
             ("queryResource", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
-                let client: ContractClient = PermissionExt::create(Some(client));
+                let client = PermissionClient::create(Some(client));
                 PermissionExt::query_resource(&client, url, permission)
             }
             _ => return Err(m.usage().to_owned()),
@@ -2078,7 +2071,7 @@ pub fn contract_processor(
                 let name = m.value_of("name").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
-                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::new_permission(
                     &mut client,
                     url,
@@ -2092,7 +2085,7 @@ pub fn contract_processor(
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
-                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::delete_permission(&mut client, url, permission, blake2b)
             }
             ("updatePermissionName", Some(m)) => {
@@ -2100,7 +2093,7 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let name = m.value_of("name").unwrap();
-                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::update_permission_name(
                     &mut client,
                     url,
@@ -2115,7 +2108,7 @@ pub fn contract_processor(
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
-                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::add_resources(
                     &mut client,
                     url,
@@ -2131,7 +2124,7 @@ pub fn contract_processor(
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
-                let mut client: ContractClient = PermissionManagementExt::create(Some(client));
+                let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::delete_resources(
                     &mut client,
                     url,
