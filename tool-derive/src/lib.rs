@@ -19,22 +19,25 @@ pub fn contract(input: TokenStream) -> TokenStream {
     for meta_items in input.attrs.iter().filter_map(get_contract_meta_items) {
         for meta_item in meta_items {
             match meta_item {
+                // parse #[contract(name = "foo")]
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "name" => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         trait_name = lit.value();
-                        //                        println!("{}", lit.value());
+                        // println!("{}", lit.value());
                     }
                 }
+                // parse #[contract(addr = "foo")]
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "addr" => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         address = lit.value();
-                        //                        println!("{}", lit.value());
+                        // println!("{}", lit.value());
                     }
                 }
+                // parse #[contract(path = "foo")]
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "path" => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         path = lit.value();
-                        //                        println!("{}", lit.value());
+                        // println!("{}", lit.value());
                     }
                 }
                 _ => {}
@@ -50,15 +53,18 @@ pub fn contract(input: TokenStream) -> TokenStream {
     if trait_name == "" {
         panic!("trait name must set");
     }
+    // struct name
     let name = input.ident;
+    // parse str to LitStr
     let path = syn::LitStr::new(&path, proc_macro2::Span::call_site());
+    // parse str to Ident
     let trait_name = syn::Ident::new(&format!("{}", trait_name), proc_macro2::Span::call_site());
     let address = syn::LitStr::new(&address, proc_macro2::Span::call_site());
 
     let output = if let syn::Data::Struct(_) = input.data {
         quote!(
                 impl #name {
-                /// Create a Contract Client
+                    /// Create a Contract Client
                     pub fn new(client: Option<Client>, address_str: &str, contract_json: &str) -> Self {
                         let client = client.unwrap_or_else(|| Client::new().unwrap());
                         let address = Address::from_str(remove_0x(address_str)).unwrap();
@@ -127,7 +133,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
                 impl #trait_name for #name {
                         fn create(client: Option<Client>) -> Self {
                             static ABI: &str = include_str!(#path);
-        //                    static ABI: &str = include_str!("../../contract_abi/Group.abi");
                             // NOTE: This is `rootGroupAddr` address
                             static ADDRESS: &str = #address;
                             Self::new(client, ADDRESS, ABI)
@@ -142,6 +147,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
     output.into()
 }
 
+/// Filter contract attribute like #[contract(foo = bar)]
 fn get_contract_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
     if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "contract" {
         match attr.interpret_meta() {
