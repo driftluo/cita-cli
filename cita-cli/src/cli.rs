@@ -373,6 +373,26 @@ pub fn amend_command() -> App<'static, 'static> {
                 )
                 .args(&common_args),
         )
+        .subcommand(
+            SubCommand::with_name("get-h256")
+                .about("Get H256 Value")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The account address"),
+                )
+                .arg(
+                    Arg::with_name("key")
+                        .long("key")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(h256_validator)
+                        .help("The key of pair"),
+                )
+                .args(&common_args),
+        )
 }
 
 /// Amend processor
@@ -434,6 +454,17 @@ pub fn amend_processor(
             let h256_value = m.value_of("value").unwrap();
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             client.amend_h256kv(url, address, h256_key, h256_value, quota, blake2b)
+        }
+        ("get-h256", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            if let Some(private_key) = m.value_of("admin-private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            let url = url.unwrap_or_else(|| get_url(m));
+            let address = m.value_of("address").unwrap();
+            let h256_key = m.value_of("key").unwrap();
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            client.amend_get_h256kv(url, address, h256_key, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -1206,6 +1237,12 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("name")
         .takes_value(true)
         .required(true);
+    let quota_arg = Arg::with_name("quota")
+        .long("quota")
+        .takes_value(true)
+        .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
+        .default_value("1000")
+        .help("Transaction quota costs");
 
     let group_address_arg = address_arg.clone().help("Group address");
     let group_name_arg = name_arg.clone().help("Group name");
@@ -1307,7 +1344,8 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Degraded node address"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("newNode")
@@ -1328,7 +1366,8 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("node address"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("approveNode")
@@ -1349,7 +1388,8 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Approve node address"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 ),
         )
         .subcommand(
@@ -1371,8 +1411,8 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("setBQL")
                         .arg(
-                            Arg::with_name("quota")
-                                .long("quota")
+                            Arg::with_name("quota-limit")
+                                .long("quota-limit")
                                 .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
                                 .takes_value(true)
                                 .required(true)
@@ -1389,13 +1429,14 @@ pub fn contract_command() -> App<'static, 'static> {
                                     parse_privkey(private_key.as_ref()).map(|_| ())
                                 })
                                 .help("Private key must be admin"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("setDefaultAQL")
                         .arg(
-                            Arg::with_name("quota")
-                                .long("quota")
+                            Arg::with_name("quota-limit")
+                                .long("quota-limit")
                                 .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
                                 .takes_value(true)
                                 .required(true)
@@ -1412,13 +1453,14 @@ pub fn contract_command() -> App<'static, 'static> {
                                     parse_privkey(private_key.as_ref()).map(|_| ())
                                 })
                                 .help("Private key must be admin"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("setAQL")
                         .arg(
-                            Arg::with_name("quota")
-                                .long("quota")
+                            Arg::with_name("quota-limit")
+                                .long("quota-limit")
                                 .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
                                 .takes_value(true)
                                 .required(true)
@@ -1443,7 +1485,8 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Account address"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("isAdmin").arg(
@@ -1474,7 +1517,8 @@ pub fn contract_command() -> App<'static, 'static> {
                                     parse_privkey(private_key.as_ref()).map(|_| ())
                                 })
                                 .help("Private key must be admin"),
-                        ),
+                        )
+                        .arg(quota_arg.clone()),
                 ),
         )
         .subcommand(
@@ -1484,30 +1528,35 @@ pub fn contract_command() -> App<'static, 'static> {
                     SubCommand::with_name("newGroup")
                         .arg(group_origin_arg.clone())
                         .arg(group_name_arg.clone())
-                        .arg(group_accounts_arg.clone()),
+                        .arg(group_accounts_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteGroup")
                         .arg(group_origin_arg.clone())
-                        .arg(group_target_arg.clone()),
+                        .arg(group_target_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("updateGroupName")
                         .arg(group_origin_arg.clone())
                         .arg(group_target_arg.clone())
-                        .arg(group_name_arg.clone()),
+                        .arg(group_name_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("addAccounts")
                         .arg(group_origin_arg.clone())
                         .arg(group_target_arg.clone())
-                        .arg(group_accounts_arg.clone()),
+                        .arg(group_accounts_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteAccounts")
                         .arg(group_origin_arg.clone())
                         .arg(group_target_arg.clone())
-                        .arg(group_accounts_arg.clone()),
+                        .arg(group_accounts_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("checkScope")
@@ -1592,47 +1641,55 @@ pub fn contract_command() -> App<'static, 'static> {
                     SubCommand::with_name("newRole")
                         .about("Create a new role")
                         .arg(role_name_arg.clone())
-                        .arg(permissions_address_arg.clone()),
+                        .arg(permissions_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteRole")
                         .about("Delete the role")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("updateRoleName")
                         .about("Update role's name")
                         .arg(role_address_arg.clone())
-                        .arg(role_name_arg.clone()),
+                        .arg(role_name_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("addPermissions")
                         .about("Add permissions of role")
                         .arg(role_address_arg.clone())
-                        .arg(permissions_address_arg.clone()),
+                        .arg(permissions_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deletePermissions")
                         .about("Delete permissions of role")
                         .arg(role_address_arg.clone())
-                        .arg(permissions_address_arg.clone()),
+                        .arg(permissions_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("setRole")
                         .about("Set the role to the account")
                         .arg(account_address_arg.clone())
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("cancelRole")
                         .about("Cancel the account's role")
                         .arg(account_address_arg.clone())
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("clearRole")
                         .about("Clear the account's role")
-                        .arg(account_address_arg.clone()),
+                        .arg(account_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryRoles")
@@ -1701,32 +1758,37 @@ pub fn contract_command() -> App<'static, 'static> {
                         .about("Create a new permission")
                         .arg(permission_name_arg.clone())
                         .arg(contracts_address_arg.clone())
-                        .arg(function_hashes_arg.clone()),
+                        .arg(function_hashes_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deletePermission")
                         .about("Delete the permission")
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("updatePermissionName")
                         .about("Update the permission name")
                         .arg(permission_address_arg.clone())
-                        .arg(permission_name_arg.clone()),
+                        .arg(permission_name_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("addResources")
                         .about("Add the resources of permission")
                         .arg(permission_address_arg.clone())
                         .arg(contracts_address_arg.clone())
-                        .arg(function_hashes_arg.clone()),
+                        .arg(function_hashes_arg.clone())
+                        .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteResources")
                         .about("Delete the resources of permission")
                         .arg(permission_address_arg.clone())
                         .arg(contracts_address_arg.clone())
-                        .arg(function_hashes_arg.clone()),
+                        .arg(function_hashes_arg.clone())
+                        .arg(quota_arg.clone()),
                 ),
         )
 }
@@ -1760,24 +1822,27 @@ pub fn contract_processor(
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.downgrade_consensus_node(url, address, blake2b)
+                client.downgrade_consensus_node(url, address, quota, blake2b)
             }
             ("newNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.new_consensus_node(url, address, blake2b)
+                client.new_consensus_node(url, address, quota, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.approve_node(url, address, blake2b)
+                client.approve_node(url, address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1799,24 +1864,38 @@ pub fn contract_processor(
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                QuotaManageClient::create(Some(client)).set_bql(url, quota, blake2b)
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                QuotaManageClient::create(Some(client)).set_bql(url, quota_limit, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
-                QuotaManageClient::create(Some(client)).set_default_aql(url, quota, blake2b)
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                QuotaManageClient::create(Some(client)).set_default_aql(
+                    url,
+                    quota_limit,
+                    quota,
+                    blake2b,
+                )
             }
             ("setAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let quota = parse_u64(m.value_of("quota").unwrap())?;
+                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).set_aql(url, address, quota, blake2b)
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                QuotaManageClient::create(Some(client)).set_aql(
+                    url,
+                    address,
+                    quota_limit,
+                    quota,
+                    blake2b,
+                )
             }
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
@@ -1827,8 +1906,9 @@ pub fn contract_processor(
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let url = url.unwrap_or_else(|| get_url(m));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).add_admin(url, address, blake2b)
+                QuotaManageClient::create(Some(client)).add_admin(url, address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1881,16 +1961,18 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.new_group(url, origin, name, accounts, blake2b)
+                client.new_group(url, origin, name, accounts, quota, blake2b)
             }
             ("deleteGroup", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_group(url, origin, target, blake2b)
+                client.delete_group(url, origin, target, quota, blake2b)
             }
             ("updateGroupName", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1898,8 +1980,9 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.update_group_name(url, origin, target, name, blake2b)
+                client.update_group_name(url, origin, target, name, quota, blake2b)
             }
             ("addAccounts", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1907,8 +1990,9 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.add_accounts(url, origin, target, accounts, blake2b)
+                client.add_accounts(url, origin, target, accounts, quota, blake2b)
             }
             ("deleteAccounts", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -1916,8 +2000,9 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_accounts(url, origin, target, accounts, blake2b)
+                client.delete_accounts(url, origin, target, accounts, quota, blake2b)
             }
             ("checkScope", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
@@ -1973,31 +2058,35 @@ pub fn contract_processor(
                 let url = url.unwrap_or_else(|| get_url(m));
                 let name = m.value_of("name").unwrap();
                 let permissions = m.value_of("permissions").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::new_role(&mut client, url, name, permissions, blake2b)
+                RoleManagementExt::new_role(&mut client, url, name, permissions, quota, blake2b)
             }
             ("deleteRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::set_role(&mut client, url, account, role, blake2b)
+                RoleManagementExt::set_role(&mut client, url, account, role, quota, blake2b)
             }
             ("cancelRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::cancel_role(&mut client, url, account, role, blake2b)
+                RoleManagementExt::cancel_role(&mut client, url, account, role, quota, blake2b)
             }
             ("clearRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::clear_role(&mut client, url, account, blake2b)
+                RoleManagementExt::clear_role(&mut client, url, account, quota, blake2b)
             }
             ("queryRoles", Some(m)) => {
                 let url = url.unwrap_or_else(|| get_url(m));
@@ -2071,6 +2160,7 @@ pub fn contract_processor(
                 let name = m.value_of("name").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::new_permission(
                     &mut client,
@@ -2078,6 +2168,7 @@ pub fn contract_processor(
                     name,
                     contracts,
                     function_hashes,
+                    quota,
                     blake2b,
                 )
             }
@@ -2085,20 +2176,29 @@ pub fn contract_processor(
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
-                PermissionManagementExt::delete_permission(&mut client, url, permission, blake2b)
+                PermissionManagementExt::delete_permission(
+                    &mut client,
+                    url,
+                    permission,
+                    quota,
+                    blake2b,
+                )
             }
             ("updatePermissionName", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let name = m.value_of("name").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::update_permission_name(
                     &mut client,
                     url,
                     permission,
                     name,
+                    quota,
                     blake2b,
                 )
             }
@@ -2108,6 +2208,7 @@ pub fn contract_processor(
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::add_resources(
                     &mut client,
@@ -2115,6 +2216,7 @@ pub fn contract_processor(
                     permission,
                     contracts,
                     function_hashes,
+                    quota,
                     blake2b,
                 )
             }
@@ -2124,6 +2226,7 @@ pub fn contract_processor(
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::delete_resources(
                     &mut client,
@@ -2131,6 +2234,7 @@ pub fn contract_processor(
                     permission,
                     contracts,
                     function_hashes,
+                    quota,
                     blake2b,
                 )
             }

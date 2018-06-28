@@ -10,7 +10,7 @@ use hyper::{self, Body, Client as HyperClient, Request};
 use protobuf::Message;
 use serde;
 use serde_json;
-use tokio::runtime::current_thread::Runtime;
+use tokio::runtime::Runtime;
 use uuid::Uuid;
 
 use abi::encode_params;
@@ -52,12 +52,14 @@ pub const ABI_ADDRESS: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 /// Amend action target address
 pub const AMEND_ADDRESS: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
 
-///amend the abi data
+/// amend the abi data
 pub const AMEND_ABI: &str = "0x1";
-///amend the account code
+/// amend the account code
 pub const AMEND_CODE: &str = "0x2";
-///amend the kv of db
+/// amend the kv of db
 pub const AMEND_KV_H256: &str = "0x3";
+/// amend get the value of db
+pub const AMEND_GET_KV_H256: &str = "0x4";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -158,7 +160,8 @@ impl Client {
         &self,
         urls: Vec<&str>,
         params: JsonRpcParams,
-    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
+    ) -> JoinAll<Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>>
+    {
         self.id.fetch_add(1, Ordering::Relaxed);
         let params = params.insert(
             "id",
@@ -172,7 +175,9 @@ impl Client {
                 .method("POST")
                 .body(Body::from(serde_json::to_string(&params).unwrap()))
                 .unwrap();
-            let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
+            let future: Box<
+                dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send,
+            > = Box::new(
                 client
                     .request(req)
                     .and_then(|res| res.into_body().concat2())
@@ -187,7 +192,8 @@ impl Client {
         &self,
         url: &str,
         params: T,
-    ) -> JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>> {
+    ) -> JoinAll<Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>>
+    {
         let client = HyperClient::new();
         let mut reqs = Vec::new();
         params
@@ -204,7 +210,9 @@ impl Client {
                     .method("POST")
                     .body(Body::from(serde_json::to_string(&param).unwrap()))
                     .unwrap();
-                let future: Box<Future<Item = hyper::Chunk, Error = ToolError>> = Box::new(
+                let future: Box<
+                    dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send,
+                > = Box::new(
                     client
                         .request(req)
                         .and_then(|res| res.into_body().concat2())
@@ -325,7 +333,9 @@ impl Client {
     /// Start run
     fn run(
         &self,
-        reqs: JoinAll<Vec<Box<Future<Item = hyper::Chunk, Error = ToolError>>>>,
+        reqs: JoinAll<
+            Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>,
+        >,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
         let responses = self.run_time.borrow_mut().block_on(reqs)?;
         Ok(responses
@@ -955,6 +965,16 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult;
+
+    /// Amend get H256KV
+    fn amend_get_h256kv(
+        &mut self,
+        url: &str,
+        address: &str,
+        h256_key: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
 }
 
 impl AmendExt for Client {
@@ -1002,6 +1022,21 @@ impl AmendExt for Client {
         let h256_value = remove_0x(h256_value);
         let data = format!("0x{}{}{}", address, h256_key, h256_value);
         let value = Some(AMEND_KV_H256);
+        self.send_raw_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
+    }
+
+    fn amend_get_h256kv(
+        &mut self,
+        url: &str,
+        address: &str,
+        h256_key: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let h256_key = remove_0x(h256_key);
+        let data = format!("0x{}{}", address, h256_key);
+        let value = Some(AMEND_GET_KV_H256);
         self.send_raw_transaction(url, &data, AMEND_ADDRESS, None, quota, value, blake2b)
     }
 }
