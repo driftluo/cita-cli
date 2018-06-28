@@ -7,6 +7,7 @@ extern crate syn;
 extern crate quote;
 
 use proc_macro::TokenStream;
+use std::collections::HashSet;
 use syn::DeriveInput;
 
 #[proc_macro_derive(ContractExt, attributes(contract))]
@@ -61,7 +62,29 @@ pub fn contract(input: TokenStream) -> TokenStream {
     let trait_name = syn::Ident::new(&format!("{}", trait_name), proc_macro2::Span::call_site());
     let address = syn::LitStr::new(&address, proc_macro2::Span::call_site());
 
-    let output = if let syn::Data::Struct(_) = input.data {
+    let output = if let syn::Data::Struct(data) = input.data {
+        let mut field = vec![
+            Some(syn::Ident::new("client", proc_macro2::Span::call_site())),
+            Some(syn::Ident::new("address", proc_macro2::Span::call_site())),
+            Some(syn::Ident::new("contract", proc_macro2::Span::call_site())),
+        ].into_iter()
+            .collect::<HashSet<Option<syn::Ident>>>();
+
+        match data.fields {
+            syn::Fields::Named(ref x) => {
+                if x.named.len() < 3 {
+                    panic!("Must have 3 more field");
+                }
+            }
+            _ => {}
+        }
+
+        data.fields.iter().for_each(|i| {
+            field.remove(&i.ident);
+        });
+        if !field.is_empty() {
+            panic!("Contract client must have client/address/contract");
+        }
         quote!(
                 impl #name {
                     /// Create a Contract Client
@@ -98,6 +121,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         url: &str,
                         name: &str,
                         values: &[&str],
+                        quota: Option<u64>,
                         to_addr: Option<Address>,
                         blake2b: bool,
                     ) -> Self::RpcResult {
@@ -107,7 +131,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                             code.as_str(),
                             to_address.as_str(),
                             None,
-                            None,
+                            quota,
                             None,
                             blake2b,
                         )
