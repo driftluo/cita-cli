@@ -316,6 +316,7 @@ pub fn amend_command() -> App<'static, 'static> {
                     Arg::with_name("content")
                         .long("content")
                         .takes_value(true)
+                        .required(true)
                         .help("The contract code to amend"),
                 )
                 .args(&common_args),
@@ -333,6 +334,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("content")
                         .long("content")
+                        .required(true)
                         .takes_value(true)
                         .help("The content of ABI data to amend (json)"),
                 )
@@ -375,7 +377,7 @@ pub fn amend_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("get-h256")
-                .about("Get H256 Value")
+                .about("Get H256 Value, only write to log")
                 .arg(
                     Arg::with_name("address")
                         .long("address")

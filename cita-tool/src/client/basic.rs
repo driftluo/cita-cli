@@ -53,13 +53,13 @@ pub const ABI_ADDRESS: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 pub const AMEND_ADDRESS: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
 
 /// amend the abi data
-pub const AMEND_ABI: &str = "0x1";
+pub const AMEND_ABI: &str = "0x01";
 /// amend the account code
-pub const AMEND_CODE: &str = "0x2";
+pub const AMEND_CODE: &str = "0x02";
 /// amend the kv of db
-pub const AMEND_KV_H256: &str = "0x3";
+pub const AMEND_KV_H256: &str = "0x03";
 /// amend get the value of db
-pub const AMEND_GET_KV_H256: &str = "0x4";
+pub const AMEND_GET_KV_H256: &str = "0x04";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
