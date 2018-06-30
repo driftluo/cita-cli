@@ -4,18 +4,37 @@ use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use ethabi::{decode, encode, Contract};
 use hex::{decode as hex_decode, encode as hex_encode};
+use types::{traits::LowerHex, U256};
 
 use error::ToolError;
 
-pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, String> {
+pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, ToolError> {
     params
         .iter()
         .map(|&(ref param, value)| match lenient {
-            true => LenientTokenizer::tokenize(param, value),
+            true => {
+                if format!("{}", param) == "uint256" {
+                    let y = U256::from_dec_str(value)
+                        .map_err(|_| "Can't parse into u256")?
+                        .lower_hex();
+                    StrictTokenizer::tokenize(param, &format!("{}{}", "0".repeat(64 - y.len()), y))
+                } else if format!("{}", param) == "int256" {
+                    let x = if value.starts_with("-") {
+                        let x = format!("{:x}", !value[1..].parse::<u128>()? + 1);
+                        format!("{}{}", "f".repeat(64 - x.len()), x)
+                    } else {
+                        let x = format!("{:x}", value.parse::<u128>()?);
+                        format!("{}{}", "0".repeat(64 - x.len()), x)
+                    };
+                    StrictTokenizer::tokenize(param, &x)
+                } else {
+                    LenientTokenizer::tokenize(param, value)
+                }
+            }
             false => StrictTokenizer::tokenize(param, value),
         })
         .collect::<Result<_, _>>()
-        .map_err(|e| format!("{}", e))
+        .map_err(|e| ToolError::Abi(format!("{}", e)))
 }
 
 /// According to the contract, encode the function and parameter values
@@ -33,7 +52,7 @@ pub fn contract_encode_input(
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let tokens = parse_tokens(&params, lenient)?;
     let result = function
         .encode_input(&tokens)
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
@@ -72,7 +91,7 @@ pub fn encode_params(
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let tokens = parse_tokens(&params, lenient)?;
     let result = encode(&tokens);
 
     Ok(hex_encode(result))

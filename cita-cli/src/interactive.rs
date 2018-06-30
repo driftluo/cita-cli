@@ -73,7 +73,7 @@ pub fn start(url: &str) -> io::Result<()> {
         prefix = style.prefix(),
         text = text,
         suffix = style.suffix()
-    ));
+    ))?;
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
