@@ -130,3 +130,43 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
 
     Ok(result)
 }
+
+#[cfg(test)]
+mod test {
+    use super::encode_params;
+
+    #[test]
+    fn test_encode() {
+        let a = encode_params(&["int".to_string()], &["-100".to_string()], true).unwrap();
+        assert_eq!(
+            a,
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9c".to_string()
+        );
+
+        let b = encode_params(
+            &["int".to_string()],
+            &["-99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
+            true,
+        ).unwrap();
+        assert_eq!(
+            b,
+            "fffffffc4a717738acec1362cd61555e7046d08adea4e8f00000000000000001".to_string()
+        );
+
+        let c = encode_params(&["uint".to_string()], &["100".to_string()], true).unwrap();
+        assert_eq!(
+            c,
+            "0000000000000000000000000000000000000000000000000000000000000064".to_string()
+        );
+
+        let d = encode_params(
+            &["uint".to_string()],
+            &["99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
+            true,
+        ).unwrap();
+        assert_eq!(
+            d,
+            "00000003b58e88c75313ec9d329eaaa18fb92f75215b170fffffffffffffffff".to_string()
+        );
+    }
+}
