@@ -20,10 +20,15 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                     StrictTokenizer::tokenize(param, &format!("{}{}", "0".repeat(64 - y.len()), y))
                 } else if format!("{}", param) == "int256" {
                     let x = if value.starts_with("-") {
-                        let x = format!("{:x}", !value[1..].parse::<u128>()? + 1);
+                        let x = (!U256::from_dec_str(&value[1..])
+                            .map_err(|_| "Can't parse into u256")?
+                            + U256::from(1))
+                            .lower_hex();
                         format!("{}{}", "f".repeat(64 - x.len()), x)
                     } else {
-                        let x = format!("{:x}", value.parse::<u128>()?);
+                        let x = U256::from_dec_str(value)
+                            .map_err(|_| "Can't parse into u256")?
+                            .lower_hex();
                         format!("{}{}", "0".repeat(64 - x.len()), x)
                     };
                     StrictTokenizer::tokenize(param, &x)
