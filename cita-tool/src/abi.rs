@@ -4,18 +4,42 @@ use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use ethabi::{decode, encode, Contract};
 use hex::{decode as hex_decode, encode as hex_encode};
+use types::{traits::LowerHex, U256};
 
 use error::ToolError;
 
-pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, String> {
+pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, ToolError> {
     params
         .iter()
         .map(|&(ref param, value)| match lenient {
-            true => LenientTokenizer::tokenize(param, value),
+            true => {
+                if format!("{}", param) == "uint256" {
+                    let y = U256::from_dec_str(value)
+                        .map_err(|_| "Can't parse into u256")?
+                        .lower_hex();
+                    StrictTokenizer::tokenize(param, &format!("{}{}", "0".repeat(64 - y.len()), y))
+                } else if format!("{}", param) == "int256" {
+                    let x = if value.starts_with("-") {
+                        let x = (!U256::from_dec_str(&value[1..])
+                            .map_err(|_| "Can't parse into u256")?
+                            + U256::from(1))
+                            .lower_hex();
+                        format!("{}{}", "f".repeat(64 - x.len()), x)
+                    } else {
+                        let x = U256::from_dec_str(value)
+                            .map_err(|_| "Can't parse into u256")?
+                            .lower_hex();
+                        format!("{}{}", "0".repeat(64 - x.len()), x)
+                    };
+                    StrictTokenizer::tokenize(param, &x)
+                } else {
+                    LenientTokenizer::tokenize(param, value)
+                }
+            }
             false => StrictTokenizer::tokenize(param, value),
         })
         .collect::<Result<_, _>>()
-        .map_err(|e| format!("{}", e))
+        .map_err(|e| ToolError::Abi(format!("{}", e)))
 }
 
 /// According to the contract, encode the function and parameter values
@@ -33,7 +57,7 @@ pub fn contract_encode_input(
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let tokens = parse_tokens(&params, lenient)?;
     let result = function
         .encode_input(&tokens)
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
@@ -72,7 +96,7 @@ pub fn encode_params(
         .zip(values.iter().map(|v| v as &str))
         .collect();
 
-    let tokens = parse_tokens(&params, lenient).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let tokens = parse_tokens(&params, lenient)?;
     let result = encode(&tokens);
 
     Ok(hex_encode(result))
@@ -105,4 +129,44 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
         .collect::<Vec<String>>();
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod test {
+    use super::encode_params;
+
+    #[test]
+    fn test_encode() {
+        let a = encode_params(&["int".to_string()], &["-100".to_string()], true).unwrap();
+        assert_eq!(
+            a,
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9c".to_string()
+        );
+
+        let b = encode_params(
+            &["int".to_string()],
+            &["-99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
+            true,
+        ).unwrap();
+        assert_eq!(
+            b,
+            "fffffffc4a717738acec1362cd61555e7046d08adea4e8f00000000000000001".to_string()
+        );
+
+        let c = encode_params(&["uint".to_string()], &["100".to_string()], true).unwrap();
+        assert_eq!(
+            c,
+            "0000000000000000000000000000000000000000000000000000000000000064".to_string()
+        );
+
+        let d = encode_params(
+            &["uint".to_string()],
+            &["99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
+            true,
+        ).unwrap();
+        assert_eq!(
+            d,
+            "00000003b58e88c75313ec9d329eaaa18fb92f75215b170fffffffffffffffff".to_string()
+        );
+    }
 }

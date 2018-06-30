@@ -53,12 +53,19 @@ impl PrivateKey {
     pub fn from_str(hex: &str) -> Result<Self, String> {
         if hex.len() > 65 {
             #[cfg(feature = "blake2b_hash")]
-            let private_key = PrivateKey::Blake2b(
-                Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?
-            );
+            {
+                let private_key = PrivateKey::Blake2b(
+                    Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?
+                );
+                return Ok(private_key);
+            }
+
             #[cfg(not(feature = "blake2b_hash"))]
-            let private_key = PrivateKey::Null;
-            Ok(private_key)
+            Err(
+                "The current version does not support 512-byte private keys, \
+                 should build with feature blake2b_hash"
+                    .to_string(),
+            )
         } else {
             Ok(PrivateKey::Sha3(
                 Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?
@@ -95,11 +102,19 @@ impl PubKey {
     pub fn from_str(hex: &str) -> Result<Self, String> {
         if hex.len() < 65 {
             #[cfg(feature = "blake2b_hash")]
-            let private_key =
-                PubKey::Blake2b(Blake2bPubKey::from_str(hex).map_err(|err| format!("{}", err))?);
+            {
+                let private_key = PubKey::Blake2b(
+                    Blake2bPubKey::from_str(hex).map_err(|err| format!("{}", err))?
+                );
+                return Ok(private_key);
+            }
+
             #[cfg(not(feature = "blake2b_hash"))]
-            let private_key = PubKey::Null;
-            Ok(private_key)
+            Err(
+                "The current version does not support 256-byte public keys, \
+                 should build with feature blake2b_hash"
+                    .to_string(),
+            )
         } else {
             Ok(PubKey::Sha3(
                 Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?

@@ -155,6 +155,7 @@ pub fn abi_command() -> App<'static, 'static> {
         .long("param")
         .takes_value(true)
         .multiple(true)
+        .allow_hyphen_values(true)
         .number_of_values(2)
         .help("Function parameters");
     let no_lenient_flag = Arg::with_name("no-lenient")
@@ -216,10 +217,10 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 let file = m.value_of("file").unwrap();
                 let name = m.value_of("name").unwrap();
                 let lenient = !m.is_present("no-lenient");
-                let values: Vec<String> = m.values_of("param")
-                    .ok_or_else(|| format!("Please give at least one parameter."))?
-                    .map(|s| s.to_owned())
-                    .collect::<Vec<String>>();
+                let values: Vec<String> = match m.values_of("param") {
+                    None => Vec::new(),
+                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                };
                 let output =
                     encode_input(file, name, &values, lenient).map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), false);
@@ -2275,11 +2276,7 @@ pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
 fn is_hex(hex: &str) -> Result<(), String> {
     let tmp = hex.as_bytes();
     if tmp.len() < 2 {
-        if tmp.is_empty() {
-            Ok(())
-        } else {
-            Err("Must be a hexadecimal string".to_string())
-        }
+        Err("Must be a hexadecimal string".to_string())
     } else if tmp[..2] == b"0x"[..] || tmp[..2] == b"0X"[..] {
         Ok(())
     } else {
