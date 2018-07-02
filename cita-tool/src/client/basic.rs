@@ -7,7 +7,7 @@ use failure::Fail;
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
 use hyper::{self, Body, Client as HyperClient, Request};
-use protobuf::Message;
+use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
 use tokio::runtime::Runtime;
@@ -19,7 +19,7 @@ use client::remove_0x;
 use crypto::Blake2bPrivKey;
 use crypto::{PrivateKey, Sha3PrivKey};
 use error::ToolError;
-use protos::Transaction;
+use protos::{Transaction, UnverifiedTransaction};
 use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 
 const BLOCK_NUMBER: &str = "blockNumber";
@@ -224,7 +224,7 @@ impl Client {
         join_all(reqs)
     }
 
-    /// Constructing a UnverifiedTransaction hex string
+    /// Constructing a Transaction
     /// If you want to create a contract, set address to "0x"
     pub fn generate_transaction(
         &mut self,
@@ -234,7 +234,7 @@ impl Client {
         current_height: Option<u64>,
         quota: Option<u64>,
         value: Option<&str>,
-    ) -> Result<String, ToolError> {
+    ) -> Result<Transaction, ToolError> {
         let data = decode(remove_0x(code)).map_err(ToolError::Decode)?;
         let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
 
@@ -247,52 +247,101 @@ impl Client {
         tx.set_quota(quota.unwrap_or(1_000_000));
         tx.set_value(decode(remove_0x(value.unwrap_or("0x"))).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id(url)?);
-        Ok(format!(
-            "0x{}",
-            encode(
-                tx.sha3_sign(*self.sha3_private_key().ok_or(ToolError::Customize(
-                    "The provided private key do not match the algorithm".to_string()
-                ))?).take_transaction_with_sig()
-                    .write_to_bytes()
-                    .unwrap(),
-            )
-        ))
+        Ok(tx)
     }
 
     /// Constructing a UnverifiedTransaction hex string
-    /// If you want to create a contract, set address to "0x"
-    #[cfg(feature = "blake2b_hash")]
-    pub fn generate_transaction_by_blake2b(
+    #[inline]
+    pub fn generate_sign_transaction(
+        &self,
+        tx: Transaction,
+        blake2b: bool,
+    ) -> Result<String, ToolError> {
+        if blake2b {
+            #[cfg(feature = "blake2b_hash")]
+            {
+                return Ok(format!(
+                    "0x{}",
+                    encode(
+                        tx.blake2b_build_unverified(*self.blake2b_private_key().ok_or(
+                            ToolError::Customize(
+                                "The provided private key do not match the algorithm".to_string()
+                            )
+                        )?).write_to_bytes()
+                            .map_err(ToolError::Proto)?
+                    )
+                ));
+            }
+            #[cfg(not(feature = "blake2b_hash"))]
+            Err(ToolError::Customize(
+                "The current version does not support ed25519 algorithm, \
+                 should build with feature blake2b_hash"
+                    .to_string(),
+            ))
+        } else {
+            Ok(format!(
+                "0x{}",
+                encode(tx.sha3_build_unverified(*self.sha3_private_key().ok_or(
+                    ToolError::Customize(
+                        "The provided private key do not match the algorithm".to_string()
+                    )
+                )?).write_to_bytes()
+                    .map_err(ToolError::Proto)?)
+            ))
+        }
+    }
+
+    /// Send a signed transaction
+    pub fn send_signed_transaction(
         &mut self,
         url: &str,
-        code: &str,
-        address: &str,
-        current_height: Option<u64>,
-        quota: Option<u64>,
-        value: Option<&str>,
-    ) -> Result<String, ToolError> {
-        let data = decode(remove_0x(code)).map_err(ToolError::Decode)?;
-        let current_height = current_height.unwrap_or(self.get_current_height(url)?.unwrap());
-
-        let mut tx = Transaction::new();
-        tx.set_data(data);
-        // Create a contract if the target address is empty
-        tx.set_to(remove_0x(address).to_string());
-        tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
-        tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(quota.unwrap_or(1_000_000));
-        tx.set_value(decode(remove_0x(value.unwrap_or("0x"))).map_err(ToolError::Decode)?);
-        tx.set_chain_id(self.get_chain_id(url)?);
-        Ok(format!(
+        param: &str,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let byte_code = format!(
             "0x{}",
-            encode(
-                tx.blake2b_sign(*self.blake2b_private_key().ok_or(ToolError::Customize(
-                    "The provided private key do not match the algorithm".to_string()
-                ))?).take_transaction_with_sig()
-                    .write_to_bytes()
-                    .unwrap(),
+            encode(parse_from_bytes::<UnverifiedTransaction>(
+                decode(remove_0x(param))
+                    .map_err(ToolError::Decode)?
+                    .as_slice()
+            ).map_err(ToolError::Proto)?
+                .write_to_bytes()
+                .map_err(ToolError::Proto)?)
+        );
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
             )
-        ))
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(byte_code)]),
+            );
+        Ok(self.send_request(vec![url], params)?.pop().unwrap())
+    }
+
+    /// Send unsigned transactions
+    pub fn send_transaction(
+        &mut self,
+        url: &str,
+        param: &str,
+        blake2b: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let tx: Transaction = parse_from_bytes(
+            decode(remove_0x(param))
+                .map_err(ToolError::Decode)?
+                .as_slice(),
+        ).map_err(ToolError::Proto)?;
+        let byte_code = self.generate_sign_transaction(tx, blake2b)?;
+        let params = JsonRpcParams::new()
+            .insert(
+                "method",
+                ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
+            )
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(byte_code)]),
+            );
+        Ok(self.send_request(vec![url], params)?.pop().unwrap())
     }
 
     /// Get chain id
@@ -501,22 +550,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         value: Option<&str>,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let byte_code = if !blake2b {
-            self.generate_transaction(url, code, address, current_height, quota, value)?
-        } else {
-            #[cfg(feature = "blake2b_hash")]
-            let code = self.generate_transaction_by_blake2b(
-                url,
-                code,
-                address,
-                current_height,
-                quota,
-                value,
-            )?;
-            #[cfg(not(feature = "blake2b_hash"))]
-            let code = String::from("0x");
-            code
-        };
+        let tx = self.generate_transaction(url, code, address, current_height, quota, value)?;
+        let byte_code = self.generate_sign_transaction(tx, blake2b)?;
         let params = JsonRpcParams::new()
             .insert(
                 "method",

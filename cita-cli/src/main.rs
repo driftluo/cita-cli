@@ -32,7 +32,7 @@ use dotenv::dotenv;
 
 use cli::{
     abi_processor, amend_processor, build_cli, contract_processor, key_processor, rpc_processor,
-    search_processor, store_processor, transfer_processor,
+    search_processor, store_processor, transfer_processor, tx_processor,
 };
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -65,6 +65,7 @@ fn main() {
             search_processor(Arc::new(parser), m);
             Ok(())
         }
+        ("tx", Some(m)) => tx_processor(m, &printer, None, &env_variable),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())
