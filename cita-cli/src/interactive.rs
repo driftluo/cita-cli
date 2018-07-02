@@ -19,6 +19,7 @@ use shell_words;
 use cli::{
     abi_processor, amend_processor, build_interactive, contract_processor, key_processor,
     parse_privkey, rpc_processor, search_processor, store_processor, transfer_processor,
+    tx_processor,
 };
 use printer::Printer;
 
@@ -167,6 +168,7 @@ pub fn start(url: &str) -> io::Result<()> {
                         search_processor(Arc::new(parser.clone()), m);
                         Ok(())
                     }
+                    ("tx", Some(m)) => tx_processor(m, &printer, Some(url.as_str()), &env_variable),
                     ("exit", _) => {
                         if let Err(err) = interface.save_history(history_file) {
                             eprintln!("Save command history failed: {}", err);

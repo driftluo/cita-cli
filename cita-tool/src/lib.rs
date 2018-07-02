@@ -52,6 +52,8 @@ pub use crypto::{
     Sha3KeyPair, Sha3PrivKey, Sha3PubKey, Signature,
 };
 pub use error::ToolError;
+pub use hex::{decode, encode};
+pub use protobuf::Message as ProtoMessage;
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 pub use types::traits::LowerHex;
