@@ -627,7 +627,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|address| is_hex(address.as_str()))
                         .help(
-                            "The address of the invoking contract, defalut is empty to \
+                            "The address of the invoking contract, default is empty to \
                              create contract",
                         ),
                 )
@@ -1170,7 +1170,7 @@ pub fn key_processor(
 /// Transaction command
 pub fn tx_command() -> App<'static, 'static> {
     App::new("tx")
-        .about("Construct transactions, send signed transactions .etc")
+        .about("Construct transactions, send signed transactions etc.")
         .subcommand(
             SubCommand::with_name("make")
                 .about("Construct transaction")
@@ -1189,7 +1189,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|address| is_hex(address.as_str()))
                         .help(
-                            "The address of the invoking contract, defalut is empty to \
+                            "The address of the invoking contract, default is empty to \
                              create contract",
                         ),
                 )
@@ -1288,7 +1288,10 @@ pub fn tx_processor(
                 .generate_transaction(url, code, address, current_height, quota, value)
                 .map_err(|err| format!("{}", err))?;
             printer.println(
-                &format!("0x{}", encode(tx.write_to_bytes().unwrap())),
+                &format!(
+                    "0x{}",
+                    encode(tx.write_to_bytes().map_err(|err| format!("{}", err))?)
+                ),
                 is_color,
             );
             return Ok(());
