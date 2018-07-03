@@ -146,7 +146,7 @@ pub fn start(url: &str) -> io::Result<()> {
                     ("rpc", Some(m)) => {
                         rpc_processor(m, &printer, Some(url.as_str()), &env_variable)
                     }
-                    ("ethabi", Some(m)) => abi_processor(m, &printer),
+                    ("ethabi", Some(m)) => abi_processor(m, &printer, &env_variable),
                     ("key", Some(m)) => key_processor(m, &printer, &env_variable),
                     ("scm", Some(m)) => {
                         contract_processor(m, &printer, Some(url.as_str()), &env_variable)
