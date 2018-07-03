@@ -17,8 +17,9 @@ use cita_tool::client::system_contract::{
 };
 
 use cita_tool::{
-    decode_params, encode, encode_input, encode_params, pubkey_to_address, remove_0x, KeyPair,
-    ParamsValue, PrivateKey, ProtoMessage, PubKey, ResponseValue, UnverifiedTransaction,
+    decode_input, decode_logs, decode_params, encode, encode_input, encode_params,
+    pubkey_to_address, remove_0x, KeyPair, ParamsValue, PrivateKey, ProtoMessage, PubKey,
+    ResponseValue, UnverifiedTransaction,
 };
 
 use interactive::GlobalConfig;
@@ -187,32 +188,83 @@ pub fn abi_command() -> App<'static, 'static> {
                 )
                 .subcommand(
                     SubCommand::with_name("params")
-                        .arg(param_arg.value_names(&["type", "value"]))
+                        .arg(param_arg.clone().value_names(&["type", "value"]))
                         .arg(no_lenient_flag),
                 ),
         )
         .subcommand(
-            SubCommand::with_name("decode").subcommand(
-                SubCommand::with_name("params")
-                    .arg(
-                        Arg::with_name("type")
-                            .long("type")
-                            .takes_value(true)
-                            .multiple(true)
-                            .help("Decode types"),
-                    )
-                    .arg(
-                        Arg::with_name("data")
-                            .long("data")
-                            .takes_value(true)
-                            .help("Decode data"),
-                    ),
-            ),
+            SubCommand::with_name("decode")
+                .subcommand(
+                    SubCommand::with_name("params")
+                        .arg(
+                            Arg::with_name("type")
+                                .long("type")
+                                .takes_value(true)
+                                .multiple(true)
+                                .help("Decode types"),
+                        )
+                        .arg(
+                            Arg::with_name("data")
+                                .long("data")
+                                .takes_value(true)
+                                .help("Decode data"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("function")
+                        .arg(
+                            Arg::with_name("file")
+                                .required(true)
+                                .index(1)
+                                .help("ABI json file path"),
+                        )
+                        .arg(
+                            Arg::with_name("name")
+                                .required(true)
+                                .index(2)
+                                .help("function name"),
+                        )
+                        .arg(
+                            Arg::with_name("data")
+                                .long("data")
+                                .required(true)
+                                .takes_value(true)
+                                .help("Decode data"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("log")
+                        .arg(
+                            Arg::with_name("file")
+                                .required(true)
+                                .index(1)
+                                .help("ABI json file path"),
+                        )
+                        .arg(
+                            Arg::with_name("event")
+                                .required(true)
+                                .index(2)
+                                .help("event name"),
+                        )
+                        .arg(param_arg.clone().number_of_values(1).value_name("topic"))
+                        .arg(
+                            Arg::with_name("data")
+                                .long("data")
+                                .required(true)
+                                .takes_value(true)
+                                .help("Decode data"),
+                        ),
+                ),
         )
 }
 
 /// ABI processor
-pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), String> {
+pub fn abi_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     match sub_matches.subcommand() {
         ("encode", Some(em)) => match em.subcommand() {
             ("function", Some(m)) => {
@@ -225,7 +277,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 };
                 let output =
                     encode_input(file, name, &values, lenient).map_err(|err| format!("{}", err))?;
-                printer.println(&Value::String(output), false);
+                printer.println(&Value::String(output), is_color);
             }
             ("params", Some(m)) => {
                 let lenient = !m.is_present("no-lenient");
@@ -240,7 +292,7 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                 }
                 let output =
                     encode_params(&types, &values, lenient).map_err(|err| format!("{}", err))?;
-                printer.println(&Value::String(output), false);
+                printer.println(&Value::String(output), is_color);
             }
             _ => {
                 return Err(em.usage().to_owned());
@@ -258,7 +310,33 @@ pub fn abi_processor(sub_matches: &ArgMatches, printer: &Printer) -> Result<(), 
                     .iter()
                     .map(|value| serde_json::from_str(value).unwrap())
                     .collect();
-                printer.println(&Value::Array(output), false);
+                printer.println(&Value::Array(output), is_color);
+            }
+            ("function", Some(m)) => {
+                let file = m.value_of("file").unwrap();
+                let name = m.value_of("name").unwrap();
+                let values = m.value_of("data").unwrap();
+                let output = decode_input(file, name, values)
+                    .map_err(|err| format!("{}", err))?
+                    .iter()
+                    .map(|value| serde_json::from_str(value).unwrap())
+                    .collect();
+                printer.println(&Value::Array(output), is_color);
+            }
+            ("log", Some(m)) => {
+                let file = m.value_of("file").unwrap();
+                let event = m.value_of("event").unwrap();
+                let topic: Vec<String> = match m.values_of("param") {
+                    None => Vec::new(),
+                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                };
+                let data = m.value_of("data").unwrap();
+                let output = decode_logs(file, event, &topic, data)
+                    .map_err(|err| format!("{}", err))?
+                    .iter()
+                    .map(|value| serde_json::from_str(value).unwrap())
+                    .collect();
+                printer.println(&Value::Array(output), is_color);
             }
             _ => {
                 return Err(em.usage().to_owned());

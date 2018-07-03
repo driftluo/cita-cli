@@ -2,7 +2,7 @@ use std::fs::File;
 
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
-use ethabi::{decode, encode, Contract};
+use ethabi::{decode, encode, Contract, Hash};
 use hex::{decode as hex_decode, encode as hex_encode};
 use types::{traits::LowerHex, U256};
 
@@ -126,6 +126,66 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
                 format!("{{\"{}\": \"{}\"}}", ty, to)
             }
         })
+        .collect::<Vec<String>>();
+
+    Ok(result)
+}
+
+/// According to the given abi file, decode the data
+pub fn decode_input(path: &str, function: &str, data: &str) -> Result<Vec<String>, ToolError> {
+    let file = File::open(path).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let contract = Contract::load(file).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let function = contract
+        .function(function)
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let tokens = function
+        .decode_output(data.as_bytes())
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let types = function.outputs.iter().map(|ref param| &param.kind);
+
+    assert_eq!(types.len(), tokens.len());
+
+    let result = types
+        .zip(tokens.iter())
+        .map(|(ty, to)| {
+            if to.type_check(&ParamType::Bool) || format!("{}", ty) == "bool[]" {
+                format!("{{\"{}\": {}}}", ty, to)
+            } else {
+                format!("{{\"{}\": \"{}\"}}", ty, to)
+            }
+        })
+        .collect::<Vec<String>>();
+
+    Ok(result)
+}
+
+/// According to the given abi file, decode the topic
+pub fn decode_logs(
+    path: &str,
+    event: &str,
+    topics: &[String],
+    data: &str,
+) -> Result<Vec<String>, ToolError> {
+    let file = File::open(path).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let contract = Contract::load(file).map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let event = contract
+        .event(event)
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+
+    let topics: Vec<Hash> = topics
+        .into_iter()
+        .map(|t| t.parse())
+        .collect::<Result<_, _>>()
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+    let data = hex_decode(data).map_err(ToolError::Decode)?;
+    let decoded = event
+        .parse_log((topics, data).into())
+        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+
+    let result = decoded
+        .params
+        .into_iter()
+        .map(|log_param| format!("{{\"{}\": \"{}\"}}", log_param.name, log_param.value))
         .collect::<Vec<String>>();
 
     Ok(result)

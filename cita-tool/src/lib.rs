@@ -43,7 +43,7 @@ pub mod protos;
 /// Request and Response type
 pub mod rpctypes;
 
-pub use abi::{decode_params, encode_input, encode_params};
+pub use abi::{decode_input, decode_logs, decode_params, encode_input, encode_params};
 pub use client::remove_0x;
 #[cfg(feature = "blake2b_hash")]
 pub use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey, Blake2bPubKey, Blake2bSignature};
