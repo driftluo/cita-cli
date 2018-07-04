@@ -42,8 +42,7 @@ If you want to support both the blake2b and sha3 algorithms, first install the S
 $ sudo apt install clang-5.0-dev
 $ wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
 $ tar xvfz libsodium-1.0.16.tar.gz
-$ mv libsodium-1.0.16 libsodium
-$ cd libsodium
+$ cd libsodium-1.0.16
 $ ./configure --prefix=$HOME/libsodium
 $ make && make install
 $ export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH

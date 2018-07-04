@@ -17,9 +17,6 @@ addons:
       - clang-5.0-dev
 cache:
   apt: true
-  cargo: true
-  directories:
-    - $HOME/libsodium
 
 install:
   - .ci-script/travis-install-libsodium.sh
