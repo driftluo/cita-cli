@@ -1,6 +1,6 @@
-pub mod transaction;
+pub mod blockchain;
 
-pub use self::transaction::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
+pub use self::blockchain::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 use client::remove_0x;
 #[cfg(feature = "blake2b_hash")]
 use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};

@@ -36,10 +36,10 @@ $ cd cita-cli
 $ cargo build
 ```
 
-If you want to support both the blake2b and sha3 algorithms, first install the Sodium library, and then
+If you want to support both the blake2b and sha3 algorithms, as follows and make sure clang version > 3.9
 
 ```bash
-$ sudo apt install clang-5.0-dev
+$ sudo apt install clang
 $ wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
 $ tar xvfz libsodium-1.0.16.tar.gz
 $ cd libsodium-1.0.16
