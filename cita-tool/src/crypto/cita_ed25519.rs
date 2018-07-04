@@ -1,6 +1,6 @@
 use crypto::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
 use hex::encode;
-use sodiumoxide::crypto::sign::{gen_keypair, keypair_from_privkey, sign_detached, SecretKey};
+use sodiumoxide::crypto::sign::{gen_keypair, sign_detached, SecretKey};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use types::Address;
@@ -26,14 +26,8 @@ impl CreateKey for Blake2bKeyPair {
     type Error = Error;
 
     fn from_privkey(privkey: Self::PrivKey) -> Result<Self, Self::Error> {
-        let keypair = keypair_from_privkey(privkey.as_ref());
-        match keypair {
-            None => Err(Error::InvalidPrivKey),
-            Some((pk, sk)) => Ok(Blake2bKeyPair {
-                privkey: Blake2bPrivKey::from(sk.0),
-                pubkey: Blake2bPubKey::from(pk.0),
-            }),
-        }
+        let pubkey = Blake2bPubKey::from(&privkey.0[32..]);
+        Ok(Blake2bKeyPair { privkey, pubkey })
     }
 
     fn gen_keypair() -> Self {

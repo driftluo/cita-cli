@@ -7,14 +7,17 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-5.0
+      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
     packages:
       - gcc-5
       - g++-5
+      - clang-5.0
+      - clang-5.0-dev
 cache:
-  cargo: true
   apt: true
-  directories:
-    - $HOME/libsodium
+
 install:
   - .ci-script/travis-install-libsodium.sh
   - export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
