@@ -1,4 +1,3 @@
-sudo: true
 language: rust
 rust:
   - stable
@@ -8,17 +7,18 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-5.0
+      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
     packages:
       - gcc-5
       - g++-5
+      - clang-5.0
 cache:
   apt: true
-
-before_install:
-  - sudo rm /home/travis/.cargo/registry/ -rf && sudo rm /home/travis/.cargo/git/ -rf
-  - wget http://releases.llvm.org/6.0.0/clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar.xz
-  - xz -d clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar.xz && tar xvf clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar
-  - cd clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04 && sudo cp -r * /usr/local && cd ..
+  cargo: true
+  directories:
+    - $HOME/libsodium
 
 install:
   - .ci-script/travis-install-libsodium.sh
