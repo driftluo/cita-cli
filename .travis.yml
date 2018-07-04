@@ -1,3 +1,4 @@
+sudo: true
 language: rust
 rust:
   - stable
@@ -11,10 +12,14 @@ addons:
       - gcc-5
       - g++-5
 cache:
-  cargo: true
   apt: true
-  directories:
-    - $HOME/libsodium
+
+before_install:
+  - sudo rm /home/travis/.cargo/registry/ -rf && sudo rm /home/travis/.cargo/git/ -rf
+  - wget http://releases.llvm.org/6.0.0/clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar.xz
+  - xz -d clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar.xz && tar xvf clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04.tar
+  - cd clang+llvm-6.0.0-x86_64-linux-gnu-ubuntu-14.04 && sudo cp -r * /usr/local && cd ..
+
 install:
   - .ci-script/travis-install-libsodium.sh
   - export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
