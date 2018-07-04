@@ -39,7 +39,15 @@ $ cargo build
 If you want to support both the blake2b and sha3 algorithms, first install the Sodium library, and then
 
 ```bash
-$ sudo apt install libsodium*
+$ sudo apt install clang-5.0-dev
+$ wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
+$ tar xvfz libsodium-1.0.16.tar.gz
+$ mv libsodium-1.0.16 libsodium
+$ cd libsodium
+$ ./configure --prefix=$HOME/libsodium
+$ make && make install
+$ export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
+$ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
