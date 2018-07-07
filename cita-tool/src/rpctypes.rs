@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::Into, default::Default, fmt};
 use serde_json;
 
 /// JsonRpc params
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JsonRpcParams {
     #[serde(flatten)]
     extra: HashMap<String, ParamsValue>,

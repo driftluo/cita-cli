@@ -17,7 +17,7 @@ use cita_tool::client::system_contract::{
 };
 
 use cita_tool::{
-    decode_input, decode_logs, decode_params, encode, encode_input, encode_params,
+    decode_input, decode_logs, decode_params, encode, encode_input, encode_params, parse_url,
     pubkey_to_address, remove_0x, KeyPair, ParamsValue, PrivateKey, ProtoMessage, PubKey,
     ResponseValue, UnverifiedTransaction,
 };
@@ -32,6 +32,7 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .default_value(default_url)
         .takes_value(true)
         .multiple(true)
+        .validator(|url| parse_url(url.as_ref()).map(|_| ()))
         .global(true)
         .help("JSONRPC server URL (dotenv: JSONRPC_URL)");
     App::new("cita-cli")
@@ -81,6 +82,7 @@ pub fn build_interactive() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("host")
                         .long("host")
+                        .validator(|url| parse_url(url.as_ref()).map(|_| ()))
                         .takes_value(true)
                         .help("Switch url"),
                 )
@@ -488,7 +490,8 @@ pub fn amend_processor(
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
 
     let result = match sub_matches.subcommand() {
         ("code", Some(m)) => {
@@ -499,9 +502,8 @@ pub fn amend_processor(
             }
             let address = m.value_of("address").unwrap();
             let content = m.value_of("content").unwrap();
-            let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            client.amend_code(url, address, content, quota, blake2b)
+            client.amend_code(address, content, quota, blake2b)
         }
         ("abi", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
@@ -521,9 +523,8 @@ pub fn amend_processor(
                 }
             };
             let address = m.value_of("address").unwrap();
-            let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            client.amend_abi(url, address, content, quota, blake2b)
+            client.amend_abi(address, content, quota, blake2b)
         }
         ("kv-h256", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
@@ -531,23 +532,21 @@ pub fn amend_processor(
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            let url = url.unwrap_or_else(|| get_url(m));
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
             let h256_value = m.value_of("value").unwrap();
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            client.amend_h256kv(url, address, h256_key, h256_value, quota, blake2b)
+            client.amend_h256kv(address, h256_key, h256_value, quota, blake2b)
         }
         ("get-h256", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            let url = url.unwrap_or_else(|| get_url(m));
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            client.amend_get_h256kv(url, address, h256_key, quota, blake2b)
+            client.amend_get_h256kv(address, h256_key, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -635,23 +634,22 @@ pub fn store_processor(
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
 
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
-            let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            client.store_data(url, content, quota, blake2b)
+            client.store_data(content, quota, blake2b)
         }
         ("abi", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
-            let url = url.unwrap_or_else(|| get_url(m));
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
@@ -669,7 +667,7 @@ pub fn store_processor(
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            client.store_abi(url, address, content, quota, blake2b)
+            client.store_abi(address, content, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -1055,10 +1053,11 @@ pub fn rpc_processor(
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
     let result = match sub_matches.subcommand() {
-        ("peerCount", Some(m)) => client.get_peer_count(url.unwrap_or_else(|| get_url(m))),
-        ("blockNumber", Some(m)) => client.get_block_number(url.unwrap_or_else(|| get_url(m))),
+        ("peerCount", _) => client.get_peer_count(),
+        ("blockNumber", _) => client.get_block_number(),
         ("sendRawTransaction", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
 
@@ -1068,60 +1067,53 @@ pub fn rpc_processor(
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            let url = url.unwrap_or_else(|| get_url(m));
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
-            client.send_raw_transaction(url, code, address, current_height, quota, value, blake2b)
+            client.send_raw_transaction(code, address, current_height, quota, value, blake2b)
         }
         ("getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
             let with_txs = m.is_present("with-txs");
-            client.get_block_by_hash(url.unwrap_or_else(|| get_url(m)), hash, with_txs)
+            client.get_block_by_hash(hash, with_txs)
         }
         ("getBlockByNumber", Some(m)) => {
             let height = m.value_of("height").unwrap();
             let with_txs = m.is_present("with-txs");
-            client.get_block_by_number(url.unwrap_or_else(|| get_url(m)), height, with_txs)
+            client.get_block_by_number(height, with_txs)
         }
         ("getCode", Some(m)) => client.get_code(
-            url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
         ("getAbi", Some(m)) => client.get_abi(
-            url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
         ("getBalance", Some(m)) => client.get_balance(
-            url.unwrap_or_else(|| get_url(m)),
             m.value_of("address").unwrap(),
             m.value_of("height").unwrap(),
         ),
         ("getTransactionReceipt", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
-            client.get_transaction_receipt(url.unwrap_or_else(|| get_url(m)), hash)
+            client.get_transaction_receipt(hash)
         }
         ("call", Some(m)) => client.call(
-            url.unwrap_or_else(|| get_url(m)),
             m.value_of("from"),
             m.value_of("to").unwrap(),
             m.value_of("data"),
             m.value_of("height").unwrap(),
         ),
-        ("getTransactionProof", Some(m)) => client.get_transaction_proof(
-            url.unwrap_or_else(|| get_url(m)),
-            m.value_of("hash").unwrap(),
-        ),
+        ("getTransactionProof", Some(m)) => {
+            client.get_transaction_proof(m.value_of("hash").unwrap())
+        }
         ("getMetaData", Some(m)) => {
             let height = m.value_of("height").unwrap();
-            client.get_metadata(url.unwrap_or_else(|| get_url(m)), height)
+            client.get_metadata(height)
         }
         ("getLogs", Some(m)) => client.get_logs(
-            url.unwrap_or_else(|| get_url(m)),
             m.values_of("topic").map(|value| value.collect()),
             m.values_of("address").map(|value| value.collect()),
             m.value_of("from"),
@@ -1129,7 +1121,7 @@ pub fn rpc_processor(
         ),
         ("getTransaction", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
-            let result = client.get_transaction(url.unwrap_or_else(|| get_url(m)), hash);
+            let result = client.get_transaction(hash);
             if debug {
                 if let Ok(ref resp) = result {
                     if let Some(ResponseValue::Map(map)) = resp.result() {
@@ -1151,25 +1143,18 @@ pub fn rpc_processor(
         ("getTransactionCount", Some(m)) => {
             let address = m.value_of("address").unwrap();
             let height = m.value_of("height").unwrap();
-            client.get_transaction_count(url.unwrap_or_else(|| get_url(m)), address, height)
+            client.get_transaction_count(address, height)
         }
-        ("newBlockFilter", Some(m)) => client.new_block_filter(url.unwrap_or_else(|| get_url(m))),
-        ("uninstallFilter", Some(m)) => {
-            client.uninstall_filter(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
-        }
-        ("getFilterChanges", Some(m)) => {
-            client.get_filter_changes(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
-        }
-        ("getFilterLogs", Some(m)) => {
-            client.get_filter_logs(url.unwrap_or_else(|| get_url(m)), m.value_of("id").unwrap())
-        }
+        ("newBlockFilter", _) => client.new_block_filter(),
+        ("uninstallFilter", Some(m)) => client.uninstall_filter(m.value_of("id").unwrap()),
+        ("getFilterChanges", Some(m)) => client.get_filter_changes(m.value_of("id").unwrap()),
+        ("getFilterLogs", Some(m)) => client.get_filter_logs(m.value_of("id").unwrap()),
         ("newFilter", Some(m)) => {
             let address = m.values_of("address").map(|value| value.collect());
             let from = m.value_of("from");
             let to = m.value_of("to");
             let topic = m.values_of("topic").map(|value| value.collect());
-            let url = url.unwrap_or_else(|| get_url(m));
-            client.new_filter(url, topic, address, from, to)
+            client.new_filter(topic, address, from, to)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -1347,7 +1332,8 @@ pub fn tx_processor(
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
     let result = match sub_matches.subcommand() {
         ("make", Some(m)) => {
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
@@ -1356,14 +1342,13 @@ pub fn tx_processor(
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(parse_privkey(private_key)?);
             }
-            let url = url.unwrap_or_else(|| get_url(m));
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
             let tx = client
-                .generate_transaction(url, code, address, current_height, quota, value)
+                .generate_transaction(code, address, current_height, quota, value)
                 .map_err(|err| format!("{}", err))?;
             printer.println(
                 &format!(
@@ -1376,7 +1361,7 @@ pub fn tx_processor(
         }
         ("sendSignedTransaction", Some(m)) => {
             let byte_code = m.value_of("byte-code").unwrap();
-            client.send_signed_transaction(url.unwrap_or_else(|| get_url(m)), byte_code)
+            client.send_signed_transaction(byte_code)
         }
         ("sendTransaction", Some(m)) => {
             let blake2b = blake2b(sub_matches, env_variable);
@@ -1384,8 +1369,7 @@ pub fn tx_processor(
                 client.set_private_key(parse_privkey(private_key)?);
             }
             let byte_code = m.value_of("byte-code").unwrap();
-            let url = url.unwrap_or_else(|| get_url(m));
-            client.send_transaction(url, byte_code, blake2b)
+            client.send_transaction(byte_code, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
@@ -1443,10 +1427,10 @@ pub fn transfer_processor(
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
     let blake2b = blake2b(sub_matches, env_variable);
     client.set_private_key(parse_privkey(sub_matches.value_of("private-key").unwrap())?);
-    let url = url.unwrap_or_else(|| get_url(sub_matches));
     let address = sub_matches.value_of("address").unwrap();
     let quota = sub_matches
         .value_of("quota")
@@ -1454,7 +1438,7 @@ pub fn transfer_processor(
     let value = sub_matches.value_of("value").unwrap();
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let response = client
-        .transfer(url, value, address, quota, blake2b)
+        .transfer(value, address, quota, blake2b)
         .map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
     Ok(())
@@ -2037,94 +2021,76 @@ pub fn contract_processor(
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_debug(debug);
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
 
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
             ("listNode", _) => {
                 let client = NodeManageClient::create(Some(client));
-                client.get_authorities(url.unwrap_or_else(|| get_url(m)))
+                client.get_authorities()
             }
             ("getStatus", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 let client = NodeManageClient::create(Some(client));
-                client.node_status(url, address)
+                client.node_status(address)
             }
             ("deleteNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.downgrade_consensus_node(url, address, quota, blake2b)
+                client.downgrade_consensus_node(address, quota, blake2b)
             }
             ("newNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.new_consensus_node(url, address, quota, blake2b)
+                client.new_consensus_node(address, quota, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.approve_node(url, address, quota, blake2b)
+                client.approve_node(address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", _) => {
-                QuotaManageClient::create(Some(client)).get_bql(url.unwrap_or_else(|| get_url(m)))
-            }
-            ("getDefaultAQL", _) => QuotaManageClient::create(Some(client))
-                .get_default_aql(url.unwrap_or_else(|| get_url(m))),
-            ("getAccounts", _) => QuotaManageClient::create(Some(client))
-                .get_accounts(url.unwrap_or_else(|| get_url(m))),
-            ("getQuotas", _) => QuotaManageClient::create(Some(client))
-                .get_quotas(url.unwrap_or_else(|| get_url(m))),
+            ("getBQL", _) => QuotaManageClient::create(Some(client)).get_bql(),
+            ("getDefaultAQL", _) => QuotaManageClient::create(Some(client)).get_default_aql(),
+            ("getAccounts", _) => QuotaManageClient::create(Some(client)).get_accounts(),
+            ("getQuotas", _) => QuotaManageClient::create(Some(client)).get_quotas(),
             ("getAQL", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                QuotaManageClient::create(Some(client)).get_aql(url, address)
+                QuotaManageClient::create(Some(client)).get_aql(address)
             }
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
-                let url = url.unwrap_or_else(|| get_url(m));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                QuotaManageClient::create(Some(client)).set_bql(url, quota_limit, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_bql(quota_limit, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
-                let url = url.unwrap_or_else(|| get_url(m));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                QuotaManageClient::create(Some(client)).set_default_aql(
-                    url,
-                    quota_limit,
-                    quota,
-                    blake2b,
-                )
+                QuotaManageClient::create(Some(client)).set_default_aql(quota_limit, quota, blake2b)
             }
             ("setAQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
-                let url = url.unwrap_or_else(|| get_url(m));
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_aql(
-                    url,
                     address,
                     quota_limit,
                     quota,
@@ -2133,264 +2099,229 @@ pub fn contract_processor(
             }
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                QuotaManageClient::create(Some(client)).is_admin(url, address)
+                QuotaManageClient::create(Some(client)).is_admin(address)
             }
             ("addAdmin", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
                 client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).add_admin(url, address, quota, blake2b)
+                QuotaManageClient::create(Some(client)).add_admin(address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("Group", Some(m)) => match m.subcommand() {
             ("queryInfo", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_info(&client, url, address)
+                GroupExt::query_info(&client, address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_name(&client, url, address)
+                GroupExt::query_name(&client, address)
             }
             ("queryAccounts", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_accounts(&client, url, address)
+                GroupExt::query_accounts(&client, address)
             }
             ("queryChild", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                GroupClient::create(Some(client)).query_child(url, address)
+                GroupClient::create(Some(client)).query_child(address)
             }
             ("queryChildLength", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                GroupClient::create(Some(client)).query_child_length(url, address)
+                GroupClient::create(Some(client)).query_child_length(address)
             }
             ("queryParent", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                GroupClient::create(Some(client)).query_parent(url, address)
+                GroupClient::create(Some(client)).query_parent(address)
             }
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let account_address = m.value_of("account").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
-                GroupClient::create(Some(client)).in_group(url, address, account_address)
+                GroupClient::create(Some(client)).in_group(address, account_address)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("GroupManagement", Some(m)) => match m.subcommand() {
             ("newGroup", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.new_group(url, origin, name, accounts, quota, blake2b)
+                client.new_group(origin, name, accounts, quota, blake2b)
             }
             ("deleteGroup", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_group(url, origin, target, quota, blake2b)
+                client.delete_group(origin, target, quota, blake2b)
             }
             ("updateGroupName", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.update_group_name(url, origin, target, name, quota, blake2b)
+                client.update_group_name(origin, target, name, quota, blake2b)
             }
             ("addAccounts", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.add_accounts(url, origin, target, accounts, quota, blake2b)
+                client.add_accounts(origin, target, accounts, quota, blake2b)
             }
             ("deleteAccounts", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_accounts(url, origin, target, accounts, quota, blake2b)
+                client.delete_accounts(origin, target, accounts, quota, blake2b)
             }
             ("checkScope", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let mut client = GroupManageClient::create(Some(client));
-                client.check_scope(url, origin, target)
+                client.check_scope(origin, target)
             }
-            ("queryGroups", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
+            ("queryGroups", _) => {
                 let mut client = GroupManageClient::create(Some(client));
-                client.query_groups(url)
+                client.query_groups()
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("Role", Some(m)) => match m.subcommand() {
             ("queryRole", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = RoleClient::create(Some(client));
-                client.query_role(url, address)
+                client.query_role(address)
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = RoleClient::create(Some(client));
-                client.query_name(url, address)
+                client.query_name(address)
             }
             ("queryPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = RoleClient::create(Some(client));
-                client.query_permissions(url, address)
+                client.query_permissions(address)
             }
             ("lengthOfPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = RoleClient::create(Some(client));
-                client.length_of_permissions(url, address)
+                client.length_of_permissions(address)
             }
             ("inPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let permission = m.value_of("permission").unwrap();
-                let url = url.unwrap_or_else(|| get_url(m));
                 let client = RoleClient::create(Some(client));
-                client.in_permissions(url, address, permission)
+                client.in_permissions(address, permission)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("RoleManagement", Some(m)) => match m.subcommand() {
             ("newRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let name = m.value_of("name").unwrap();
                 let permissions = m.value_of("permissions").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::new_role(&mut client, url, name, permissions, quota, blake2b)
+                RoleManagementExt::new_role(&mut client, name, permissions, quota, blake2b)
             }
             ("deleteRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::set_role(&mut client, url, account, role, quota, blake2b)
+                RoleManagementExt::set_role(&mut client, account, role, quota, blake2b)
             }
             ("cancelRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::cancel_role(&mut client, url, account, role, quota, blake2b)
+                RoleManagementExt::cancel_role(&mut client, account, role, quota, blake2b)
             }
             ("clearRole", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::clear_role(&mut client, url, account, quota, blake2b)
+                RoleManagementExt::clear_role(&mut client, account, quota, blake2b)
             }
             ("queryRoles", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let client = RoleManageClient::create(Some(client));
-                RoleManagementExt::query_roles(&client, url, account)
+                RoleManagementExt::query_roles(&client, account)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("Authorization", Some(m)) => match m.subcommand() {
             ("queryPermissions", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_permissions(&client, url, account)
+                AuthorizationExt::query_permissions(&client, account)
             }
             ("queryAccounts", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_accounts(&client, url, permission)
+                AuthorizationExt::query_accounts(&client, permission)
             }
-            ("queryAllAccounts", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
+            ("queryAllAccounts", _) => {
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_all_accounts(&client, url)
+                AuthorizationExt::query_all_accounts(&client)
             }
             ("checkPermission", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let account = m.value_of("account").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::check_permission(&client, url, account, contract, function_hash)
+                AuthorizationExt::check_permission(&client, account, contract, function_hash)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("Permission", Some(m)) => match m.subcommand() {
             ("inPermission", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::in_permission(&client, url, permission, contract, function_hash)
+                PermissionExt::in_permission(&client, permission, contract, function_hash)
             }
             ("queryInfo", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_info(&client, url, permission)
+                PermissionExt::query_info(&client, permission)
             }
             ("queryName", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_name(&client, url, permission)
+                PermissionExt::query_name(&client, permission)
             }
             ("queryResource", Some(m)) => {
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_resource(&client, url, permission)
+                PermissionExt::query_resource(&client, permission)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("PermissionManagement", Some(m)) => match m.subcommand() {
             ("newPermission", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let name = m.value_of("name").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -2398,7 +2329,6 @@ pub fn contract_processor(
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::new_permission(
                     &mut client,
-                    url,
                     name,
                     contracts,
                     function_hashes,
@@ -2408,28 +2338,19 @@ pub fn contract_processor(
             }
             ("deletePermission", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
-                PermissionManagementExt::delete_permission(
-                    &mut client,
-                    url,
-                    permission,
-                    quota,
-                    blake2b,
-                )
+                PermissionManagementExt::delete_permission(&mut client, permission, quota, blake2b)
             }
             ("updatePermissionName", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let name = m.value_of("name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::update_permission_name(
                     &mut client,
-                    url,
                     permission,
                     name,
                     quota,
@@ -2438,7 +2359,6 @@ pub fn contract_processor(
             }
             ("addResources", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -2446,7 +2366,6 @@ pub fn contract_processor(
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::add_resources(
                     &mut client,
-                    url,
                     permission,
                     contracts,
                     function_hashes,
@@ -2456,7 +2375,6 @@ pub fn contract_processor(
             }
             ("deleteResources", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
-                let url = url.unwrap_or_else(|| get_url(m));
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -2464,7 +2382,6 @@ pub fn contract_processor(
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::delete_resources(
                     &mut client,
-                    url,
                     permission,
                     contracts,
                     function_hashes,
