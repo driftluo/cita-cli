@@ -3,6 +3,7 @@ pub mod basic;
 /// System contract client api, call system contract more easy
 pub mod system_contract;
 
+use hyper::Uri;
 use std::str;
 
 /// Remove hexadecimal prefix "0x" or "0X".
@@ -29,4 +30,10 @@ pub fn remove_0x(hex: &str) -> &str {
         }
     }
     hex
+}
+
+/// Verify the validity of the url address
+#[inline]
+pub fn parse_url(url: &str) -> Result<Uri, String> {
+    url.parse().map_err(|_| "Invalid address".to_string())
 }

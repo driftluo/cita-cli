@@ -118,7 +118,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
 
                     fn contract_send_tx(
                         &mut self,
-                        url: &str,
                         name: &str,
                         values: &[&str],
                         quota: Option<u64>,
@@ -127,7 +126,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
                     ) -> Self::RpcResult {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         self.client.send_raw_transaction(
-                            url,
                             code.as_str(),
                             to_address.as_str(),
                             None,
@@ -139,14 +137,12 @@ pub fn contract(input: TokenStream) -> TokenStream {
 
                     fn contract_call(
                         &self,
-                        url: &str,
                         name: &str,
                         values: &[&str],
                         to_addr: Option<Address>,
                     ) -> Self::RpcResult {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         self.client.call(
-                            url,
                             None,
                             to_address.as_str(),
                             Some(code.as_str()),
@@ -157,7 +153,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
                 impl #trait_name for #name {
                         fn create(client: Option<Client>) -> Self {
                             static ABI: &str = include_str!(#path);
-                            // NOTE: This is `rootGroupAddr` address
                             static ADDRESS: &str = #address;
                             Self::new(client, ADDRESS, ABI)
                         }
