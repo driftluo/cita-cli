@@ -586,7 +586,7 @@ pub fn store_command() -> App<'static, 'static> {
         .about("Store data, store contract ABI.")
         .subcommand(
             SubCommand::with_name("data")
-                .about("Store data to: 0xffffffffffffffffffffffffffffffffffffffff")
+                .about("Store data to: 0xffffffffffffffffffffffffffffffffff010000")
                 .arg(
                     Arg::with_name("content")
                         .long("content")
@@ -599,7 +599,7 @@ pub fn store_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("abi")
-                .about("Store ABI to: 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                .about("Store ABI to: 0xffffffffffffffffffffffffffffffffff010001")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -1578,28 +1578,6 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
-                    SubCommand::with_name("newNode")
-                        .arg(
-                            Arg::with_name("private")
-                                .long("private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key"),
-                        )
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
-                                .help("node address"),
-                        )
-                        .arg(quota_arg.clone()),
-                )
-                .subcommand(
                     SubCommand::with_name("approveNode")
                         .arg(
                             Arg::with_name("admin-private")
@@ -2054,14 +2032,6 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
                 client.downgrade_consensus_node(address, quota, blake2b)
-            }
-            ("newNode", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
-                client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
-                let address = m.value_of("address").unwrap();
-                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                let mut client = NodeManageClient::create(Some(client));
-                client.new_consensus_node(address, quota, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);

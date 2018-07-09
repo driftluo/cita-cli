@@ -640,17 +640,6 @@ pub trait NodeManagementExt: ContractCall {
         self.contract_call("listNode", &[], None)
     }
 
-    /// Applying to promote nodes as consensus nodes
-    fn new_consensus_node(
-        &mut self,
-        address: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
-        let values = [remove_0x(address)];
-        self.contract_send_tx("newNode", &values, quota, None, blake2b)
-    }
-
     /// Approve node upgrades to consensus nodes
     fn approve_node(
         &mut self,

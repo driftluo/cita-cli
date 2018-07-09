@@ -244,7 +244,6 @@ impl Client {
     }
 
     /// Constructing a Transaction
-    /// If you want to create a contract, set address to "0x"
     pub fn generate_transaction(
         &mut self,
         transaction_option: TransactionOptions,

@@ -31,7 +31,8 @@ impl<'a> TransactionOptions<'a> {
         self.code
     }
 
-    /// Set address. Contract address, default is "0x", which creates the contract
+    /// Set address. Destination address (account or contract address),
+    /// default is "0x", which creates the contract
     pub fn set_address(mut self, address: &'a str) -> Self {
         self.address = address;
         self
@@ -42,7 +43,7 @@ impl<'a> TransactionOptions<'a> {
         self.address
     }
 
-    /// Set current height.
+    /// Set current height. Used to set until_block.
     /// Set the current chain height, the default is None,
     /// automatically query before the transaction to get the current chain height
     pub fn set_current_height(mut self, height: Option<u64>) -> Self {
