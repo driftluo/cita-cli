@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 use uuid::Uuid;
 
 use abi::encode_params;
-use client::{remove_0x, TransactionOption};
+use client::{remove_0x, TransactionOptions};
 #[cfg(feature = "blake2b_hash")]
 use crypto::Blake2bPrivKey;
 use crypto::{PrivateKey, Sha3PrivKey};
@@ -247,7 +247,7 @@ impl Client {
     /// If you want to create a contract, set address to "0x"
     pub fn generate_transaction(
         &mut self,
-        transaction_option: TransactionOption,
+        transaction_option: TransactionOptions,
     ) -> Result<Transaction, ToolError> {
         let data = decode(remove_0x(transaction_option.code())).map_err(ToolError::Decode)?;
         let current_height = transaction_option
@@ -457,7 +457,7 @@ where
     /// sendTransaction: Send a transaction return transaction hash
     fn send_raw_transaction(
         &mut self,
-        transaction_option: TransactionOption,
+        transaction_option: TransactionOptions,
         blake2b: bool,
     ) -> Self::RpcResult;
     /// getBlockByHash: Get block by hash
@@ -531,7 +531,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 
     fn send_raw_transaction(
         &mut self,
-        transaction_option: TransactionOption,
+        transaction_option: TransactionOptions,
         blake2b: bool,
     ) -> Self::RpcResult {
         let tx = self.generate_transaction(transaction_option)?;
@@ -844,11 +844,11 @@ pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
 
 impl StoreExt for Client {
     fn store_data(&mut self, content: &str, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(content)
             .set_address(STORE_ADDRESS)
             .set_quota(quota);
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 
     fn store_abi(
@@ -861,11 +861,11 @@ impl StoreExt for Client {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(ABI_ADDRESS)
             .set_quota(quota);
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 }
 
@@ -920,12 +920,12 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let content = remove_0x(content);
         let data = format!("0x{}{}", address, content);
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(AMEND_CODE));
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 
     fn amend_abi(
@@ -938,12 +938,12 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(AMEND_ABI));
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 
     fn amend_h256kv(
@@ -958,12 +958,12 @@ impl AmendExt for Client {
         let h256_key = remove_0x(h256_key);
         let h256_value = remove_0x(h256_value);
         let data = format!("0x{}{}{}", address, h256_key, h256_value);
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(AMEND_KV_H256));
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 
     fn amend_get_h256kv(
@@ -976,12 +976,12 @@ impl AmendExt for Client {
         let address = remove_0x(address);
         let h256_key = remove_0x(h256_key);
         let data = format!("0x{}{}", address, h256_key);
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(AMEND_GET_KV_H256));
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 }
 
@@ -995,11 +995,11 @@ pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult {
-        let tx_option = TransactionOption::new()
+        let tx_options = TransactionOptions::new()
             .set_address(address)
             .set_quota(quota)
             .set_value(Some(value));
-        self.send_raw_transaction(tx_option, blake2b)
+        self.send_raw_transaction(tx_options, blake2b)
     }
 }
 

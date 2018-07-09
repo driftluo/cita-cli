@@ -19,7 +19,7 @@ use cita_tool::client::system_contract::{
 use cita_tool::{
     decode_input, decode_logs, decode_params, encode, encode_input, encode_params, parse_url,
     pubkey_to_address, remove_0x, KeyPair, ParamsValue, PrivateKey, ProtoMessage, PubKey,
-    ResponseValue, TransactionOption, UnverifiedTransaction,
+    ResponseValue, TransactionOptions, UnverifiedTransaction,
 };
 
 use interactive::GlobalConfig;
@@ -1072,13 +1072,13 @@ pub fn rpc_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
-            let tx_option = TransactionOption::new()
+            let tx_options = TransactionOptions::new()
                 .set_code(code)
                 .set_address(address)
                 .set_current_height(current_height)
                 .set_quota(quota)
                 .set_value(value);
-            client.send_raw_transaction(tx_option, blake2b)
+            client.send_raw_transaction(tx_options, blake2b)
         }
         ("getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
@@ -1353,14 +1353,14 @@ pub fn tx_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
-            let tx_option = TransactionOption::new()
+            let tx_options = TransactionOptions::new()
                 .set_code(code)
                 .set_address(address)
                 .set_current_height(current_height)
                 .set_quota(quota)
                 .set_value(value);
             let tx = client
-                .generate_transaction(tx_option)
+                .generate_transaction(tx_options)
                 .map_err(|err| format!("{}", err))?;
             printer.println(
                 &format!(

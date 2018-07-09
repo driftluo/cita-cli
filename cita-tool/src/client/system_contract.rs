@@ -1,5 +1,5 @@
 use client::basic::{Client, ClientExt};
-use client::{remove_0x, TransactionOption};
+use client::{remove_0x, TransactionOptions};
 
 use std::str::{self, FromStr};
 

@@ -1,6 +1,6 @@
 /// Transaction parameter option
 #[derive(Clone, Copy, Debug)]
-pub struct TransactionOption<'a> {
+pub struct TransactionOptions<'a> {
     code: &'a str,
     address: &'a str,
     current_height: Option<u64>,
@@ -8,10 +8,10 @@ pub struct TransactionOption<'a> {
     value: Option<&'a str>,
 }
 
-impl<'a> TransactionOption<'a> {
+impl<'a> TransactionOptions<'a> {
     /// Default option
     pub fn new() -> Self {
-        TransactionOption {
+        TransactionOptions {
             code: "0x",
             address: "0x",
             current_height: None,

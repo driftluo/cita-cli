@@ -5,7 +5,7 @@ pub mod system_contract;
 
 mod transaction_option;
 
-pub use self::transaction_option::TransactionOption;
+pub use self::transaction_option::TransactionOptions;
 
 use hyper::Uri;
 use std::str;
