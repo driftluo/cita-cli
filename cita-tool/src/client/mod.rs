@@ -3,6 +3,10 @@ pub mod basic;
 /// System contract client api, call system contract more easy
 pub mod system_contract;
 
+mod transaction_option;
+
+pub use self::transaction_option::TransactionOptions;
+
 use hyper::Uri;
 use std::str;
 

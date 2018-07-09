@@ -19,7 +19,7 @@ use cita_tool::client::system_contract::{
 use cita_tool::{
     decode_input, decode_logs, decode_params, encode, encode_input, encode_params, parse_url,
     pubkey_to_address, remove_0x, KeyPair, ParamsValue, PrivateKey, ProtoMessage, PubKey,
-    ResponseValue, UnverifiedTransaction,
+    ResponseValue, TransactionOptions, UnverifiedTransaction,
 };
 
 use interactive::GlobalConfig;
@@ -586,7 +586,7 @@ pub fn store_command() -> App<'static, 'static> {
         .about("Store data, store contract ABI.")
         .subcommand(
             SubCommand::with_name("data")
-                .about("Store data to: 0xffffffffffffffffffffffffffffffffffffffff")
+                .about("Store data to: 0xffffffffffffffffffffffffffffffffff010000")
                 .arg(
                     Arg::with_name("content")
                         .long("content")
@@ -599,7 +599,7 @@ pub fn store_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("abi")
-                .about("Store ABI to: 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                .about("Store ABI to: 0xffffffffffffffffffffffffffffffffff010001")
                 .arg(
                     Arg::with_name("address")
                         .long("address")
@@ -1072,7 +1072,13 @@ pub fn rpc_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
-            client.send_raw_transaction(code, address, current_height, quota, value, blake2b)
+            let tx_options = TransactionOptions::new()
+                .set_code(code)
+                .set_address(address)
+                .set_current_height(current_height)
+                .set_quota(quota)
+                .set_value(value);
+            client.send_raw_transaction(tx_options, blake2b)
         }
         ("getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
@@ -1347,8 +1353,14 @@ pub fn tx_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
             let value = m.value_of("value");
+            let tx_options = TransactionOptions::new()
+                .set_code(code)
+                .set_address(address)
+                .set_current_height(current_height)
+                .set_quota(quota)
+                .set_value(value);
             let tx = client
-                .generate_transaction(code, address, current_height, quota, value)
+                .generate_transaction(tx_options)
                 .map_err(|err| format!("{}", err))?;
             printer.println(
                 &format!(
@@ -1562,28 +1574,6 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Degraded node address"),
-                        )
-                        .arg(quota_arg.clone()),
-                )
-                .subcommand(
-                    SubCommand::with_name("newNode")
-                        .arg(
-                            Arg::with_name("private")
-                                .long("private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key"),
-                        )
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
-                                .help("node address"),
                         )
                         .arg(quota_arg.clone()),
                 )
@@ -2042,14 +2032,6 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
                 client.downgrade_consensus_node(address, quota, blake2b)
-            }
-            ("newNode", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
-                client.set_private_key(parse_privkey(m.value_of("private").unwrap())?);
-                let address = m.value_of("address").unwrap();
-                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                let mut client = NodeManageClient::create(Some(client));
-                client.new_consensus_node(address, quota, blake2b)
             }
             ("approveNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);

@@ -1,5 +1,5 @@
 use client::basic::{Client, ClientExt};
-use client::remove_0x;
+use client::{remove_0x, TransactionOptions};
 
 use std::str::{self, FromStr};
 
@@ -638,17 +638,6 @@ pub trait NodeManagementExt: ContractCall {
     /// Get authorities
     fn get_authorities(&self) -> Self::RpcResult {
         self.contract_call("listNode", &[], None)
-    }
-
-    /// Applying to promote nodes as consensus nodes
-    fn new_consensus_node(
-        &mut self,
-        address: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
-        let values = [remove_0x(address)];
-        self.contract_send_tx("newNode", &values, quota, None, blake2b)
     }
 
     /// Approve node upgrades to consensus nodes

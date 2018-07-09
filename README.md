@@ -36,7 +36,7 @@ $ cd cita-cli
 $ cargo build
 ```
 
-If you want to support both the blake2b and sha3 algorithms, as follows and make sure clang version > 3.9
+If you want to support both the secp256k1 and ed25519 algorithms, as follows and make sure clang version > 3.9
 
 ```bash
 $ sudo apt install clang
@@ -78,7 +78,7 @@ $ rustup target add x86_64-unknown-linux-musl
 $ cargo build --target x86_64-unknown-linux-musl
 ```
 
-> Note: only for sha3 version, since blake2b is dynamically linked,
+> Note: only for secp256k1 version, since libsodium is dynamically linked,
 > first need to be changed to static link,
 > then need to use musl-gcc to recompile libsodium the entire library
 
@@ -92,9 +92,9 @@ or the corresponding environment variable cli will get it automatically.
 ```bash
 $ ./target/debug/cita-cli
 
-[url: http://127.0.0.1:1337] [encryption: sha3_hash] [color: true]
+[url: http://127.0.0.1:1337] [encryption: secp256k1] [color: true]
 cita> switch --host http://121.196.200.225:1337
-[url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
+[url: http://121.196.200.225:1337] [encryption: secp256k1] [color: true]
 cita> rpc blockNumber
 {
   "jsonrpc": "2.0",
@@ -108,7 +108,7 @@ cita> key create
   "public": "0xc10a38330fe144062d4a67e2de6f7eed5acf30da9dfd0fb0ecb86d05643afcc4a1b3b34b07731da088c2f564807049ba6632cb94dbcae81d1984ba248d5e5d1e"
 }
 cita> info
-[url: http://121.196.200.225:1337] [encryption: sha3_hash] [color: true]
+[url: http://121.196.200.225:1337] [encryption: secp256k1] [color: true]
 cita> ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
 cita> ethabi encode function ../HelloWorld.abi update --param 16
