@@ -395,11 +395,7 @@ impl GlobalConfig {
 
     fn print(&self, url: &str) {
         let path = self.path.to_string_lossy();
-        let encryption = if self.blake2b {
-            "blake2b_hash"
-        } else {
-            "sha3_hash"
-        };
+        let encryption = if self.blake2b { "ed25519" } else { "secp256k1" };
         let color = self.color.to_string();
         let debug = self.debug.to_string();
         let json = self.json_format.to_string();
