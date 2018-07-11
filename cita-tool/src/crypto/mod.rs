@@ -9,9 +9,9 @@ use std::str::FromStr;
 
 #[cfg(feature = "blake2b_hash")]
 pub use self::cita_ed25519::{blake2b_sign, Blake2bKeyPair, Blake2bSignature};
-pub use self::cita_secp256k1::{sha3_sign, Sha3KeyPair, Signature};
+pub use self::cita_secp256k1::{sha3_sign, Sh3Signature, Sha3KeyPair};
 pub use self::crypto_trait::{CreateKey, Error, Hashable};
-use types::{Address, H256, H512};
+use types::{traits::LowerHex, Address, H256, H512};
 
 /// Sha3 Private key
 pub type Sha3PrivKey = H256;
@@ -205,6 +205,50 @@ impl KeyPair {
             #[cfg(feature = "blake2b_hash")]
             KeyPair::Blake2b(private_key) => private_key.address(),
             KeyPair::Null => Address::default(),
+        }
+    }
+}
+
+/// Signature
+pub enum Signature {
+    /// sha3
+    Sha3(Sh3Signature),
+    /// blake2b
+    #[cfg(feature = "blake2b_hash")]
+    Blake2b(Blake2bSignature),
+    /// null
+    Null,
+}
+
+impl Signature {
+    /// New from slice
+    pub fn from<'a>(slice: &'a [u8]) -> Self {
+        if slice.len() == 96 {
+            #[cfg(feature = "blake2b_hash")]
+            let key_pair = Signature::Blake2b(Blake2bSignature::from(slice));
+
+            #[cfg(not(feature = "blake2b_hash"))]
+            let key_pair = Signature::Null;
+
+            key_pair
+        } else if slice.len() == 65 {
+            Signature::Sha3(Sh3Signature::from(slice))
+        } else {
+            Signature::Null
+        }
+    }
+
+    /// Recover public key
+    pub fn recover(&self, message: &Message) -> Result<PubKey, String> {
+        match self {
+            Signature::Sha3(sig) => Ok(sig.recover(message)
+                .map(|pubkey| PubKey::from_str(&pubkey.lower_hex()).unwrap())
+                .map_err(|_| "Can't recover to public key".to_string())?),
+            #[cfg(feature = "blake2b_hash")]
+            Signature::Blake2b(sig) => Ok(sig.recover(message)
+                .map(|pubkey| PubKey::from_str(&pubkey.lower_hex()).unwrap())
+                .map_err(|_| "Can't recover to public key".to_string())?),
+            Signature::Null => Err("Mismatched encryption algorithm".to_string()),
         }
     }
 }

@@ -1,9 +1,14 @@
 use crypto::{pubkey_to_address, Blake2bPrivKey, Blake2bPubKey, CreateKey, Error, Message, PubKey};
 use hex::encode;
-use sodiumoxide::crypto::sign::{gen_keypair, sign_detached, SecretKey};
+use sodiumoxide::crypto::sign::{
+    gen_keypair, sign_detached, verify_detached, PublicKey as EdPublicKey, SecretKey,
+    Signature as EdSignature,
+};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use types::Address;
+
+const SIGNATURE_BYTES_LEN: usize = 96;
 
 /// Blake2b key pair
 #[derive(Default)]
@@ -64,6 +69,23 @@ impl Blake2bSignature {
     pub fn pk(&self) -> &[u8] {
         &self.0[64..96]
     }
+
+    /// Recover public key
+    pub fn recover(&self, message: &Message) -> Result<Blake2bPubKey, Error> {
+        let sig = self.sig();
+        let pubkey = self.pk();
+        let is_valid = verify_detached(
+            &EdSignature::from_slice(&sig).unwrap(),
+            message.as_ref(),
+            &EdPublicKey::from_slice(&pubkey).unwrap(),
+        );
+
+        if !is_valid {
+            Err(Error::InvalidSignature)
+        } else {
+            Ok(Blake2bPubKey::from_slice(&pubkey))
+        }
+    }
 }
 
 impl PartialEq for Blake2bSignature {
@@ -86,6 +108,21 @@ impl DerefMut for Blake2bSignature {
     }
 }
 
+impl From<[u8; 96]> for Blake2bSignature {
+    fn from(bytes: [u8; 96]) -> Self {
+        Blake2bSignature(bytes)
+    }
+}
+
+impl<'a> From<&'a [u8]> for Blake2bSignature {
+    fn from(slice: &'a [u8]) -> Blake2bSignature {
+        assert_eq!(slice.len(), SIGNATURE_BYTES_LEN);
+        let mut bytes = [0u8; 96];
+        bytes.copy_from_slice(&slice[..]);
+        Blake2bSignature(bytes)
+    }
+}
+
 /// Sign data with blake2b
 pub fn blake2b_sign(
     privkey: &Blake2bPrivKey,
@@ -100,4 +137,17 @@ pub fn blake2b_sign(
     ret[0..64].copy_from_slice(&sig.0[..]);
     ret[64..96].copy_from_slice(pubkey.as_ref() as &[u8]);
     Ok(Blake2bSignature(ret))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_recover() {
+        let keypair = Blake2bKeyPair::gen_keypair();
+        let msg = Message::default();
+        let sig = blake2b_sign(keypair.privkey(), &msg).unwrap();
+        assert_eq!(keypair.pubkey(), &sig.recover(&msg).unwrap());
+    }
 }
