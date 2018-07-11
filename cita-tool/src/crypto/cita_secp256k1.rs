@@ -208,3 +208,16 @@ impl<'a> From<&'a [u8]> for Sh3Signature {
         Sh3Signature(bytes)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_recover() {
+        let keypair = Sha3KeyPair::gen_keypair();
+        let msg = Message::default();
+        let sig = sha3_sign(keypair.privkey(), &msg).unwrap();
+        assert_eq!(keypair.pubkey(), &sig.recover(&msg).unwrap());
+    }
+}

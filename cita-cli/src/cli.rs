@@ -1153,7 +1153,7 @@ pub fn rpc_processor(
                             printer.println(
                                 &format!(
                                     "{} 0x{:#x}",
-                                    Yellow.paint("[address]:"),
+                                    Yellow.paint("[from]:"),
                                     pubkey_to_address(&pub_key)
                                 ),
                                 is_color,

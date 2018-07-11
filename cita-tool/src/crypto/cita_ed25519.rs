@@ -138,3 +138,16 @@ pub fn blake2b_sign(
     ret[64..96].copy_from_slice(pubkey.as_ref() as &[u8]);
     Ok(Blake2bSignature(ret))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_recover() {
+        let keypair = Blake2bKeyPair::gen_keypair();
+        let msg = Message::default();
+        let sig = blake2b_sign(keypair.privkey(), &msg).unwrap();
+        assert_eq!(keypair.pubkey(), &sig.recover(&msg).unwrap());
+    }
+}
