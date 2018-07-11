@@ -187,7 +187,7 @@ impl Client {
             ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
         );
         let client = HyperClient::new();
-        let mut reqs = Vec::new();
+        let mut reqs = Vec::with_capacity(100);
         urls.for_each(|url| {
             let req: Request<Body> = Request::builder()
                 .uri(url)
@@ -214,7 +214,7 @@ impl Client {
     ) -> JoinAll<Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>>
     {
         let client = HyperClient::new();
-        let mut reqs = Vec::new();
+        let mut reqs = Vec::with_capacity(100);
         params
             .map(|param| {
                 self.id.fetch_add(1, Ordering::Relaxed);
@@ -246,22 +246,22 @@ impl Client {
     /// Constructing a Transaction
     pub fn generate_transaction(
         &mut self,
-        transaction_option: TransactionOptions,
+        transaction_options: TransactionOptions,
     ) -> Result<Transaction, ToolError> {
-        let data = decode(remove_0x(transaction_option.code())).map_err(ToolError::Decode)?;
-        let current_height = transaction_option
+        let data = decode(remove_0x(transaction_options.code())).map_err(ToolError::Decode)?;
+        let current_height = transaction_options
             .current_height()
             .unwrap_or(self.get_current_height()?.unwrap());
 
         let mut tx = Transaction::new();
         tx.set_data(data);
         // Create a contract if the target address is empty
-        tx.set_to(remove_0x(transaction_option.address()).to_string());
+        tx.set_to(remove_0x(transaction_options.address()).to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(transaction_option.quota().unwrap_or(1_000_000));
+        tx.set_quota(transaction_options.quota().unwrap_or(1_000_000));
         tx.set_value(
-            decode(remove_0x(transaction_option.value().unwrap_or("0x")))
+            decode(remove_0x(transaction_options.value().unwrap_or("0x")))
                 .map_err(ToolError::Decode)?,
         );
         tx.set_chain_id(self.get_chain_id()?);
