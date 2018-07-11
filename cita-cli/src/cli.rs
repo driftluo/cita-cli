@@ -31,7 +31,6 @@ pub fn build_cli<'a>(default_url: &'a str) -> App<'a, 'a> {
         .long("url")
         .default_value(default_url)
         .takes_value(true)
-        .multiple(true)
         .validator(|url| parse_url(url.as_ref()).map(|_| ()))
         .global(true)
         .help("JSONRPC server URL (dotenv: JSONRPC_URL)");
@@ -491,7 +490,10 @@ pub fn amend_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
 
     let result = match sub_matches.subcommand() {
         ("code", Some(m)) => {
@@ -635,7 +637,10 @@ pub fn store_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
 
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
@@ -1054,7 +1059,10 @@ pub fn rpc_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
     let result = match sub_matches.subcommand() {
         ("peerCount", _) => client.get_peer_count(),
         ("blockNumber", _) => client.get_block_number(),
@@ -1126,18 +1134,28 @@ pub fn rpc_processor(
             m.value_of("to"),
         ),
         ("getTransaction", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
             let hash = m.value_of("hash").unwrap();
             let result = client.get_transaction(hash);
             if debug {
                 if let Ok(ref resp) = result {
                     if let Some(ResponseValue::Map(map)) = resp.result() {
                         if let Some(ParamsValue::String(content)) = map.get("content") {
-                            let tx = UnverifiedTransaction::from_str(&content).unwrap().to_json();
+                            let tx = UnverifiedTransaction::from_str(&content).unwrap();
                             printer
                                 .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
-                            printer.println(&tx, is_color);
+                            printer.println(&tx.to_json(), is_color);
                             printer.println(
                                 &"---- [UnverifiedTransaction] ----\n".to_owned(),
+                                is_color,
+                            );
+                            let pub_key = tx.public_key(blake2b)?;
+                            printer.println(
+                                &format!(
+                                    "{} 0x{:#x}",
+                                    Yellow.paint("[address]:"),
+                                    pubkey_to_address(&pub_key)
+                                ),
                                 is_color,
                             );
                         }
@@ -1339,7 +1357,10 @@ pub fn tx_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
     let result = match sub_matches.subcommand() {
         ("make", Some(m)) => {
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
@@ -1440,7 +1461,10 @@ pub fn transfer_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
     let blake2b = blake2b(sub_matches, env_variable);
     client.set_private_key(parse_privkey(sub_matches.value_of("private-key").unwrap())?);
     let address = sub_matches.value_of("address").unwrap();
@@ -2012,7 +2036,10 @@ pub fn contract_processor(
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| get_url(sub_matches)));
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
 
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {

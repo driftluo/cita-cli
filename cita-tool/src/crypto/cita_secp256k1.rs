@@ -2,7 +2,7 @@ use crypto::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, 
 use hex::encode;
 use rand::thread_rng;
 use secp256k1::{
-    key::{self, SecretKey}, Message as SecpMessage, Secp256k1,
+    key::{self, SecretKey}, Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
 };
 use std::ops::{Deref, DerefMut};
 use std::{fmt, mem};
@@ -11,6 +11,8 @@ use types::{Address, H256};
 lazy_static! {
     pub static ref SECP256K1: Secp256k1 = Secp256k1::new();
 }
+
+const SIGNATURE_BYTES_LEN: usize = 65;
 
 /// Sha3 key pair
 #[derive(Default)]
@@ -78,9 +80,9 @@ impl CreateKey for Sha3KeyPair {
 }
 
 /// Signature
-pub struct Signature(pub [u8; 65]);
+pub struct Sh3Signature(pub [u8; 65]);
 
-impl Signature {
+impl Sh3Signature {
     /// Get a slice into the 'r' portion of the data.
     pub fn r(&self) -> &[u8] {
         &self.0[0..32]
@@ -97,12 +99,12 @@ impl Signature {
     }
 
     /// Create a signature object from the sig.
-    pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
+    pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Sh3Signature {
         let mut sig = [0u8; 65];
         sig[0..32].copy_from_slice(&r.0);
         sig[32..64].copy_from_slice(&s.0);
         sig[64] = v;
-        Signature(sig)
+        Sh3Signature(sig)
     }
 
     /// Check if this is a "low" signature.
@@ -121,10 +123,26 @@ impl Signature {
                 < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()
             && H256::from_slice(self.s()) >= 1.into()
     }
+
+    /// Recover public key
+    pub fn recover(&self, message: &Message) -> Result<Sha3PubKey, Error> {
+        let context = &SECP256K1;
+        let rsig = RecoverableSignature::from_compact(
+            context,
+            &self.0[0..64],
+            RecoveryId::from_i32(self.0[64] as i32)?,
+        )?;
+        let public = context.recover(&SecpMessage::from_slice(&message.0[..])?, &rsig)?;
+        let serialized = public.serialize_vec(context, false);
+
+        let mut pubkey = Sha3PubKey::default();
+        pubkey.0.copy_from_slice(&serialized[1..65]);
+        Ok(pubkey)
+    }
 }
 
 /// Sign data with Sha3
-pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Signature, Error> {
+pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Sh3Signature, Error> {
     let context = &SECP256K1;
     // no way to create from raw byte array.
     let sec: &SecretKey = unsafe { mem::transmute(privkey) };
@@ -135,10 +153,10 @@ pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Signature, 
     // no need to check if s is low, it always is
     data_arr[0..64].copy_from_slice(&data[0..64]);
     data_arr[64] = rec_id.to_i32() as u8;
-    Ok(Signature(data_arr))
+    Ok(Sh3Signature(data_arr))
 }
 
-impl Deref for Signature {
+impl Deref for Sh3Signature {
     type Target = [u8; 65];
 
     fn deref(&self) -> &Self::Target {
@@ -146,21 +164,21 @@ impl Deref for Signature {
     }
 }
 
-impl DerefMut for Signature {
+impl DerefMut for Sh3Signature {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl PartialEq for Signature {
+impl PartialEq for Sh3Signature {
     fn eq(&self, rhs: &Self) -> bool {
         &self.0[..] == &rhs.0[..]
     }
 }
 
-impl Eq for Signature {}
+impl Eq for Sh3Signature {}
 
-impl fmt::Debug for Signature {
+impl fmt::Debug for Sh3Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.debug_struct("Signature")
             .field("r", &encode(self.0[0..32].to_vec()))
@@ -170,14 +188,23 @@ impl fmt::Debug for Signature {
     }
 }
 
-impl fmt::Display for Signature {
+impl fmt::Display for Sh3Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", encode(self.to_vec()))
     }
 }
 
-impl Default for Signature {
+impl Default for Sh3Signature {
     fn default() -> Self {
-        Signature([0; 65])
+        Sh3Signature([0; 65])
+    }
+}
+
+impl<'a> From<&'a [u8]> for Sh3Signature {
+    fn from(slice: &'a [u8]) -> Sh3Signature {
+        assert_eq!(slice.len(), SIGNATURE_BYTES_LEN);
+        let mut bytes = [0u8; 65];
+        bytes.copy_from_slice(&slice[..]);
+        Sh3Signature(bytes)
     }
 }
