@@ -441,14 +441,24 @@ pub trait AuthorizationExt: ContractCall {
         self.contract_call("queryAllAccounts", &[], None)
     }
 
-    /// Check Permission
+    /// Check Resource
     ///
     /// param account: The account to be checked
     /// param contract: The contract of resource
     /// param func: The function signature of resource
     /// return true if passed, otherwise false
-    fn check_permission(&self, account: &str, contract: &str, func: &str) -> Self::RpcResult {
+    fn check_resource(&self, account: &str, contract: &str, func: &str) -> Self::RpcResult {
         let values = [remove_0x(account), remove_0x(contract), remove_0x(func)];
+        self.contract_call("checkResource", &values, None)
+    }
+
+    /// Check account has a permission
+    ///
+    /// param _account The account to be checked
+    /// param _permission The address of permission
+    /// return true if passed, otherwise false
+    fn check_permission(&self, account: &str, permission: &str) -> Self::RpcResult {
+        let values = [remove_0x(account), remove_0x(permission)];
         self.contract_call("checkPermission", &values, None)
     }
 }

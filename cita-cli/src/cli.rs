@@ -1949,11 +1949,17 @@ pub fn contract_command() -> App<'static, 'static> {
                 )
                 .subcommand(SubCommand::with_name("queryAllAccounts").about("Query all accounts"))
                 .subcommand(
-                    SubCommand::with_name("checkPermission")
-                        .about("Check Permission")
+                    SubCommand::with_name("checkResource")
+                        .about("Check Resource")
                         .arg(account_address_arg.clone())
                         .arg(contract_address_arg.clone())
                         .arg(funcion_hash_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("checkPermission")
+                        .about("Check Permission")
+                        .arg(account_address_arg.clone())
+                        .arg(permission_address_arg.clone()),
                 ),
         )
         .subcommand(
@@ -2294,12 +2300,18 @@ pub fn contract_processor(
                 let client = AuthorizationClient::create(Some(client));
                 AuthorizationExt::query_all_accounts(&client)
             }
-            ("checkPermission", Some(m)) => {
+            ("checkResource", Some(m)) => {
                 let account = m.value_of("account").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::check_permission(&client, account, contract, function_hash)
+                AuthorizationExt::check_resource(&client, account, contract, function_hash)
+            }
+            ("checkPermission", Some(m)) => {
+                let account = m.value_of("account").unwrap();
+                let permission = m.value_of("permission").unwrap();
+                let client = AuthorizationClient::create(Some(client));
+                AuthorizationExt::check_permission(&client, account, permission)
             }
             _ => return Err(m.usage().to_owned()),
         },
