@@ -1,0 +1,516 @@
+use ansi_term::Colour::Yellow;
+use clap::{App, Arg, ArgMatches, SubCommand};
+
+use cita_tool::client::basic::{Client, ClientExt};
+use cita_tool::{
+    pubkey_to_address, ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction,
+};
+
+use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u64};
+use interactive::GlobalConfig;
+use printer::Printer;
+
+/// Generate rpc sub command
+pub fn rpc_command() -> App<'static, 'static> {
+    App::new("rpc")
+        .about("All cita jsonrpc interface commands")
+        .subcommand(SubCommand::with_name("peerCount").about("Get network peer count"))
+        .subcommand(SubCommand::with_name("blockNumber").about("Get current height"))
+        .subcommand(
+            SubCommand::with_name("sendRawTransaction")
+                .about("Send a transaction return transaction hash")
+                .arg(
+                    Arg::with_name("code")
+                        .long("code")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|code| is_hex(code.as_str()))
+                        .help("Binary content of the transaction"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .default_value("0x")
+                        .takes_value(true)
+                        .validator(|address| is_hex(address.as_str()))
+                        .help(
+                            "The address of the invoking contract, default is empty to \
+                             create contract",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .takes_value(true)
+                        .validator(|height| parse_u64(height.as_ref()).map(|_| ()))
+                        .help("Current chain height, default query to the chain"),
+                )
+                .arg(
+                    Arg::with_name("chain-id")
+                        .long("chain-id")
+                        .takes_value(true)
+                        .validator(|chain_id| match chain_id.parse::<u32>() {
+                            Ok(_) => Ok(()),
+                            Err(err) => Err(format!("{:?}", err)),
+                        })
+                        .help("The chain_id of transaction"),
+                )
+                .arg(
+                    Arg::with_name("private-key")
+                        .long("private-key")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
+                        .help("The private key of transaction"),
+                )
+                .arg(
+                    Arg::with_name("quota")
+                        .long("quota")
+                        .takes_value(true)
+                        .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
+                        .help("Transaction quota costs, default is 1_000_000"),
+                )
+                .arg(
+                    Arg::with_name("value")
+                        .long("value")
+                        .takes_value(true)
+                        .validator(|value| is_hex(value.as_ref()))
+                        .help("The value to send, default is 0"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getBlockByHash")
+                .about("Get block by hash")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the block"),
+                )
+                .arg(
+                    Arg::with_name("with-txs")
+                        .long("with-txs")
+                        .help("Get transactions detail of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getBlockByNumber")
+                .about("Get block by number")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .required(true)
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                )
+                .arg(
+                    Arg::with_name("with-txs")
+                        .long("with-txs")
+                        .help("Get transactions detail of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getCode")
+                .about("Get the code of a contract")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The address of the code"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getAbi")
+                .about("Get the ABI of a contract")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The address of the abi data"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getBalance")
+                .about("Get the balance of a contract (TODO: return U256)")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The address of the balance"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getTransactionReceipt")
+                .about("Get transaction receipt")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of specific transaction"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("call")
+                .about("Call a contract function (readonly, will not save state change)")
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .takes_value(true)
+                        .help("From address"),
+                )
+                .arg(
+                    Arg::with_name("to")
+                        .long("to")
+                        .takes_value(true)
+                        .required(true)
+                        .help("To address"),
+                )
+                .arg(
+                    Arg::with_name("data")
+                        .long("data")
+                        .takes_value(true)
+                        .help("The data"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .takes_value(true)
+                        .validator(|s| parse_height(s.as_str()))
+                        .default_value("latest")
+                        .help("The block number"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getTransactionProof")
+                .about("Get proof of a transaction")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the transaction"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getLogs")
+                .about("Get logs")
+                .arg(
+                    Arg::with_name("topic")
+                        .long("topic")
+                        .takes_value(true)
+                        .multiple(true)
+                        .validator(|topic| is_hex(topic.as_ref()))
+                        .help(
+                            "Array of 32 Bytes DATA topics. Topics are order-dependent. \
+                             Each topic can also be an array of DATA with 'or' options.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .takes_value(true)
+                        .multiple(true)
+                        .validator(|address| is_hex(address.as_ref()))
+                        .help("List of contract address"),
+                )
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .takes_value(true)
+                        .validator(|from| is_hex(from.as_ref()))
+                        .help("Block height hex string, default is latest"),
+                )
+                .arg(
+                    Arg::with_name("to")
+                        .long("to")
+                        .takes_value(true)
+                        .validator(|to| is_hex(to.as_ref()))
+                        .help("Block height hex string, default is latest"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getMetaData")
+                .about("Get metadata of current chain")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The height or tag"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getTransaction")
+                .about("Get transaction by hash")
+                .arg(
+                    Arg::with_name("hash")
+                        .long("hash")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the transaction"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getTransactionCount")
+                .about("Get transaction count of an account")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The hash of the account"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The height of chain, hex string or tag 'latest'"),
+                ),
+        )
+        .subcommand(SubCommand::with_name("newBlockFilter").about("Create a block filter"))
+        .subcommand(
+            SubCommand::with_name("uninstallFilter")
+                .about("Uninstall a filter by its id")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getFilterChanges")
+                .about("Get filter changes")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getFilterLogs")
+                .about("Get filter logs")
+                .arg(
+                    Arg::with_name("id")
+                        .long("id")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|id| is_hex(id.as_ref()))
+                        .help("The filter id."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("newFilter")
+                .about("Creates a filter object")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .validator(|address| is_hex(address.as_ref()))
+                        .takes_value(true)
+                        .multiple(true)
+                        .help("Contract Address"),
+                )
+                .arg(
+                    Arg::with_name("topic")
+                        .long("topic")
+                        .validator(|address| is_hex(address.as_ref()))
+                        .takes_value(true)
+                        .multiple(true)
+                        .help("Topic"),
+                )
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .validator(|from| parse_height(from.as_ref()))
+                        .takes_value(true)
+                        .help("Starting block height"),
+                )
+                .arg(
+                    Arg::with_name("to")
+                        .long("to")
+                        .validator(|from| parse_height(from.as_ref()))
+                        .takes_value(true)
+                        .help("Starting block height"),
+                ),
+        )
+}
+
+/// RPC processor
+pub fn rpc_processor(
+    sub_matches: &ArgMatches,
+    printer: &Printer,
+    url: Option<&str>,
+    env_variable: &GlobalConfig,
+) -> Result<(), String> {
+    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let mut client = Client::new()
+        .map_err(|err| format!("{}", err))?
+        .set_debug(debug)
+        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
+            (_, Some(m)) => get_url(m),
+            _ => "http://127.0.0.1:1337",
+        }));
+    let result = match sub_matches.subcommand() {
+        ("peerCount", _) => client.get_peer_count(),
+        ("blockNumber", _) => client.get_block_number(),
+        ("sendRawTransaction", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+
+            if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
+                client.set_chain_id(chain_id);
+            }
+            if let Some(private_key) = m.value_of("private-key") {
+                client.set_private_key(parse_privkey(private_key)?);
+            }
+            let code = m.value_of("code").unwrap();
+            let address = m.value_of("address").unwrap();
+            let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
+            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let value = m.value_of("value");
+            let tx_options = TransactionOptions::new()
+                .set_code(code)
+                .set_address(address)
+                .set_current_height(current_height)
+                .set_quota(quota)
+                .set_value(value);
+            client.send_raw_transaction(tx_options, blake2b)
+        }
+        ("getBlockByHash", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            let with_txs = m.is_present("with-txs");
+            client.get_block_by_hash(hash, with_txs)
+        }
+        ("getBlockByNumber", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            let with_txs = m.is_present("with-txs");
+            client.get_block_by_number(height, with_txs)
+        }
+        ("getCode", Some(m)) => client.get_code(
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("getAbi", Some(m)) => client.get_abi(
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("getBalance", Some(m)) => client.get_balance(
+            m.value_of("address").unwrap(),
+            m.value_of("height").unwrap(),
+        ),
+        ("getTransactionReceipt", Some(m)) => {
+            let hash = m.value_of("hash").unwrap();
+            client.get_transaction_receipt(hash)
+        }
+        ("call", Some(m)) => client.call(
+            m.value_of("from"),
+            m.value_of("to").unwrap(),
+            m.value_of("data"),
+            m.value_of("height").unwrap(),
+        ),
+        ("getTransactionProof", Some(m)) => {
+            client.get_transaction_proof(m.value_of("hash").unwrap())
+        }
+        ("getMetaData", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            client.get_metadata(height)
+        }
+        ("getLogs", Some(m)) => client.get_logs(
+            m.values_of("topic").map(|value| value.collect()),
+            m.values_of("address").map(|value| value.collect()),
+            m.value_of("from"),
+            m.value_of("to"),
+        ),
+        ("getTransaction", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            let hash = m.value_of("hash").unwrap();
+            let result = client.get_transaction(hash);
+            if debug {
+                if let Ok(ref resp) = result {
+                    if let Some(ResponseValue::Map(map)) = resp.result() {
+                        if let Some(ParamsValue::String(content)) = map.get("content") {
+                            let tx = UnverifiedTransaction::from_str(&content).unwrap();
+                            printer
+                                .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
+                            printer.println(&tx.to_json(), is_color);
+                            printer.println(
+                                &"---- [UnverifiedTransaction] ----\n".to_owned(),
+                                is_color,
+                            );
+                            let pub_key = tx.public_key(blake2b)?;
+                            printer.println(
+                                &format!(
+                                    "{} 0x{:#x}",
+                                    Yellow.paint("[from]:"),
+                                    pubkey_to_address(&pub_key)
+                                ),
+                                is_color,
+                            );
+                        }
+                    }
+                }
+            }
+            result
+        }
+        ("getTransactionCount", Some(m)) => {
+            let address = m.value_of("address").unwrap();
+            let height = m.value_of("height").unwrap();
+            client.get_transaction_count(address, height)
+        }
+        ("newBlockFilter", _) => client.new_block_filter(),
+        ("uninstallFilter", Some(m)) => client.uninstall_filter(m.value_of("id").unwrap()),
+        ("getFilterChanges", Some(m)) => client.get_filter_changes(m.value_of("id").unwrap()),
+        ("getFilterLogs", Some(m)) => client.get_filter_logs(m.value_of("id").unwrap()),
+        ("newFilter", Some(m)) => {
+            let address = m.values_of("address").map(|value| value.collect());
+            let from = m.value_of("from");
+            let to = m.value_of("to");
+            let topic = m.values_of("topic").map(|value| value.collect());
+            client.new_filter(topic, address, from, to)
+        }
+        _ => {
+            return Err(sub_matches.usage().to_owned());
+        }
+    };
+    let resp = result.map_err(|err| format!("{}", err))?;
+    printer.println(&resp, is_color);
+    Ok(())
+}
