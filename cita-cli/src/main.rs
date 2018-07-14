@@ -31,8 +31,9 @@ use std::sync::Arc;
 use dotenv::dotenv;
 
 use cli::{
-    abi_processor, amend_processor, build_cli, contract_processor, key_processor, rpc_processor,
-    search_processor, store_processor, transfer_processor, tx_processor,
+    abi_processor, amend_processor, benchmark_processor, build_cli, contract_processor,
+    key_processor, rpc_processor, search_processor, store_processor, transfer_processor,
+    tx_processor,
 };
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -66,6 +67,7 @@ fn main() {
             Ok(())
         }
         ("tx", Some(m)) => tx_processor(m, &printer, None, &env_variable),
+        ("benchmark", Some(m)) => benchmark_processor(m, &printer, None, &env_variable),
         _ => {
             let _ = interactive::start(&default_jsonrpc_url);
             Ok(())
