@@ -42,7 +42,7 @@ pub fn is_hex(hex: &str) -> Result<(), String> {
 pub fn parse_height(height: &str) -> Result<(), String> {
     match height {
         "latest" | "earliest" => Ok(()),
-        _ => match height.parse::<u64>() {
+        _ => match parse_u64(height) {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("{:?}", e)),
         },

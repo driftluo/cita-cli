@@ -127,30 +127,36 @@ pub fn benchmark_processor(
             (_, Some(m)) => get_url(m),
             _ => "http://127.0.0.1:1337",
         }));
-    let params =
-        JsonRpcParams::new().insert("method", ParamsValue::String(String::from("blockNumber")));
-    let start = SystemTime::now();
-    let result = client
-        .send_request(vec![params; 1000].into_iter())
-        .map_err(|err| format!("{}", err))?;
-    assert_eq!(result.len(), 1000);
-    match start.elapsed() {
-        Ok(elapsed) => {
-            let duration =
-                elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
-            printer.println(
-                &format!(
-                    "A total of 1,000 requests were sent, which took {} seconds and tps is {}",
-                    duration,
-                    1000.0 / duration
-                ),
-                true,
-            );
+
+    match sub_matches.subcommand() {
+        ("get-height", _) => {
+            let params = JsonRpcParams::new()
+                .insert("method", ParamsValue::String(String::from("blockNumber")));
+            let start = SystemTime::now();
+            let result = client
+                .send_request(vec![params; 1000].into_iter())
+                .map_err(|err| format!("{}", err))?;
+            assert_eq!(result.len(), 1000);
+            match start.elapsed() {
+                Ok(elapsed) => {
+                    let duration = elapsed.as_secs() as f64
+                        + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+                    printer.println(
+                        &format!(
+                            "A total of 1,000 requests were sent, which took {} seconds and tps is {}",
+                            duration,
+                            1000.0 / duration
+                        ),
+                        true,
+                    );
+                }
+                Err(e) => {
+                    // an error occurred!
+                    return Err(format!("Error: {:?}", e));
+                }
+            }
         }
-        Err(e) => {
-            // an error occurred!
-            return Err(format!("Error: {:?}", e));
-        }
+        _ => return Err(sub_matches.usage().to_owned()),
     }
 
     Ok(())
