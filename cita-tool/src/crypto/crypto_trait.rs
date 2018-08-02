@@ -1,7 +1,7 @@
 #[cfg(feature = "blake2b_hash")]
 use blake2b::blake2b;
-use sha3::sha3_256;
 use std::{fmt, marker};
+use tiny_keccak;
 use types::{Address, H256};
 
 #[cfg(feature = "blake2b_hash")]
@@ -59,10 +59,7 @@ where
 {
     fn sha3_crypt_hash_into(&self, dest: &mut [u8]) {
         let input: &[u8] = self.as_ref();
-
-        unsafe {
-            sha3_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
-        }
+        tiny_keccak::Keccak::keccak256(input, dest);
     }
 
     #[cfg(feature = "blake2b_hash")]
