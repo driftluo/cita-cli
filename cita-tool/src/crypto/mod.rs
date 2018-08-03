@@ -55,7 +55,7 @@ impl PrivateKey {
             #[cfg(feature = "blake2b_hash")]
             {
                 let private_key = PrivateKey::Blake2b(
-                    Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?
+                    Blake2bPrivKey::from_str(hex).map_err(|err| format!("{}", err))?,
                 );
                 return Ok(private_key);
             }
@@ -68,7 +68,7 @@ impl PrivateKey {
             )
         } else {
             Ok(PrivateKey::Sha3(
-                Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?
+                Sha3PrivKey::from_str(hex).map_err(|err| format!("{}", err))?,
             ))
         }
     }
@@ -104,7 +104,7 @@ impl PubKey {
             #[cfg(feature = "blake2b_hash")]
             {
                 let private_key = PubKey::Blake2b(
-                    Blake2bPubKey::from_str(hex).map_err(|err| format!("{}", err))?
+                    Blake2bPubKey::from_str(hex).map_err(|err| format!("{}", err))?,
                 );
                 return Ok(private_key);
             }
@@ -117,7 +117,7 @@ impl PubKey {
             )
         } else {
             Ok(PubKey::Sha3(
-                Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?
+                Sha3PubKey::from_str(hex).map_err(|err| format!("{}", err))?,
             ))
         }
     }
@@ -166,14 +166,12 @@ impl KeyPair {
     pub fn from_str(private_key: &str) -> Result<Self, String> {
         match PrivateKey::from_str(private_key)? {
             PrivateKey::Sha3(private) => Ok(KeyPair::Sha3(
-                Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?
+                Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
             )),
             #[cfg(feature = "blake2b_hash")]
-            PrivateKey::Blake2b(private) => {
-                Ok(KeyPair::Blake2b(
-                    Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?
-                ))
-            }
+            PrivateKey::Blake2b(private) => Ok(KeyPair::Blake2b(
+                Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
+            )),
             PrivateKey::Null => Ok(KeyPair::Null),
         }
     }
@@ -241,11 +239,13 @@ impl Signature {
     /// Recover public key
     pub fn recover(&self, message: &Message) -> Result<PubKey, String> {
         match self {
-            Signature::Sha3(sig) => Ok(sig.recover(message)
+            Signature::Sha3(sig) => Ok(sig
+                .recover(message)
                 .map(|pubkey| PubKey::from_str(&pubkey.lower_hex()).unwrap())
                 .map_err(|_| "Can't recover to public key".to_string())?),
             #[cfg(feature = "blake2b_hash")]
-            Signature::Blake2b(sig) => Ok(sig.recover(message)
+            Signature::Blake2b(sig) => Ok(sig
+                .recover(message)
                 .map(|pubkey| PubKey::from_str(&pubkey.lower_hex()).unwrap())
                 .map_err(|_| "Can't recover to public key".to_string())?),
             Signature::Null => Err("Mismatched encryption algorithm".to_string()),
