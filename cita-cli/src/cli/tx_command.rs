@@ -1,7 +1,10 @@
+use ansi_term::Colour::Yellow;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::Client;
-use cita_tool::{encode, ProtoMessage, TransactionOptions};
+use cita_tool::{
+    encode, pubkey_to_address, ProtoMessage, TransactionOptions, UnverifiedTransaction,
+};
 
 use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u64};
 use interactive::GlobalConfig;
@@ -97,6 +100,18 @@ pub fn tx_command() -> App<'static, 'static> {
                         .help("Transfer Account Private Key"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("decode-unverifiedTransaction")
+                .about("Decode unverifiedTransaction")
+                .arg(
+                    Arg::with_name("content")
+                        .long("content")
+                        .takes_value(true)
+                        .validator(|content| is_hex(content.as_str()))
+                        .required(true)
+                        .help("UnverifiedTransaction content"),
+                ),
+        )
 }
 
 pub fn tx_processor(
@@ -156,6 +171,22 @@ pub fn tx_processor(
             }
             let byte_code = m.value_of("byte-code").unwrap();
             client.send_transaction(byte_code, blake2b)
+        }
+        ("decode-unverifiedTransaction", Some(m)) => {
+            let blake2b = blake2b(sub_matches, env_variable);
+            let content = m.value_of("content").unwrap();
+            let tx = UnverifiedTransaction::from_str(&content).map_err(|err| format!("{}", err))?;
+            let pub_key = tx.public_key(blake2b)?;
+            printer.println(&tx.to_json(), is_color);
+            printer.println(
+                &format!(
+                    "{} 0x{:#x}",
+                    Yellow.paint("[from]:"),
+                    pubkey_to_address(&pub_key)
+                ),
+                is_color,
+            );
+            return Ok(());
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

@@ -299,12 +299,14 @@ impl Client {
         } else {
             Ok(format!(
                 "0x{}",
-                encode(tx.sha3_build_unverified(*self.sha3_private_key().ok_or(
-                    ToolError::Customize(
-                        "The provided private key do not match the algorithm".to_string()
-                    )
-                )?).write_to_bytes()
-                    .map_err(ToolError::Proto)?)
+                encode(
+                    tx.sha3_build_unverified(*self.sha3_private_key().ok_or(
+                        ToolError::Customize(
+                            "The provided private key do not match the algorithm".to_string()
+                        )
+                    )?).write_to_bytes()
+                        .map_err(ToolError::Proto)?
+                )
             ))
         }
     }
@@ -313,13 +315,15 @@ impl Client {
     pub fn send_signed_transaction(&mut self, param: &str) -> Result<JsonRpcResponse, ToolError> {
         let byte_code = format!(
             "0x{}",
-            encode(parse_from_bytes::<UnverifiedTransaction>(
-                decode(remove_0x(param))
-                    .map_err(ToolError::Decode)?
-                    .as_slice()
-            ).map_err(ToolError::Proto)?
-                .write_to_bytes()
-                .map_err(ToolError::Proto)?)
+            encode(
+                parse_from_bytes::<UnverifiedTransaction>(
+                    decode(remove_0x(param))
+                        .map_err(ToolError::Decode)?
+                        .as_slice()
+                ).map_err(ToolError::Proto)?
+                    .write_to_bytes()
+                    .map_err(ToolError::Proto)?
+            )
         );
         let params = JsonRpcParams::new()
             .insert(

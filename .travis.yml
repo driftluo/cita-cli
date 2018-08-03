@@ -29,4 +29,4 @@ install:
 script:
   # For speed up the CI process
   #   See: https://docs.travis-ci.com/user/build-stages/#Data-persistence-between-stages-and-jobs
-  - cargo fmt -- --write-mode check && cargo build --all-features --all && cargo test --all-features --all
+  - cargo fmt -- --check && cargo build --all-features --all && cargo test --all-features --all

@@ -136,7 +136,8 @@ pub fn abi_processor(
                 let lenient = !m.is_present("no-lenient");
                 let mut types: Vec<String> = Vec::new();
                 let mut values: Vec<String> = Vec::new();
-                let mut param_iter = m.values_of("param")
+                let mut param_iter = m
+                    .values_of("param")
                     .ok_or_else(|| format!("Please give at least one parameter."))?
                     .peekable();
                 while param_iter.peek().is_some() {
@@ -153,7 +154,8 @@ pub fn abi_processor(
         },
         ("decode", Some(em)) => match em.subcommand() {
             ("params", Some(m)) => {
-                let types: Vec<String> = m.values_of("type")
+                let types: Vec<String> = m
+                    .values_of("type")
                     .ok_or_else(|| format!("Please give at least one parameter."))?
                     .map(|value| value.to_owned())
                     .collect();

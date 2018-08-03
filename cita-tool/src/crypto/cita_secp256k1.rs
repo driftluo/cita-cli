@@ -2,7 +2,8 @@ use crypto::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, 
 use hex::encode;
 use rand::thread_rng;
 use secp256k1::{
-    key::{self, SecretKey}, Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
+    key::{self, SecretKey},
+    Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
 };
 use std::ops::{Deref, DerefMut};
 use std::{fmt, mem};

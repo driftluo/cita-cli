@@ -610,6 +610,84 @@ pub trait PermissionManagementExt: ContractCall {
         let values = [remove_0x(permission), contracts, funcs];
         self.contract_send_tx("deleteResources", &values, quota, None, blake2b)
     }
+
+    /// Set permission to the account
+    ///
+    /// param account: The account to be setted
+    /// param permission: The permission to be setted
+    /// return true if success, otherwise false
+    fn set_authorization(
+        &mut self,
+        account_address: &str,
+        permission: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(account_address), remove_0x(permission)];
+        self.contract_send_tx("setAuthorization", &values, quota, None, blake2b)
+    }
+
+    /// Set multiple permissions to the account
+    ///
+    /// param account: The account to be setted
+    /// param permissions: The multiple permissions to be setted
+    /// return true if success, otherwise false
+    fn set_authorizations(
+        &mut self,
+        account_address: &str,
+        permissions: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(account_address), permissions];
+        self.contract_send_tx("setAuthorizations", &values, quota, None, blake2b)
+    }
+
+    /// Cancel the account's permission
+    ///
+    /// param account: The account to be canceled
+    /// param permissions: The permission to be canceled
+    /// return true if success, otherwise false
+    fn cancel_authorization(
+        &mut self,
+        account_address: &str,
+        permission: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(account_address), remove_0x(permission)];
+        self.contract_send_tx("cancelAuthorization", &values, quota, None, blake2b)
+    }
+
+    /// Cancel the account's multiple permission
+    ///
+    /// param account: The account to be canceled
+    /// param permissions: The multiple permissions to be canceled
+    /// return true if success, otherwise false
+    fn cancel_authorizations(
+        &mut self,
+        account_address: &str,
+        permissions: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(account_address), permissions];
+        self.contract_send_tx("cancelAuthorizations", &values, quota, None, blake2b)
+    }
+
+    /// Clear the account's permissions
+    ///
+    /// param account: The account to be cleared
+    /// return true if success, otherwise false
+    fn clear_authorization(
+        &mut self,
+        account_address: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(account_address)];
+        self.contract_send_tx("clearAuthorization", &values, quota, None, blake2b)
+    }
 }
 
 /// Node manage Client
