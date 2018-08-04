@@ -123,6 +123,12 @@ impl<'a> From<&'a [u8]> for Blake2bSignature {
     }
 }
 
+impl fmt::Display for Blake2bSignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", encode(self.0[..].to_vec()))
+    }
+}
+
 /// Sign data with blake2b
 pub fn blake2b_sign(
     privkey: &Blake2bPrivKey,
