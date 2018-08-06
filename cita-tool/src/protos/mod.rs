@@ -12,7 +12,7 @@ use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
 use serde_json::Value;
-use types::{traits::LowerHex, H256, U256};
+use types::H256;
 
 use error::ToolError;
 
@@ -44,15 +44,7 @@ impl UnverifiedTransaction {
 
     /// Get the transaction public key
     pub fn public_key(&self, blake2b: bool) -> Result<PubKey, String> {
-        let mut tx = self.get_transaction().clone();
-        let value = U256::from(tx.get_value()).lower_hex();
-        if value == "0" {
-            tx.set_value(hex::decode("").unwrap());
-        } else {
-            tx.set_value(hex::decode(value).unwrap());
-        }
-
-        let bytes: Vec<u8> = tx.write_to_bytes().unwrap();
+        let bytes: Vec<u8> = self.get_transaction().write_to_bytes().unwrap();
         let hash = H256::from(bytes.crypt_hash(blake2b));
         let signature = self.get_signature();
         let sig = Signature::from(signature);

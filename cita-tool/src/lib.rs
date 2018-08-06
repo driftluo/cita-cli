@@ -56,4 +56,4 @@ pub use hex::{decode, encode};
 pub use protobuf::Message as ProtoMessage;
 pub use protos::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 pub use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
-pub use types::traits::LowerHex;
+pub use types::{traits::LowerHex, H256, U256};

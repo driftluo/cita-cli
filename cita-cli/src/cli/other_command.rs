@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
-use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u64, search_app};
+use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64, search_app};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -62,7 +62,7 @@ pub fn transfer_command() -> App<'static, 'static> {
         .arg(
             Arg::with_name("value")
                 .long("value")
-                .validator(|value| is_hex(value.as_str()))
+                .validator(|value| parse_u256(value.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer amount"),
@@ -98,7 +98,7 @@ pub fn transfer_processor(
     let quota = sub_matches
         .value_of("quota")
         .map(|quota| parse_u64(quota).unwrap());
-    let value = sub_matches.value_of("value").unwrap();
+    let value = parse_u256(sub_matches.value_of("value").unwrap()).unwrap();
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let response = client
         .transfer(value, address, quota, blake2b)

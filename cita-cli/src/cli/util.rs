@@ -1,8 +1,9 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::{App, ArgMatches};
 
-use cita_tool::{remove_0x, PrivateKey};
+use cita_tool::{remove_0x, PrivateKey, U256};
 
 use interactive::GlobalConfig;
 
@@ -46,6 +47,16 @@ pub fn parse_height(height: &str) -> Result<(), String> {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("{:?}", e)),
         },
+    }
+}
+
+pub fn parse_u256(value: &str) -> Result<U256, String> {
+    match is_hex(value) {
+        Ok(_) => Ok(U256::from_str(remove_0x(value))
+            .map_err(|_| String::from("Value can't parse into u256"))?),
+        Err(_) => {
+            Ok(U256::from_dec_str(value).map_err(|_| String::from("Value can't parse into u256"))?)
+        }
     }
 }
 
