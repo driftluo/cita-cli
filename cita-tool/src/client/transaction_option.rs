@@ -1,3 +1,5 @@
+use types::U256;
+
 /// Transaction parameter option
 #[derive(Clone, Copy, Debug)]
 pub struct TransactionOptions<'a> {
@@ -5,7 +7,7 @@ pub struct TransactionOptions<'a> {
     address: &'a str,
     current_height: Option<u64>,
     quota: Option<u64>,
-    value: Option<&'a str>,
+    value: Option<U256>,
 }
 
 impl<'a> TransactionOptions<'a> {
@@ -68,13 +70,13 @@ impl<'a> TransactionOptions<'a> {
     }
 
     /// Set value. Transaction transfer amount
-    pub fn set_value(mut self, value: Option<&'a str>) -> Self {
+    pub fn set_value(mut self, value: Option<U256>) -> Self {
         self.value = value;
         self
     }
 
     /// Get value
-    pub fn value(&self) -> Option<&str> {
+    pub fn value(&self) -> Option<U256> {
         self.value
     }
 

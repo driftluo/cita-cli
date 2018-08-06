@@ -6,7 +6,7 @@ use cita_tool::{
     pubkey_to_address, ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction,
 };
 
-use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u64};
+use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -74,7 +74,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("value")
                         .long("value")
                         .takes_value(true)
-                        .validator(|value| is_hex(value.as_ref()))
+                        .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
                 ),
         )
@@ -405,7 +405,7 @@ pub fn rpc_processor(
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
-            let value = m.value_of("value");
+            let value = m.value_of("value").map(|value| parse_u256(value).unwrap());
             let tx_options = TransactionOptions::new()
                 .set_code(code)
                 .set_address(address)

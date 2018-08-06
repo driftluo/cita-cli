@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{str, u64};
 
@@ -11,6 +12,7 @@ use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
 use tokio::runtime::Runtime;
+use types::{traits::LowerHex, U256};
 use uuid::Uuid;
 
 use abi::encode_params;
@@ -260,8 +262,12 @@ impl Client {
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(transaction_options.quota().unwrap_or(1_000_000));
+        let value = transaction_options
+            .value()
+            .map(|value| value.lower_hex())
+            .unwrap_or(U256::zero().lower_hex());
         tx.set_value(
-            decode(remove_0x(transaction_options.value().unwrap_or("0x")))
+            decode(format!("{}{}", "0".repeat(64 - value.len()), value))
                 .map_err(ToolError::Decode)?,
         );
         tx.set_chain_id(self.get_chain_id()?);
@@ -927,7 +933,7 @@ impl AmendExt for Client {
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
-            .set_value(Some(AMEND_CODE));
+            .set_value(Some(U256::from_str(remove_0x(AMEND_CODE)).unwrap()));
         self.send_raw_transaction(tx_options, blake2b)
     }
 
@@ -945,7 +951,7 @@ impl AmendExt for Client {
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
-            .set_value(Some(AMEND_ABI));
+            .set_value(Some(U256::from_str(remove_0x(AMEND_ABI)).unwrap()));
         self.send_raw_transaction(tx_options, blake2b)
     }
 
@@ -965,7 +971,7 @@ impl AmendExt for Client {
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
-            .set_value(Some(AMEND_KV_H256));
+            .set_value(Some(U256::from_str(remove_0x(AMEND_KV_H256)).unwrap()));
         self.send_raw_transaction(tx_options, blake2b)
     }
 
@@ -983,7 +989,7 @@ impl AmendExt for Client {
             .set_code(&data)
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
-            .set_value(Some(AMEND_GET_KV_H256));
+            .set_value(Some(U256::from_str(remove_0x(AMEND_GET_KV_H256)).unwrap()));
         self.send_raw_transaction(tx_options, blake2b)
     }
 }
@@ -993,7 +999,7 @@ pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
     /// Account transfer, only applies to charge mode
     fn transfer(
         &mut self,
-        value: &str,
+        value: U256,
         address: &str,
         quota: Option<u64>,
         blake2b: bool,
