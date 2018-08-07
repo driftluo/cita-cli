@@ -2,8 +2,8 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::Client;
 use cita_tool::client::system_contract::{
-    AuthorizationClient, GroupClient, GroupManageClient, NodeManageClient, PermissionClient,
-    PermissionManageClient, QuotaManageClient, RoleClient, RoleManageClient,
+    AdminClient, AdminExt, AuthorizationClient, GroupClient, GroupManageClient, NodeManageClient,
+    PermissionClient, PermissionManageClient, QuotaManageClient, RoleClient, RoleManageClient,
 };
 use cita_tool::client::system_contract::{
     AuthorizationExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
@@ -256,38 +256,6 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .required(true)
                                 .validator(|address| is_hex(address.as_ref()))
                                 .help("Account address"),
-                        )
-                        .arg(quota_arg.clone()),
-                )
-                .subcommand(
-                    SubCommand::with_name("isAdmin").arg(
-                        Arg::with_name("address")
-                            .long("address")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|address| is_hex(address.as_ref()))
-                            .help("Account address"),
-                    ),
-                )
-                .subcommand(
-                    SubCommand::with_name("addAdmin")
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
-                                .help("Account address"),
-                        )
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
                         )
                         .arg(quota_arg.clone()),
                 ),
@@ -625,6 +593,42 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(private_key.clone()),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("AdminManagement")
+                .subcommand(SubCommand::with_name("admin"))
+                .subcommand(
+                    SubCommand::with_name("isAdmin").arg(
+                        Arg::with_name("address")
+                            .long("address")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|address| is_hex(address.as_ref()))
+                            .help("Account address"),
+                    ),
+                )
+                .subcommand(
+                    SubCommand::with_name("update")
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Account address"),
+                        )
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        )
+                        .arg(quota_arg.clone()),
+                ),
+        )
 }
 
 /// System contract processor
@@ -707,17 +711,6 @@ pub fn contract_processor(
                     quota,
                     blake2b,
                 )
-            }
-            ("isAdmin", Some(m)) => {
-                let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).is_admin(address)
-            }
-            ("addAdmin", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
-                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
-                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).add_admin(address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1087,6 +1080,21 @@ pub fn contract_processor(
                 client.set_private_key(parse_privkey(m.value_of("private-key").unwrap())?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::clear_authorization(&mut client, account, quota, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("AdminManagement", Some(m)) => match m.subcommand() {
+            ("admin", _) => AdminClient::create(Some(client)).admin(),
+            ("isAdmin", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                AdminClient::create(Some(client)).is_admin(address)
+            }
+            ("update", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let address = m.value_of("address").unwrap();
+                AdminClient::create(Some(client)).add_admin(address, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },

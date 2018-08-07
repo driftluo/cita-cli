@@ -813,6 +813,28 @@ pub trait QuotaManagementExt: ContractCall {
         let values = [remove_0x(address), quota_limit.as_str()];
         self.contract_send_tx("setAQL", &values, quota, None, blake2b)
     }
+}
+
+/// Admin manage client
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff02000c")]
+#[contract(path = "../../contract_abi/Admin.abi")]
+#[contract(name = "AdminExt")]
+pub struct AdminClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// Admin system contract
+pub trait AdminExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Get admin address
+    fn admin(&self) -> Self::RpcResult {
+        self.contract_call("admin", &[], None)
+    }
 
     /// Check if the account is admin
     fn is_admin(&self, address: &str) -> Self::RpcResult {
@@ -820,9 +842,9 @@ pub trait QuotaManagementExt: ContractCall {
         self.contract_call("isAdmin", &values, None)
     }
 
-    /// Add admin account
+    /// Update admin account
     fn add_admin(&mut self, address: &str, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
         let values = [remove_0x(address)];
-        self.contract_send_tx("addAdmin", &values, quota, None, blake2b)
+        self.contract_send_tx("update", &values, quota, None, blake2b)
     }
 }
