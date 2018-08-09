@@ -108,6 +108,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("NodeManager")
                 .subcommand(SubCommand::with_name("listNode"))
+                .subcommand(SubCommand::with_name("listStake"))
                 .subcommand(
                     SubCommand::with_name("getStatus").arg(
                         Arg::with_name("address")
@@ -161,6 +162,46 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("Approve node address"),
                         )
                         .arg(quota_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("setStake")
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin"),
+                        )
+                        .arg(
+                            Arg::with_name("stake")
+                                .long("stake")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|stake| parse_u64(stake.as_ref()).map(|_| ()))
+                                .help("The stake you want to set"),
+                        )
+                        .arg(
+                            Arg::with_name("address")
+                                .long("address")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|address| is_hex(address.as_ref()))
+                                .help("Set address"),
+                        )
+                        .arg(quota_arg.clone()),
+                )
+                .subcommand(
+                    SubCommand::with_name("stakePermillage").arg(
+                        Arg::with_name("address")
+                            .long("address")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|address| is_hex(address.as_ref()))
+                            .help("Query address"),
+                    ),
                 ),
         )
         .subcommand(
@@ -653,6 +694,10 @@ pub fn contract_processor(
                 let client = NodeManageClient::create(Some(client));
                 client.get_authorities()
             }
+            ("listStake", _) => {
+                let client = NodeManageClient::create(Some(client));
+                client.list_stake()
+            }
             ("getStatus", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = NodeManageClient::create(Some(client));
@@ -673,6 +718,23 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
                 client.approve_node(address, quota, blake2b)
+            }
+            ("setStake", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(parse_privkey(m.value_of("admin-private").unwrap())?);
+                let address = m.value_of("address").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let stake = m
+                    .value_of("stake")
+                    .map(|stake| parse_u64(stake).unwrap().to_string())
+                    .unwrap();
+                let mut client = NodeManageClient::create(Some(client));
+                client.set_stake(address, &stake, quota, blake2b)
+            }
+            ("stakePermillage", Some(m)) => {
+                let address = m.value_of("address").unwrap();
+                let client = NodeManageClient::create(Some(client));
+                client.stake_permillage(address)
             }
             _ => return Err(m.usage().to_owned()),
         },

@@ -738,6 +738,28 @@ pub trait NodeManagementExt: ContractCall {
         let values = [remove_0x(address)];
         self.contract_send_tx("approveNode", &values, quota, None, blake2b)
     }
+
+    /// Node stake list
+    fn list_stake(&self) -> Self::RpcResult {
+        self.contract_call("listStake", &[], None)
+    }
+
+    /// Set node stake
+    fn set_stake(
+        &mut self,
+        address: &str,
+        stake: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let values = [remove_0x(address), stake];
+        self.contract_send_tx("setStake", &values, quota, None, blake2b)
+    }
+
+    /// Stake permillage
+    fn stake_permillage(&self, address: &str) -> Self::RpcResult {
+        self.contract_call("stakePermillage", &[remove_0x(address)], None)
+    }
 }
 
 /// Node manage Client

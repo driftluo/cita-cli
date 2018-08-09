@@ -30,10 +30,13 @@ Just like the relationship between redis-cli and redis.
 
 ### Clone and Build
 
+You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases),
+if you want the latest version, compile the source code like follow:
+
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli
-$ cargo build
+$ cargo build --release
 ```
 
 If you want to support both the secp256k1 and ed25519 algorithms, as follows and make sure clang version > 3.9
@@ -50,7 +53,7 @@ $ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
-$ cargo build --features blake2b_hash
+$ cargo build --release --features blake2b_hash
 $ cd ..
 ```
 
@@ -75,7 +78,7 @@ $ rustup target add x86_64-unknown-linux-musl
 - Third, build
 
 ```bash
-$ cargo build --target x86_64-unknown-linux-musl
+$ cargo build --release --target x86_64-unknown-linux-musl
 ```
 
 > Note: only for secp256k1 version, since libsodium is dynamically linked,
@@ -229,3 +232,7 @@ $ ./target/debug/cita-cli ethabi encode params --param uint256 16
 $ ./target/debug/cita-cli ethabi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
+
+## Contribute
+
+Please submit to [https://github.com/cryptape/cita-cli](https://github.com/cryptape/cita-cli) this repo
