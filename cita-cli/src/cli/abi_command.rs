@@ -138,7 +138,7 @@ pub fn abi_processor(
                 let mut values: Vec<String> = Vec::new();
                 let mut param_iter = m
                     .values_of("param")
-                    .ok_or_else(|| format!("Please give at least one parameter."))?
+                    .ok_or_else(|| "Please give at least one parameter.".to_string())?
                     .peekable();
                 while param_iter.peek().is_some() {
                     types.push(param_iter.next().unwrap().to_owned());
@@ -156,12 +156,12 @@ pub fn abi_processor(
             ("params", Some(m)) => {
                 let types: Vec<String> = m
                     .values_of("type")
-                    .ok_or_else(|| format!("Please give at least one parameter."))?
+                    .ok_or_else(|| "Please give at least one parameter.".to_string())?
                     .map(|value| value.to_owned())
                     .collect();
                 let data = remove_0x(m.value_of("data").unwrap());
                 let output = decode_params(&types, data)
-                    .map_err(|err| format!("{}", err))?
+                    .map_err(|err| err.to_string())?
                     .iter()
                     .map(|value| serde_json::from_str(value).unwrap())
                     .collect();

@@ -23,7 +23,7 @@ use cli::{
 };
 use printer::Printer;
 
-const ASCII_WORD: &'static str = r#"
+const ASCII_WORD: &str = r#"
    ._____. ._____.  _. ._   ._____. ._____.   ._.   ._____. ._____.
    | .___| |___. | | | | |  |___. | |_____|   |_|   |___. | |_____|
    | |     ._. | | | |_| |  ._. | |   ._.   ._____. ._. | | ._____.
@@ -181,9 +181,9 @@ pub fn start(url: &str) -> io::Result<()> {
                     _ => Ok(()),
                 }
             }
-            Err(err) => Err(format!("{}", err)),
+            Err(err) => Err(err.to_string()),
         } {
-            printer.eprintln(&format!("{}", err), true);
+            printer.eprintln(&err.to_string(), true);
         }
 
         interface.add_history_unique(remove_private(&line));
@@ -248,7 +248,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                                 .map(|(alias, _)| Completion::simple(alias.to_string()))
                                 .collect::<Vec<Completion>>()
                         })
-                        .unwrap_or(vec![]),
+                        .unwrap_or_else(|| vec![]),
                 ].concat()
             })
             .chain(app.p.flags().map(|a| {

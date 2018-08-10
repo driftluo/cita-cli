@@ -12,8 +12,8 @@ use std::io::Read;
 
 /// Amend(Update) ABI/contract code/H256KV
 pub fn amend_command() -> App<'static, 'static> {
-    fn h256_validator(s: String) -> Result<(), String> {
-        let s = remove_0x(s.as_str());
+    fn h256_validator(s: &str) -> Result<(), String> {
+        let s = remove_0x(s);
         if s.len() != 64 {
             Err(format!("Invalid H256 length={}", s.len()))
         } else {
@@ -104,7 +104,7 @@ pub fn amend_command() -> App<'static, 'static> {
                         .long("key")
                         .required(true)
                         .takes_value(true)
-                        .validator(h256_validator)
+                        .validator(|key| h256_validator(key.as_str()))
                         .help("The key of pair"),
                 )
                 .arg(
@@ -112,7 +112,7 @@ pub fn amend_command() -> App<'static, 'static> {
                         .long("value")
                         .required(true)
                         .takes_value(true)
-                        .validator(h256_validator)
+                        .validator(|key| h256_validator(key.as_str()))
                         .help("The value of pair"),
                 )
                 .args(&common_args),
@@ -132,7 +132,7 @@ pub fn amend_command() -> App<'static, 'static> {
                         .long("key")
                         .required(true)
                         .takes_value(true)
-                        .validator(h256_validator)
+                        .validator(|key| h256_validator(key.as_str()))
                         .help("The key of pair"),
                 )
                 .args(&common_args),
@@ -160,7 +160,7 @@ pub fn amend_processor(
             let blake2b = blake2b(m, env_variable);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let address = m.value_of("address").unwrap();
             let content = m.value_of("content").unwrap();
@@ -171,7 +171,7 @@ pub fn amend_processor(
             let blake2b = blake2b(m, env_variable);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
@@ -192,7 +192,7 @@ pub fn amend_processor(
             let blake2b = blake2b(m, env_variable);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
@@ -203,7 +203,7 @@ pub fn amend_processor(
         ("get-h256", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();

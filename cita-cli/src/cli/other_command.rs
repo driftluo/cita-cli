@@ -93,7 +93,9 @@ pub fn transfer_processor(
             _ => "http://127.0.0.1:1337",
         }));
     let blake2b = blake2b(sub_matches, env_variable);
-    client.set_private_key(parse_privkey(sub_matches.value_of("private-key").unwrap())?);
+    client.set_private_key(&parse_privkey(
+        sub_matches.value_of("private-key").unwrap(),
+    )?);
     let address = sub_matches.value_of("address").unwrap();
     let quota = sub_matches
         .value_of("quota")

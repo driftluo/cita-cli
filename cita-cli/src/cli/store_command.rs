@@ -99,7 +99,7 @@ pub fn store_processor(
             let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             client.store_data(content, quota, blake2b)
         }
@@ -120,7 +120,7 @@ pub fn store_processor(
             let address = m.value_of("address").unwrap();
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             client.store_abi(address, content, quota, blake2b)
         }
