@@ -35,9 +35,10 @@ if you want the latest version, compile the source code like follow:
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
-$ cd cita-cli
-$ cargo build --release
+$ cd cita-cli/cita-cli
+$ cargo install
 ```
+it will install on `~/.cargo/bin/cita-cli`
 
 If you want to support both the secp256k1 and ed25519 algorithms, as follows and make sure clang version > 3.9
 
@@ -53,7 +54,7 @@ $ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
-$ cargo build --release --features blake2b_hash
+$ cargo install --features blake2b_hash
 $ cd ..
 ```
 
@@ -78,7 +79,7 @@ $ rustup target add x86_64-unknown-linux-musl
 - Third, build
 
 ```bash
-$ cargo build --release --target x86_64-unknown-linux-musl
+$ cargo install --target x86_64-unknown-linux-musl
 ```
 
 > Note: only for secp256k1 version, since libsodium is dynamically linked,
@@ -93,7 +94,7 @@ or the corresponding environment variable cli will get it automatically.
 #### Interactive mode(recommend)
 
 ```bash
-$ ./target/debug/cita-cli
+$ cita-cli
 
 [url: http://127.0.0.1:1337] [encryption: secp256k1] [color: true]
 cita> switch --host http://121.196.200.225:1337
@@ -125,7 +126,7 @@ cita> exit
 
 - Get chain height
 ```bash
-$ ./target/debug/cita-cli rpc blockNumber --url http://121.196.200.225:1337
+$ cita-cli rpc blockNumber --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": "0x1bc7f",
@@ -135,7 +136,7 @@ $ ./target/debug/cita-cli rpc blockNumber --url http://121.196.200.225:1337
 
 - Send transaction
 ```bash
-$ ./target/debug/cita-cli rpc sendRawTransaction \
+$ cita-cli rpc sendRawTransaction \
     --private-key "0x352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
     --code "0x606060405234156100105760006000fd5b610015565b60e0806100236000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604b5780636d4ce63c14606c576045565b60006000fd5b341560565760006000fd5b606a60048080359060200190919050506093565b005b341560775760006000fd5b607d60a3565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060b1565b905600a165627a7a72305820942223976c6dd48a3aa1d4749f45ad270915cfacd9c0bf3583c018d4c86f9da20029" \
     --height 111146 \
@@ -152,7 +153,7 @@ $ ./target/debug/cita-cli rpc sendRawTransaction \
 
 - Get transaction receipt
 ```bash
-$ ./target/debug/cita-cli rpc getTransactionReceipt \
+$ cita-cli rpc getTransactionReceipt \
     --hash "0x16251c374ee87eae41cbd9203eea481b861738a19c19df9d3c6603b9fbe84478" \
     --url http://121.196.200.225:1337
 {
@@ -176,7 +177,7 @@ $ ./target/debug/cita-cli rpc getTransactionReceipt \
 
 - Call contract function
 ```bash
-$ ./target/debug/cita-cli rpc sendRawTransaction \
+$ cita-cli rpc sendRawTransaction \
     --private-key "0x352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
     --address "0x73552bc4e960a1d53013b40074569ea05b950b4d" \
     --code "0x60fe47b10000000000000000000000000000000000000000000000000000000000000001" \
@@ -193,7 +194,7 @@ $ ./target/debug/cita-cli rpc sendRawTransaction \
 
 - Get call result
 ```bash
-$ ./target/debug/cita-cli rpc call \
+$ cita-cli rpc call \
     --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 \
     --data 0x6d4ce63c \
     --height latest \
@@ -207,7 +208,7 @@ $ ./target/debug/cita-cli rpc call \
 
 - Create new key pair
 ```bash
-$ ./target/debug/cita-cli key create
+$ cita-cli key create
 {
   "address": "0x53ca05180d61bdc1c57b9c819c7545a87b1f3a1d",
   "private": "0x49b7b71ce0120d727db74dde8cf7bec89626b5ff2f5c7522f4b8d4ffc878f2b7",
@@ -217,7 +218,7 @@ $ ./target/debug/cita-cli key create
 
 - Generate public keys and addresses based on private keys
 ```bash
-$ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
+$ cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 {
   "address": "0x9dcd6b234e2772c5451fd4ccf7582f4283140697",
   "private": "0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9",
@@ -227,9 +228,9 @@ $ ./target/debug/cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c
 
 - ABI generate
 ```bash
-$ ./target/debug/cita-cli ethabi encode params --param uint256 16
+$ cita-cli ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-$ ./target/debug/cita-cli ethabi encode function ../HelloWorld.abi update --param 16
+$ cita-cli ethabi encode function ../HelloWorld.abi update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
 
