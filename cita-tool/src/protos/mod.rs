@@ -5,14 +5,11 @@ use client::remove_0x;
 use crypto::PubKey;
 #[cfg(feature = "blake2b_hash")]
 use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
-use crypto::{
-    sha3_sign, CreateKey, Hashable, Message as SignMessage, Sha3KeyPair, Sha3PrivKey, Signature,
-};
+use crypto::{sha3_sign, CreateKey, Hashable, Sha3KeyPair, Sha3PrivKey, Signature};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
 use serde_json::Value;
-use types::H256;
 
 use error::ToolError;
 
@@ -45,7 +42,7 @@ impl UnverifiedTransaction {
     /// Get the transaction public key
     pub fn public_key(&self, blake2b: bool) -> Result<PubKey, String> {
         let bytes: Vec<u8> = self.get_transaction().write_to_bytes().unwrap();
-        let hash = H256::from(bytes.crypt_hash(blake2b));
+        let hash = bytes.crypt_hash(blake2b);
         let signature = self.get_signature();
         let sig = Signature::from(signature);
 
@@ -78,7 +75,7 @@ impl Transaction {
         let bytes: Vec<u8> = self.write_to_bytes().unwrap();
         let hash = bytes.crypt_hash(false);
         unverified_tx.set_transaction(self.clone());
-        let signature = sha3_sign(&sk, &SignMessage::from(hash)).unwrap();
+        let signature = sha3_sign(&sk, &hash).unwrap();
         unverified_tx.set_signature(signature.to_vec());
         unverified_tx.set_crypto(Crypto::SECP);
         unverified_tx
@@ -107,7 +104,7 @@ impl Transaction {
         let bytes: Vec<u8> = self.write_to_bytes().unwrap();
         let hash = bytes.crypt_hash(true);
         unverified_tx.set_transaction(self.clone());
-        let signature = blake2b_sign(&sk, &SignMessage::from(hash)).unwrap();
+        let signature = blake2b_sign(&sk, &hash).unwrap();
         unverified_tx.set_signature(signature.to_vec());
         unverified_tx.set_crypto(Crypto::SECP);
         unverified_tx

@@ -38,8 +38,8 @@ use cli::{
 use interactive::GlobalConfig;
 use printer::Printer;
 
-const ENV_JSONRPC_URL: &'static str = "JSONRPC_URL";
-const DEFAULT_JSONRPC_URL: &'static str = "http://127.0.0.1:1337";
+const ENV_JSONRPC_URL: &str = "JSONRPC_URL";
+const DEFAULT_JSONRPC_URL: &str = "http://127.0.0.1:1337";
 
 fn main() {
     dotenv().ok();
@@ -47,7 +47,7 @@ fn main() {
     let mut env_map: HashMap<String, String> = HashMap::from_iter(env::vars());
     let default_jsonrpc_url = env_map
         .remove(ENV_JSONRPC_URL)
-        .unwrap_or(DEFAULT_JSONRPC_URL.to_owned());
+        .unwrap_or_else(|| DEFAULT_JSONRPC_URL.to_owned());
 
     let printer = Printer::default();
     let env_variable = GlobalConfig::new();
@@ -73,7 +73,7 @@ fn main() {
             Ok(())
         }
     } {
-        printer.eprintln(&Rc::new(format!("{}", err)), true);
+        printer.eprintln(&Rc::new(err.to_string()), true);
         process::exit(1);
     }
 }

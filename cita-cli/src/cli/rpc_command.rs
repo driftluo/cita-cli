@@ -399,7 +399,7 @@ pub fn rpc_processor(
                 client.set_chain_id(chain_id);
             }
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();

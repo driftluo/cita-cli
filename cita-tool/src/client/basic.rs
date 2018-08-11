@@ -112,14 +112,14 @@ impl Client {
     }
 
     /// Set private key
-    pub fn set_private_key(&mut self, private_key: PrivateKey) -> &mut Self {
+    pub fn set_private_key(&mut self, private_key: &PrivateKey) -> &mut Self {
         match private_key {
             PrivateKey::Sha3(sha3_private_key) => {
-                self.sha3_private_key = Some(sha3_private_key);
+                self.sha3_private_key = Some(*sha3_private_key);
             }
             #[cfg(feature = "blake2b_hash")]
             PrivateKey::Blake2b(blake2b_private_key) => {
-                self.blake2b_private_key = Some(blake2b_private_key)
+                self.blake2b_private_key = Some(*blake2b_private_key)
             }
             PrivateKey::Null => {}
         }
@@ -253,7 +253,7 @@ impl Client {
         let data = decode(remove_0x(transaction_options.code())).map_err(ToolError::Decode)?;
         let current_height = transaction_options
             .current_height()
-            .unwrap_or(self.get_current_height()?.unwrap());
+            .unwrap_or(self.get_current_height()?);
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -265,7 +265,7 @@ impl Client {
         let value = transaction_options
             .value()
             .map(|value| value.lower_hex())
-            .unwrap_or(U256::zero().lower_hex());
+            .unwrap_or_else(|| U256::zero().lower_hex());
         tx.set_value(
             decode(format!("{}{}", "0".repeat(64 - value.len()), value))
                 .map_err(ToolError::Decode)?,
@@ -278,7 +278,7 @@ impl Client {
     #[inline]
     pub fn generate_sign_transaction(
         &self,
-        tx: Transaction,
+        tx: &Transaction,
         blake2b: bool,
     ) -> Result<String, ToolError> {
         if blake2b {
@@ -287,8 +287,8 @@ impl Client {
                 return Ok(format!(
                     "0x{}",
                     encode(
-                        tx.blake2b_build_unverified(*self.blake2b_private_key().ok_or(
-                            ToolError::Customize(
+                        tx.blake2b_build_unverified(*self.blake2b_private_key().ok_or_else(
+                            || ToolError::Customize(
                                 "The provided private key do not match the algorithm".to_string()
                             )
                         )?).write_to_bytes()
@@ -306,11 +306,11 @@ impl Client {
             Ok(format!(
                 "0x{}",
                 encode(
-                    tx.sha3_build_unverified(*self.sha3_private_key().ok_or(
+                    tx.sha3_build_unverified(*self.sha3_private_key().ok_or_else(|| {
                         ToolError::Customize(
-                            "The provided private key do not match the algorithm".to_string()
+                            "The provided private key do not match the algorithm".to_string(),
                         )
-                    )?).write_to_bytes()
+                    })?).write_to_bytes()
                         .map_err(ToolError::Proto)?
                 )
             ))
@@ -354,7 +354,7 @@ impl Client {
                 .map_err(ToolError::Decode)?
                 .as_slice(),
         ).map_err(ToolError::Proto)?;
-        let byte_code = self.generate_sign_transaction(tx, blake2b)?;
+        let byte_code = self.generate_sign_transaction(&tx, blake2b)?;
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -387,13 +387,13 @@ impl Client {
     }
 
     /// Get block height
-    pub fn get_current_height(&self) -> Result<Option<u64>, ToolError> {
+    pub fn get_current_height(&self) -> Result<u64, ToolError> {
         let params =
             JsonRpcParams::new().insert("method", ParamsValue::String(String::from(BLOCK_NUMBER)));
         let response = self.send_request(vec![params].into_iter())?.pop().unwrap();
 
         if let Some(ResponseValue::Singe(ParamsValue::String(height))) = response.result() {
-            Ok(Some(u64::from_str_radix(remove_0x(&height), 16).unwrap()))
+            Ok(u64::from_str_radix(remove_0x(&height), 16).map_err(ToolError::Parse)?)
         } else {
             Err(ToolError::Customize(
                 "Corresponding address does not respond".to_string(),
@@ -544,7 +544,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         blake2b: bool,
     ) -> Self::RpcResult {
         let tx = self.generate_transaction(transaction_option)?;
-        let byte_code = self.generate_sign_transaction(tx, blake2b)?;
+        let byte_code = self.generate_sign_transaction(&tx, blake2b)?;
         Ok(self.send_signed_transaction(&byte_code)?)
     }
 

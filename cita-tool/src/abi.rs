@@ -19,7 +19,7 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                         .lower_hex();
                     StrictTokenizer::tokenize(param, &format!("{}{}", "0".repeat(64 - y.len()), y))
                 } else if format!("{}", param) == "int256" {
-                    let x = if value.starts_with("-") {
+                    let x = if value.starts_with('-') {
                         let x = (!U256::from_dec_str(&value[1..])
                             .map_err(|_| "Can't parse into u256")?
                             + U256::from(1))

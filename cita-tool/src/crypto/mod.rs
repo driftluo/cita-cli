@@ -259,7 +259,7 @@ impl fmt::Display for Signature {
             Signature::Sha3(sig) => write!(f, "{}", encode(sig.to_vec())),
             #[cfg(feature = "blake2b_hash")]
             Signature::Blake2b(sig) => write!(f, "{}", encode(sig.0[..].to_vec())),
-            Signature::Null => write!(f, "{}", "null"),
+            Signature::Null => write!(f, "null"),
         }
     }
 }

@@ -135,7 +135,7 @@ pub fn tx_processor(
                 client.set_chain_id(chain_id);
             }
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
@@ -167,7 +167,7 @@ pub fn tx_processor(
         ("sendTransaction", Some(m)) => {
             let blake2b = blake2b(sub_matches, env_variable);
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key)?);
             }
             let byte_code = m.value_of("byte-code").unwrap();
             client.send_transaction(byte_code, blake2b)

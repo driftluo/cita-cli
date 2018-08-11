@@ -8,7 +8,7 @@ use std::str;
 
 macro_rules! colorize {
     ($s:expr, $color:expr) => {{
-        let colored_string = match *$color {
+        let colored_string = match $color {
             Color::Black => $s.black(),
             Color::Blue => $s.blue(),
             Color::Cyan => $s.cyan(),
