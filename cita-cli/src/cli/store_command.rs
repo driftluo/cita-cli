@@ -95,7 +95,7 @@ pub fn store_processor(
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("private-key") {
@@ -105,7 +105,7 @@ pub fn store_processor(
         }
         ("abi", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
                 None => {
