@@ -404,7 +404,7 @@ pub fn rpc_processor(
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let value = m.value_of("value").map(|value| parse_u256(value).unwrap());
             let tx_options = TransactionOptions::new()
                 .set_code(code)

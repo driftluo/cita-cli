@@ -164,7 +164,7 @@ pub fn amend_processor(
             }
             let address = m.value_of("address").unwrap();
             let content = m.value_of("content").unwrap();
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_code(address, content, quota, blake2b)
         }
         ("abi", Some(m)) => {
@@ -185,7 +185,7 @@ pub fn amend_processor(
                 }
             };
             let address = m.value_of("address").unwrap();
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_abi(address, content, quota, blake2b)
         }
         ("kv-h256", Some(m)) => {
@@ -197,7 +197,7 @@ pub fn amend_processor(
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
             let h256_value = m.value_of("value").unwrap();
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_h256kv(address, h256_key, h256_value, quota, blake2b)
         }
         ("get-h256", Some(m)) => {
@@ -207,7 +207,7 @@ pub fn amend_processor(
             }
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
-            let quota = m.value_of("quota").map(|s| s.parse::<u64>().unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_get_h256kv(address, h256_key, quota, blake2b)
         }
         _ => {
