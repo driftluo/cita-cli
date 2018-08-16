@@ -59,7 +59,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
     // parse str to LitStr
     let path = syn::LitStr::new(&path, proc_macro2::Span::call_site());
     // parse str to Ident
-    let trait_name = syn::Ident::new(&format!("{}", trait_name), proc_macro2::Span::call_site());
+    let trait_name = syn::Ident::new(&trait_name.to_string(), proc_macro2::Span::call_site());
     let address = syn::LitStr::new(&address, proc_macro2::Span::call_site());
 
     let output = if let syn::Data::Struct(data) = input.data {
@@ -70,13 +70,10 @@ pub fn contract(input: TokenStream) -> TokenStream {
         ].into_iter()
             .collect::<HashSet<Option<syn::Ident>>>();
 
-        match data.fields {
-            syn::Fields::Named(ref x) => {
-                if x.named.len() < 3 {
-                    panic!("Must have 3 more field");
-                }
+        if let syn::Fields::Named(ref x) = data.fields {
+            if x.named.len() < 3 {
+                panic!("Must have 3 more field");
             }
-            _ => {}
         }
 
         data.fields.iter().for_each(|i| {

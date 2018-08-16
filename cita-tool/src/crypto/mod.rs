@@ -274,6 +274,7 @@ impl fmt::Display for Signature {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
     use KeyPair;
 
     #[test]
