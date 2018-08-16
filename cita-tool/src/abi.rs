@@ -11,8 +11,8 @@ use error::ToolError;
 pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, ToolError> {
     params
         .iter()
-        .map(|&(ref param, value)| match lenient {
-            true => {
+        .map(|&(ref param, value)| {
+            if lenient {
                 if format!("{}", param) == "uint256" {
                     let y = U256::from_dec_str(value)
                         .map_err(|_| "Can't parse into u256")?
@@ -35,8 +35,9 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                 } else {
                     LenientTokenizer::tokenize(param, value)
                 }
+            } else {
+                StrictTokenizer::tokenize(param, value)
             }
-            false => StrictTokenizer::tokenize(param, value),
         })
         .collect::<Result<_, _>>()
         .map_err(|e| ToolError::Abi(format!("{}", e)))

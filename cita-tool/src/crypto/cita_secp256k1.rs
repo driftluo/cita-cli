@@ -5,8 +5,8 @@ use secp256k1::{
     key::{self, SecretKey},
     Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
 };
+use std::fmt;
 use std::ops::{Deref, DerefMut};
-use std::{fmt, mem};
 use types::{Address, H256};
 
 lazy_static! {
@@ -45,10 +45,7 @@ impl CreateKey for Sha3KeyPair {
         let mut pubkey = Sha3PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
 
-        let keypair = Sha3KeyPair {
-            privkey: privkey,
-            pubkey: pubkey,
-        };
+        let keypair = Sha3KeyPair { privkey, pubkey };
 
         Ok(keypair)
     }
@@ -61,10 +58,7 @@ impl CreateKey for Sha3KeyPair {
         privkey.0.copy_from_slice(&s[0..32]);
         let mut pubkey = Sha3PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
-        Sha3KeyPair {
-            privkey: privkey,
-            pubkey: pubkey,
-        }
+        Sha3KeyPair { privkey, pubkey }
     }
 
     fn privkey(&self) -> &Self::PrivKey {
@@ -131,7 +125,7 @@ impl Sh3Signature {
         let rsig = RecoverableSignature::from_compact(
             context,
             &self.0[0..64],
-            RecoveryId::from_i32(self.0[64] as i32)?,
+            RecoveryId::from_i32(i32::from(self.0[64] as i8))?,
         )?;
         let public = context.recover(&SecpMessage::from_slice(&message.0[..])?, &rsig)?;
         let serialized = public.serialize_vec(context, false);
@@ -146,7 +140,7 @@ impl Sh3Signature {
 pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Sh3Signature, Error> {
     let context = &SECP256K1;
     // no way to create from raw byte array.
-    let sec: &SecretKey = unsafe { mem::transmute(privkey) };
+    let sec: &SecretKey = unsafe { &*(privkey as *const H256 as *const SecretKey) };
     let s = context.sign_recoverable(&SecpMessage::from_slice(&message.0[..])?, sec)?;
     let (rec_id, data) = s.serialize_compact(context);
     let mut data_arr = [0; 65];

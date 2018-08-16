@@ -15,6 +15,7 @@ shell-words = "^0.1.0"
 linefeed = { version = "^0.5.0", git = "https://github.com/murarth/linefeed" }
 cita-tool = { path = "../cita-tool" }
 syntect = { version = "^2.0.1", optional = true }
+dirs = "^1.0.3"
 ## lazy_static = "^1.0"
 
 [features]

@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use ansi_term::Colour::{Red, Yellow};
 use clap;
+use dirs;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
@@ -38,7 +39,7 @@ pub fn start(url: &str) -> io::Result<()> {
     let mut url = url.to_string();
     let mut env_variable = GlobalConfig::new();
 
-    let mut cita_cli_dir = env::home_dir().unwrap();
+    let mut cita_cli_dir = dirs::home_dir().unwrap();
     cita_cli_dir.push(".cita-cli");
     if !cita_cli_dir.as_path().exists() {
         fs::create_dir(&cita_cli_dir)?;
@@ -165,7 +166,7 @@ pub fn start(url: &str) -> io::Result<()> {
                         Ok(())
                     }
                     ("search", Some(m)) => {
-                        search_processor(Arc::new(parser.clone()), m);
+                        search_processor(&parser, m);
                         Ok(())
                     }
                     ("tx", Some(m)) => tx_processor(m, &printer, Some(url.as_str()), &env_variable),
@@ -206,7 +207,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
         }
     }
 
-    fn get_completions(app: Arc<clap::App<'a, 'b>>, args: &[String]) -> Vec<Completion> {
+    fn get_completions(app: &Arc<clap::App<'a, 'b>>, args: &[String]) -> Vec<Completion> {
         let args_set = args.iter().collect::<HashSet<&String>>();
         let switched_completions =
             |short: Option<char>, long: Option<&str>, multiple: bool, required: bool| {
@@ -320,7 +321,7 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
             args.iter().map(|s| s.as_str()).peekable(),
         ).map(|current_app| {
             let word_lower = word.to_lowercase();
-            Self::get_completions(current_app, &args)
+            Self::get_completions(&current_app, &args)
                 .into_iter()
                 .filter(|s| word.is_empty() || s.completion.to_lowercase().contains(&word_lower))
                 .collect::<Vec<_>>()

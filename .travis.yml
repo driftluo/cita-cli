@@ -3,6 +3,8 @@ rust:
   - stable
 before_script:
   - rustup component add rustfmt-preview
+  - rustup install nightly
+  - rustup component add clippy-preview --toolchain=nightly
 addons:
   apt:
     sources:
@@ -29,4 +31,4 @@ install:
 script:
   # For speed up the CI process
   #   See: https://docs.travis-ci.com/user/build-stages/#Data-persistence-between-stages-and-jobs
-  - cargo fmt -- --check && cargo build --all-features --all && cargo test --all-features --all
+  - cargo +nightly clippy && cargo fmt -- --check && cargo build --all-features --all && cargo test --all-features --all

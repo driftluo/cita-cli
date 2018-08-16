@@ -156,11 +156,8 @@ impl Printable for JsonRpcResponse {
 
 impl Printable for serde_json::Value {
     fn rc_string(&self, format: OutputFormat, color: bool) -> Rc<String> {
-        match (format, self) {
-            (OutputFormat::Raw, serde_json::Value::String(content)) => {
-                return Rc::new(content.clone());
-            }
-            _ => {}
+        if let (OutputFormat::Raw, serde_json::Value::String(content)) = (format, self) {
+            return Rc::new(content.clone());
         }
         let content = if color {
             Colorizer::arbitrary().colorize_json_value(self).unwrap()

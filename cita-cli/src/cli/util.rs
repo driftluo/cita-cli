@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::sync::Arc;
 
 use clap::{App, ArgMatches};
 
@@ -25,7 +24,7 @@ pub fn parse_u64(height: &str) -> Result<u64, String> {
 
 /// Attempt to resolve the private key
 pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
-    let _ = is_hex(hash)?;
+    is_hex(hash)?;
     Ok(PrivateKey::from_str(remove_0x(hash))?)
 }
 
@@ -70,8 +69,8 @@ pub fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {
 
 /// Search command tree
 pub fn search_app<'a, 'b>(
-    app: Arc<App<'a, 'b>>,
-    prefix: Option<Vec<String>>,
+    app: &App<'a, 'b>,
+    prefix: &Option<Vec<String>>,
     commands: &mut Vec<Vec<String>>,
 ) {
     for inner_app in &app.p.subcommands {
@@ -93,7 +92,7 @@ pub fn search_app<'a, 'b>(
                 Some(vec![inner_app.p.meta.name.clone()])
             };
 
-            search_app(Arc::new(inner_app.to_owned()), prefix, commands);
+            search_app(inner_app, &prefix, commands);
         };
     }
 }

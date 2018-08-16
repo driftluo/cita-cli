@@ -371,18 +371,16 @@ impl Client {
     pub fn get_chain_id(&mut self) -> Result<u32, ToolError> {
         if self.chain_id.is_some() {
             Ok(self.chain_id.unwrap())
-        } else {
-            if let Some(ResponseValue::Map(mut value)) = self.get_metadata("latest")?.result() {
-                match value.remove("chainId").unwrap() {
-                    ParamsValue::Int(chain_id) => {
-                        self.chain_id = Some(chain_id as u32);
-                        return Ok(chain_id as u32);
-                    }
-                    _ => return Ok(0),
+        } else if let Some(ResponseValue::Map(mut value)) = self.get_metadata("latest")?.result() {
+            match value.remove("chainId").unwrap() {
+                ParamsValue::Int(chain_id) => {
+                    self.chain_id = Some(chain_id as u32);
+                    return Ok(chain_id as u32);
                 }
-            } else {
-                Ok(0)
+                _ => return Ok(0),
             }
+        } else {
+            Ok(0)
         }
     }
 

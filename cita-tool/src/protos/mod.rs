@@ -5,25 +5,23 @@ use client::remove_0x;
 use crypto::PubKey;
 #[cfg(feature = "blake2b_hash")]
 use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
-use crypto::{sha3_sign, CreateKey, Hashable, Sha3KeyPair, Sha3PrivKey, Signature};
+use crypto::{
+    pubkey_to_address, sha3_sign, CreateKey, Hashable, Sha3KeyPair, Sha3PrivKey, Signature,
+};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
 use serde_json::Value;
 
 use error::ToolError;
+use std::str::FromStr;
 
 impl UnverifiedTransaction {
-    /// Parse UnverifiedTransaction from hex string
-    pub fn from_str(content: &str) -> Result<Self, ToolError> {
-        let bytes = hex::decode(remove_0x(content)).map_err(ToolError::Decode)?;
-        parse_from_bytes(&bytes).map_err(ToolError::Proto)
-    }
-
     /// UnverifiedTransaction as JSON Value
-    pub fn to_json(&self) -> Value {
+    pub fn to_json(&self, blake2b: bool) -> Result<Value, String> {
         let tx = self.transaction.get_ref();
-        json!({
+        let pub_key = self.public_key(blake2b)?;
+        Ok(json!({
             "transaction": {
                 "to": tx.to,
                 "nonce": tx.nonce,
@@ -33,10 +31,12 @@ impl UnverifiedTransaction {
                 "value": tx.value,
                 "chain_id": tx.chain_id,
                 "version": tx.version,
+                "pub_key": pub_key.to_string(),
+                "sender": pubkey_to_address(&pub_key),
             },
             "signature": format!("0x{}", hex::encode(&self.signature)),
             "crypto": self.crypto.value(),
-        })
+        }))
     }
 
     /// Get the transaction public key
@@ -50,6 +50,16 @@ impl UnverifiedTransaction {
             Crypto::SECP => sig.recover(&hash),
             _ => Err("Mismatched encryption algorithm".to_string()),
         }
+    }
+}
+
+impl FromStr for UnverifiedTransaction {
+    type Err = ToolError;
+
+    /// Parse UnverifiedTransaction from hex string
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
+        let bytes = hex::decode(remove_0x(content)).map_err(ToolError::Decode)?;
+        parse_from_bytes(&bytes).map_err(ToolError::Proto)
     }
 }
 

@@ -7,7 +7,7 @@ use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64, search_app};
 use interactive::GlobalConfig;
 use printer::Printer;
 
-use std::sync::Arc;
+use std::collections::BTreeSet;
 use std::time::SystemTime;
 
 /// Search command tree
@@ -22,7 +22,7 @@ pub fn search_command() -> App<'static, 'static> {
 }
 
 /// Processor search command
-pub fn search_processor<'a, 'b>(app: Arc<App<'a, 'b>>, sub_matches: &ArgMatches) {
+pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
     let keyword = sub_matches
         .values_of("keyword")
         .unwrap()
@@ -30,11 +30,13 @@ pub fn search_processor<'a, 'b>(app: Arc<App<'a, 'b>>, sub_matches: &ArgMatches)
         .collect::<Vec<String>>()
         .join(" ");
     let mut value: Vec<Vec<String>> = Vec::new();
-    search_app(app, None, &mut value);
+    search_app(app, &None, &mut value);
     let result = value
         .into_iter()
         .map(|cmd| cmd.join(" "))
         .filter(|cmd| cmd.to_lowercase().contains(&keyword))
+        .collect::<BTreeSet<String>>()
+        .into_iter()
         .collect::<Vec<String>>()
         .join("\n");
     println!("{}", result);
@@ -141,8 +143,8 @@ pub fn benchmark_processor(
             assert_eq!(result.len(), 1000);
             match start.elapsed() {
                 Ok(elapsed) => {
-                    let duration = elapsed.as_secs() as f64
-                        + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+                    let duration = f64::from_bits(elapsed.as_secs())
+                        + (f64::from_bits(elapsed.subsec_nanos().into()) / 1_000_000_000.0);
                     printer.println(
                         &format!(
                             "A total of 1,000 requests were sent, which took {} seconds and tps is {}",

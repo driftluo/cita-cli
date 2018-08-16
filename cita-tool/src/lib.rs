@@ -1,6 +1,6 @@
 //! A easy-use CITA command line tool
 
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(missing_docs)]
 
 #[cfg(feature = "blake2b_hash")]
