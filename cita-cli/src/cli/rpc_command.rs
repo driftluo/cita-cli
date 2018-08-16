@@ -1,14 +1,12 @@
-use ansi_term::Colour::Yellow;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::{Client, ClientExt};
-use cita_tool::{
-    pubkey_to_address, ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction,
-};
+use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction};
 
 use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
+use std::str::FromStr;
 
 /// Generate rpc sub command
 pub fn rpc_command() -> App<'static, 'static> {
@@ -470,18 +468,9 @@ pub fn rpc_processor(
                             let tx = UnverifiedTransaction::from_str(&content).unwrap();
                             printer
                                 .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
-                            printer.println(&tx.to_json(), is_color);
+                            printer.println(&tx.to_json(blake2b)?, is_color);
                             printer.println(
                                 &"---- [UnverifiedTransaction] ----\n".to_owned(),
-                                is_color,
-                            );
-                            let pub_key = tx.public_key(blake2b)?;
-                            printer.println(
-                                &format!(
-                                    "{} 0x{:#x}",
-                                    Yellow.paint("[from]:"),
-                                    pubkey_to_address(&pub_key)
-                                ),
                                 is_color,
                             );
                         }

@@ -89,3 +89,9 @@ impl<'a> TransactionOptions<'a> {
         self.code = "0x";
     }
 }
+
+impl Default for TransactionOptions<'static> {
+    fn default() -> Self {
+        TransactionOptions::new()
+    }
+}

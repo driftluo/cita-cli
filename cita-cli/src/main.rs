@@ -9,6 +9,7 @@ extern crate linefeed;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
+extern crate dirs;
 extern crate shell_words;
 #[cfg(feature = "syntect")]
 extern crate syntect;
@@ -26,7 +27,6 @@ use std::env;
 use std::iter::FromIterator;
 use std::process;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use dotenv::dotenv;
 
@@ -63,7 +63,7 @@ fn main() {
         ("store", Some(m)) => store_processor(m, &printer, None, &env_variable),
         ("amend", Some(m)) => amend_processor(m, &printer, None, &env_variable),
         ("search", Some(m)) => {
-            search_processor(Arc::new(parser), m);
+            search_processor(&parser, m);
             Ok(())
         }
         ("tx", Some(m)) => tx_processor(m, &printer, None, &env_variable),

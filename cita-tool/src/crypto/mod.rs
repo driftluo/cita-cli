@@ -48,9 +48,11 @@ pub enum PrivateKey {
     Null,
 }
 
-impl PrivateKey {
+impl FromStr for PrivateKey {
+    type Err = String;
+
     /// Create private key
-    pub fn from_str(hex: &str) -> Result<Self, String> {
+    fn from_str(hex: &str) -> Result<Self, Self::Err> {
         if hex.len() > 65 {
             #[cfg(feature = "blake2b_hash")]
             {
@@ -97,9 +99,11 @@ pub enum PubKey {
     Null,
 }
 
-impl PubKey {
+impl FromStr for PubKey {
+    type Err = String;
+
     /// Create pubkey key
-    pub fn from_str(hex: &str) -> Result<Self, String> {
+    fn from_str(hex: &str) -> Result<Self, Self::Err> {
         if hex.len() < 65 {
             #[cfg(feature = "blake2b_hash")]
             {
@@ -162,20 +166,6 @@ impl KeyPair {
         }
     }
 
-    /// New from private key
-    pub fn from_str(private_key: &str) -> Result<Self, String> {
-        match PrivateKey::from_str(private_key)? {
-            PrivateKey::Sha3(private) => Ok(KeyPair::Sha3(
-                Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
-            )),
-            #[cfg(feature = "blake2b_hash")]
-            PrivateKey::Blake2b(private) => Ok(KeyPair::Blake2b(
-                Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
-            )),
-            PrivateKey::Null => Ok(KeyPair::Null),
-        }
-    }
-
     /// Get private key
     pub fn privkey(&self) -> PrivateKey {
         match self {
@@ -207,6 +197,24 @@ impl KeyPair {
     }
 }
 
+impl FromStr for KeyPair {
+    type Err = String;
+
+    /// New from private key
+    fn from_str(private_key: &str) -> Result<Self, Self::Err> {
+        match PrivateKey::from_str(private_key)? {
+            PrivateKey::Sha3(private) => Ok(KeyPair::Sha3(
+                Sha3KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
+            )),
+            #[cfg(feature = "blake2b_hash")]
+            PrivateKey::Blake2b(private) => Ok(KeyPair::Blake2b(
+                Blake2bKeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
+            )),
+            PrivateKey::Null => Ok(KeyPair::Null),
+        }
+    }
+}
+
 /// Signature
 pub enum Signature {
     /// sha3
@@ -220,7 +228,7 @@ pub enum Signature {
 
 impl Signature {
     /// New from slice
-    pub fn from<'a>(slice: &'a [u8]) -> Self {
+    pub fn from(slice: &[u8]) -> Self {
         if slice.len() == 96 {
             #[cfg(feature = "blake2b_hash")]
             let key_pair = Signature::Blake2b(Blake2bSignature::from(slice));
@@ -266,6 +274,7 @@ impl fmt::Display for Signature {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
     use KeyPair;
 
     #[test]

@@ -39,7 +39,7 @@ impl Default for JsonRpcParams {
             String::from("jsonrpc"),
             ParamsValue::String("2.0".to_string()),
         );
-        JsonRpcParams { extra: extra }
+        JsonRpcParams { extra }
     }
 }
 

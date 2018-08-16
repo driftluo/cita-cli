@@ -7,6 +7,8 @@ use cli::parse_privkey;
 use interactive::GlobalConfig;
 use printer::Printer;
 
+use std::str::FromStr;
+
 /// Key related commands
 pub fn key_command() -> App<'static, 'static> {
     App::new("key")

@@ -1,14 +1,12 @@
-use ansi_term::Colour::Yellow;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::Client;
-use cita_tool::{
-    encode, pubkey_to_address, ProtoMessage, TransactionOptions, UnverifiedTransaction,
-};
+use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
 use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
+use std::str::FromStr;
 
 /// Transaction command
 pub fn tx_command() -> App<'static, 'static> {
@@ -176,16 +174,7 @@ pub fn tx_processor(
             let blake2b = blake2b(sub_matches, env_variable);
             let content = m.value_of("content").unwrap();
             let tx = UnverifiedTransaction::from_str(&content).map_err(|err| format!("{}", err))?;
-            let pub_key = tx.public_key(blake2b)?;
-            printer.println(&tx.to_json(), is_color);
-            printer.println(
-                &format!(
-                    "{} 0x{:#x}",
-                    Yellow.paint("[from]:"),
-                    pubkey_to_address(&pub_key)
-                ),
-                is_color,
-            );
+            printer.println(&tx.to_json(blake2b)?, is_color);
             return Ok(());
         }
         _ => {
