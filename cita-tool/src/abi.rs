@@ -17,19 +17,19 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                     let y = U256::from_dec_str(value)
                         .map_err(|_| "Can't parse into u256")?
                         .lower_hex();
-                    StrictTokenizer::tokenize(param, &format!("{}{}", "0".repeat(64 - y.len()), y))
+                    StrictTokenizer::tokenize(param, &format!("{:0>64}", y))
                 } else if format!("{}", param) == "int256" {
                     let x = if value.starts_with('-') {
                         let x = (!U256::from_dec_str(&value[1..])
                             .map_err(|_| "Can't parse into u256")?
                             + U256::from(1))
                             .lower_hex();
-                        format!("{}{}", "f".repeat(64 - x.len()), x)
+                        format!("{:f>64}", x)
                     } else {
                         let x = U256::from_dec_str(value)
                             .map_err(|_| "Can't parse into u256")?
                             .lower_hex();
-                        format!("{}{}", "0".repeat(64 - x.len()), x)
+                        format!("{:0>64}", x)
                     };
                     StrictTokenizer::tokenize(param, &x)
                 } else {

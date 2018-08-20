@@ -62,6 +62,8 @@ pub const AMEND_CODE: &str = "0x02";
 pub const AMEND_KV_H256: &str = "0x03";
 /// amend get the value of db
 pub const AMEND_GET_KV_H256: &str = "0x04";
+/// amend account balance
+pub const AMEND_BALANCE: &str = "0x05";
 
 /// Jsonrpc client, Only to one chain
 #[derive(Debug)]
@@ -266,10 +268,7 @@ impl Client {
             .value()
             .map(|value| value.lower_hex())
             .unwrap_or_else(|| U256::zero().lower_hex());
-        tx.set_value(
-            decode(format!("{}{}", "0".repeat(64 - value.len()), value))
-                .map_err(ToolError::Decode)?,
-        );
+        tx.set_value(decode(format!("{:0>64}", value)).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id()?);
         Ok(tx)
     }
@@ -914,6 +913,15 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult;
+
+    /// Amend account balance
+    fn amend_balance(
+        &mut self,
+        address: &str,
+        balance: U256,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult;
 }
 
 impl AmendExt for Client {
@@ -988,6 +996,23 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_GET_KV_H256)).unwrap()));
+        self.send_raw_transaction(tx_options, blake2b)
+    }
+
+    fn amend_balance(
+        &mut self,
+        address: &str,
+        balance: U256,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let address = remove_0x(address);
+        let data = format!("0x{}{:0>64}", address, balance.lower_hex());
+        let tx_options = TransactionOptions::new()
+            .set_code(&data)
+            .set_address(AMEND_ADDRESS)
+            .set_quota(quota)
+            .set_value(Some(U256::from_str(remove_0x(AMEND_BALANCE)).unwrap()));
         self.send_raw_transaction(tx_options, blake2b)
     }
 }

@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::remove_0x;
 
-use cli::{blake2b, get_url, parse_privkey, parse_u64};
+use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -137,6 +137,26 @@ pub fn amend_command() -> App<'static, 'static> {
                 )
                 .args(&common_args),
         )
+        .subcommand(
+            SubCommand::with_name("balance")
+                .about("Amend account balance")
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The account address"),
+                )
+                .arg(
+                    Arg::with_name("balance")
+                        .long("balance")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
+                        .help("Account balance"),
+                )
+                .args(&common_args),
+        )
 }
 
 /// Amend processor
@@ -209,6 +229,19 @@ pub fn amend_processor(
             let h256_key = m.value_of("key").unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_get_h256kv(address, h256_key, quota, blake2b)
+        }
+        ("balance", Some(m)) => {
+            let blake2b = blake2b(m, env_variable);
+            if let Some(private_key) = m.value_of("admin-private-key") {
+                client.set_private_key(&parse_privkey(private_key)?);
+            }
+            let address = m.value_of("address").unwrap();
+            let balance = m
+                .value_of("balance")
+                .map(|value| parse_u256(value).unwrap())
+                .unwrap();
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
+            client.amend_balance(address, balance, quota, blake2b)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
