@@ -899,7 +899,7 @@ pub trait BatchTxExt: ContractCall {
             .fold(String::with_capacity(100), |mut a, b| {
                 let (address, parameters) = remove_0x(b).split_at(40);
                 a.push_str(address);
-                a.push_str(&format!("{:>8x}", parameters.len()));
+                a.push_str(&format!("{:>08x}", parameters.len() / 2));
                 a.push_str(parameters);
                 a
             });

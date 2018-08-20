@@ -681,7 +681,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .required(true)
                             .multiple(true)
                             .validator(|code| is_hex(code.as_str()))
-                            .help("Binary content of one transaction"),
+                            .help("Binary content of one transaction[encode(function + params)]"),
                     )
                     .arg(quota_arg.clone())
                     .arg(private_key.clone()),
