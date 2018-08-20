@@ -2,11 +2,12 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::Client;
 use cita_tool::client::system_contract::{
-    AdminClient, AdminExt, AuthorizationClient, GroupClient, GroupManageClient, NodeManageClient,
-    PermissionClient, PermissionManageClient, QuotaManageClient, RoleClient, RoleManageClient,
+    AdminClient, AdminExt, AuthorizationClient, BatchTxClient, GroupClient, GroupManageClient,
+    NodeManageClient, PermissionClient, PermissionManageClient, QuotaManageClient, RoleClient,
+    RoleManageClient,
 };
 use cita_tool::client::system_contract::{
-    AuthorizationExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
+    AuthorizationExt, BatchTxExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
     PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
 };
 
@@ -670,6 +671,22 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(quota_arg.clone()),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("BatchTx").subcommand(
+                SubCommand::with_name("multiTxs")
+                    .arg(
+                        Arg::with_name("tx-code")
+                            .long("tx-code")
+                            .takes_value(true)
+                            .required(true)
+                            .multiple(true)
+                            .validator(|code| is_hex(code.as_str()))
+                            .help("Binary content of one transaction[encode(function + params)]"),
+                    )
+                    .arg(quota_arg.clone())
+                    .arg(private_key.clone()),
+            ),
+        )
 }
 
 /// System contract processor
@@ -1157,6 +1174,16 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let address = m.value_of("address").unwrap();
                 AdminClient::create(Some(client)).add_admin(address, quota, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("BatchTx", Some(m)) => match m.subcommand() {
+            ("multiTxs", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let txs = m.values_of("tx-code").map(|value| value.collect()).unwrap();
+                BatchTxClient::create(Some(client)).multi_transactions(txs, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },

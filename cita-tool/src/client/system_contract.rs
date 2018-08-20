@@ -870,3 +870,40 @@ pub trait AdminExt: ContractCall {
         self.contract_send_tx("update", &values, quota, None, blake2b)
     }
 }
+
+/// Batch transaction contract
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff02000e")]
+#[contract(path = "../../contract_abi/BatchTx.abi")]
+#[contract(name = "BatchTxExt")]
+pub struct BatchTxClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// BatchTx system contract
+pub trait BatchTxExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Multi transactions send once
+    fn multi_transactions(
+        &mut self,
+        txs: Vec<&str>,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let combined_txs = txs
+            .into_iter()
+            .fold(String::with_capacity(100), |mut a, b| {
+                let (address, parameters) = remove_0x(b).split_at(40);
+                a.push_str(address);
+                a.push_str(&format!("{:>08x}", parameters.len() / 2));
+                a.push_str(parameters);
+                a
+            });
+        let value = [combined_txs.as_ref()];
+        self.contract_send_tx("multiTxs", &value, quota, None, blake2b)
+    }
+}
