@@ -209,12 +209,9 @@ pub fn amend_processor(
             let h256_kv = m
                 .values_of("kv")
                 .unwrap()
+                .map(|s| remove_0x(s))
                 .collect::<Vec<&str>>()
-                .iter()
-                .fold(String::with_capacity(100), |mut a, b| {
-                    a.push_str(remove_0x(b));
-                    a
-                });
+                .join("");
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_h256kv(address, &h256_kv, quota, blake2b)
         }
