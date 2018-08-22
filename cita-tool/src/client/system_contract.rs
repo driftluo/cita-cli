@@ -48,6 +48,7 @@ pub trait ContractCall {
         name: &str,
         values: &[&str],
         to_addr: Option<Address>,
+        height: Option<&str>,
     ) -> Self::RpcResult;
 
     /// Call a contract method with a to_address
@@ -56,9 +57,10 @@ pub trait ContractCall {
         function_name: &str,
         values: &[&str],
         address: &str,
+        height: Option<&str>,
     ) -> Self::RpcResult {
         let address = Address::from_str(remove_0x(address)).unwrap();
-        self.contract_call(function_name, values, Some(address))
+        self.contract_call(function_name, values, Some(address), height)
     }
 }
 
@@ -68,40 +70,45 @@ pub trait GroupExt: ContractCall {
     fn create(client: Option<Client>) -> Self;
 
     /// Query the information of the group
-    fn query_info(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryInfo", &[], address)
+    fn query_info(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryInfo", &[], address, height)
     }
     /// Query the name of the group
-    fn query_name(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryName", &[], address)
+    fn query_name(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryName", &[], address, height)
     }
     /// Query the accounts of the group
-    fn query_accounts(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryAccounts", &[], address)
+    fn query_accounts(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryAccounts", &[], address, height)
     }
     /// Alias for query_child
-    fn query_children(&self, address: &str) -> Self::RpcResult {
-        self.query_child(address)
+    fn query_children(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.query_child(address, height)
     }
     /// Query the children of the group
-    fn query_child(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryChild", &[], address)
+    fn query_child(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryChild", &[], address, height)
     }
     /// Alias for query_child_length
-    fn query_children_length(&self, address: &str) -> Self::RpcResult {
-        self.query_child_length(address)
+    fn query_children_length(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.query_child_length(address, height)
     }
     /// Query the length of children of the group
-    fn query_child_length(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryChildLength", &[], address)
+    fn query_child_length(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryChildLength", &[], address, height)
     }
     /// Query the parent of the group
-    fn query_parent(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryParent", &[], address)
+    fn query_parent(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryParent", &[], address, height)
     }
     /// Check the account in the group
-    fn in_group(&self, address: &str, account_address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("inGroup", &[account_address], address)
+    fn in_group(
+        &self,
+        address: &str,
+        account_address: &str,
+        height: Option<&str>,
+    ) -> Self::RpcResult {
+        self.contract_call_to_address("inGroup", &[account_address], address, height)
     }
 }
 
@@ -187,14 +194,14 @@ pub trait GroupManagementExt: ContractCall {
 
     /// Check the target group in the scope of the origin group
     ///   Scope: the origin group is the ancestor of the target group
-    fn check_scope(&self, origin: &str, target: &str) -> Self::RpcResult {
+    fn check_scope(&self, origin: &str, target: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(origin), remove_0x(target)];
-        self.contract_call("checkScope", &values, None)
+        self.contract_call("checkScope", &values, None, height)
     }
 
     /// Query all groups
-    fn query_groups(&self) -> Self::RpcResult {
-        self.contract_call("queryGroups", &[], None)
+    fn query_groups(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("queryGroups", &[], None, height)
     }
 }
 
@@ -217,37 +224,42 @@ pub trait RoleExt: ContractCall {
     /// Query the information of the role
     ///
     /// return The information of role: name and permissions
-    fn query_role(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryRole", &[], address)
+    fn query_role(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryRole", &[], address, height)
     }
 
     /// Query the name of the role
     ///
     /// return The name of role
-    fn query_name(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryName", &[], address)
+    fn query_name(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryName", &[], address, height)
     }
 
     /// Query the permissions of the role
     ///
     /// return The permissions of role
-    fn query_permissions(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryPermissions", &[], address)
+    fn query_permissions(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryPermissions", &[], address, height)
     }
 
     /// Query the length of the permissions
     ///
     /// return The number of permission
-    fn length_of_permissions(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("lengthOfPermissions", &[], address)
+    fn length_of_permissions(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("lengthOfPermissions", &[], address, height)
     }
 
     /// Check the duplicate permission
     ///
     /// return true if in permissions, otherwise false
-    fn in_permissions(&self, address: &str, permission: &str) -> Self::RpcResult {
+    fn in_permissions(
+        &self,
+        address: &str,
+        permission: &str,
+        height: Option<&str>,
+    ) -> Self::RpcResult {
         let values = [remove_0x(permission)];
-        self.contract_call_to_address("inPermissions", &values, address)
+        self.contract_call_to_address("inPermissions", &values, address, height)
     }
 }
 
@@ -385,18 +397,18 @@ pub trait RoleManagementExt: ContractCall {
     ///
     /// param account: The account to be queried
     /// return The roles of the account
-    fn query_roles(&self, account: &str) -> Self::RpcResult {
+    fn query_roles(&self, account: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(account)];
-        self.contract_call("queryRoles", &values, None)
+        self.contract_call("queryRoles", &values, None, height)
     }
 
     /// Query the accounts that have the role
     ///
     /// param role: The role to be queried
     /// return The accounts that have the role
-    fn query_accounts(&self, role: &str) -> Self::RpcResult {
+    fn query_accounts(&self, role: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(role)];
-        self.contract_call("queryAccounts", &values, None)
+        self.contract_call("queryAccounts", &values, None, height)
     }
 }
 
@@ -420,25 +432,25 @@ pub trait AuthorizationExt: ContractCall {
     ///
     /// param account: The account to be queried
     /// return The permissions of account
-    fn query_permissions(&self, account: &str) -> Self::RpcResult {
+    fn query_permissions(&self, account: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(account)];
-        self.contract_call("queryPermissions", &values, None)
+        self.contract_call("queryPermissions", &values, None, height)
     }
 
     /// Query the permission's accounts
     ///
     /// param permission: The permission to be queried
     /// return The accounts of permission
-    fn query_accounts(&self, permission: &str) -> Self::RpcResult {
+    fn query_accounts(&self, permission: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(permission)];
-        self.contract_call("queryAccounts", &values, None)
+        self.contract_call("queryAccounts", &values, None, height)
     }
 
     /// Query all accounts
     ///
     /// return All the accounts
-    fn query_all_accounts(&self) -> Self::RpcResult {
-        self.contract_call("queryAllAccounts", &[], None)
+    fn query_all_accounts(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("queryAllAccounts", &[], None, height)
     }
 
     /// Check Resource
@@ -447,9 +459,15 @@ pub trait AuthorizationExt: ContractCall {
     /// param contract: The contract of resource
     /// param func: The function signature of resource
     /// return true if passed, otherwise false
-    fn check_resource(&self, account: &str, contract: &str, func: &str) -> Self::RpcResult {
+    fn check_resource(
+        &self,
+        account: &str,
+        contract: &str,
+        func: &str,
+        height: Option<&str>,
+    ) -> Self::RpcResult {
         let values = [remove_0x(account), remove_0x(contract), remove_0x(func)];
-        self.contract_call("checkResource", &values, None)
+        self.contract_call("checkResource", &values, None, height)
     }
 
     /// Check account has a permission
@@ -457,9 +475,14 @@ pub trait AuthorizationExt: ContractCall {
     /// param _account The account to be checked
     /// param _permission The address of permission
     /// return true if passed, otherwise false
-    fn check_permission(&self, account: &str, permission: &str) -> Self::RpcResult {
+    fn check_permission(
+        &self,
+        account: &str,
+        permission: &str,
+        height: Option<&str>,
+    ) -> Self::RpcResult {
         let values = [remove_0x(account), remove_0x(permission)];
-        self.contract_call("checkPermission", &values, None)
+        self.contract_call("checkPermission", &values, None, height)
     }
 }
 
@@ -484,30 +507,36 @@ pub trait PermissionExt: ContractCall {
     /// param contract: The contract address of the resource
     /// param func: The function signature of the resource
     /// return true if in permission, otherwise false
-    fn in_permission(&self, address: &str, contract: &str, func: &str) -> Self::RpcResult {
+    fn in_permission(
+        &self,
+        address: &str,
+        contract: &str,
+        func: &str,
+        height: Option<&str>,
+    ) -> Self::RpcResult {
         let values = [remove_0x(contract), remove_0x(func)];
-        self.contract_call_to_address("inPermission", &values, address)
+        self.contract_call_to_address("inPermission", &values, address, height)
     }
 
     /// Query the information of the permission
     ///
     /// return The information of permission: name and resources
-    fn query_info(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryInfo", &[], address)
+    fn query_info(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryInfo", &[], address, height)
     }
 
     /// Query the name of the permission
     ///
     /// return The name of permission
-    fn query_name(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryName", &[], address)
+    fn query_name(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryName", &[], address, height)
     }
 
     /// Query the resource of the permission
     ///
     /// return The resources of permission
-    fn query_resource(&self, address: &str) -> Self::RpcResult {
-        self.contract_call_to_address("queryResource", &[], address)
+    fn query_resource(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call_to_address("queryResource", &[], address, height)
     }
 }
 
@@ -718,14 +747,14 @@ pub trait NodeManagementExt: ContractCall {
     }
 
     /// Get node status
-    fn node_status(&self, address: &str) -> Self::RpcResult {
+    fn node_status(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(address)];
-        self.contract_call("getStatus", &values, None)
+        self.contract_call("getStatus", &values, None, height)
     }
 
     /// Get authorities
-    fn get_authorities(&self) -> Self::RpcResult {
-        self.contract_call("listNode", &[], None)
+    fn get_authorities(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("listNode", &[], None, height)
     }
 
     /// Approve node upgrades to consensus nodes
@@ -740,8 +769,8 @@ pub trait NodeManagementExt: ContractCall {
     }
 
     /// Node stake list
-    fn list_stake(&self) -> Self::RpcResult {
-        self.contract_call("listStake", &[], None)
+    fn list_stake(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("listStake", &[], None, height)
     }
 
     /// Set node stake
@@ -757,8 +786,8 @@ pub trait NodeManagementExt: ContractCall {
     }
 
     /// Stake permillage
-    fn stake_permillage(&self, address: &str) -> Self::RpcResult {
-        self.contract_call("stakePermillage", &[remove_0x(address)], None)
+    fn stake_permillage(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("stakePermillage", &[remove_0x(address)], None, height)
     }
 }
 
@@ -779,29 +808,29 @@ pub trait QuotaManagementExt: ContractCall {
     fn create(client: Option<Client>) -> Self;
 
     /// Get block quota upper limit
-    fn get_bql(&self) -> Self::RpcResult {
-        self.contract_call("getBQL", &[], None)
+    fn get_bql(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getBQL", &[], None, height)
     }
 
     /// Get account quota upper limit of the specific account
-    fn get_aql(&self, address: &str) -> Self::RpcResult {
+    fn get_aql(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(address)];
-        self.contract_call("getAQL", &values, None)
+        self.contract_call("getAQL", &values, None, height)
     }
 
     /// Get default account quota limit
-    fn get_default_aql(&self) -> Self::RpcResult {
-        self.contract_call("getDefaultAQL", &[], None)
+    fn get_default_aql(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getDefaultAQL", &[], None, height)
     }
 
     /// Get accounts
-    fn get_accounts(&self) -> Self::RpcResult {
-        self.contract_call("getAccounts", &[], None)
+    fn get_accounts(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getAccounts", &[], None, height)
     }
 
     /// Get quotas
-    fn get_quotas(&self) -> Self::RpcResult {
-        self.contract_call("getQuotas", &[], None)
+    fn get_quotas(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getQuotas", &[], None, height)
     }
 
     /// Set block quota limit
@@ -854,14 +883,14 @@ pub trait AdminExt: ContractCall {
     fn create(client: Option<Client>) -> Self;
 
     /// Get admin address
-    fn admin(&self) -> Self::RpcResult {
-        self.contract_call("admin", &[], None)
+    fn admin(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("admin", &[], None, height)
     }
 
     /// Check if the account is admin
-    fn is_admin(&self, address: &str) -> Self::RpcResult {
+    fn is_admin(&self, address: &str, height: Option<&str>) -> Self::RpcResult {
         let values = [remove_0x(address)];
-        self.contract_call("isAdmin", &values, None)
+        self.contract_call("isAdmin", &values, None, height)
     }
 
     /// Update admin account
