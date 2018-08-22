@@ -137,13 +137,14 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         name: &str,
                         values: &[&str],
                         to_addr: Option<Address>,
+                        height: Option<&str>,
                     ) -> Self::RpcResult {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         self.client.call(
                             None,
                             to_address.as_str(),
                             Some(code.as_str()),
-                            "latest",
+                            height.unwrap_or_else(|| "latest"),
                         )
                     }
                 }

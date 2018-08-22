@@ -11,7 +11,7 @@ use cita_tool::client::system_contract::{
     PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
 };
 
-use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u64};
+use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -31,6 +31,12 @@ pub fn contract_command() -> App<'static, 'static> {
         .takes_value(true)
         .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
         .help("Transaction quota costs");
+    let height_arg = Arg::with_name("height")
+        .long("height")
+        .default_value("latest")
+        .validator(|s| parse_height(s.as_str()))
+        .takes_value(true)
+        .help("The number of the block");
 
     let group_address_arg = address_arg.clone().help("Group address");
     let group_name_arg = name_arg.clone().help("Group name");
@@ -108,8 +114,8 @@ pub fn contract_command() -> App<'static, 'static> {
         .about("System contract manager")
         .subcommand(
             SubCommand::with_name("NodeManager")
-                .subcommand(SubCommand::with_name("listNode"))
-                .subcommand(SubCommand::with_name("listStake"))
+                .subcommand(SubCommand::with_name("listNode").arg(height_arg.clone()))
+                .subcommand(SubCommand::with_name("listStake").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("getStatus").arg(
                         Arg::with_name("address")
@@ -118,7 +124,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .required(true)
                             .validator(|address| is_hex(address.as_ref()))
                             .help("Node address"),
-                    ),
+                    ).arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteNode")
@@ -202,15 +208,15 @@ pub fn contract_command() -> App<'static, 'static> {
                             .required(true)
                             .validator(|address| is_hex(address.as_ref()))
                             .help("Query address"),
-                    ),
+                    ).arg(height_arg.clone()),
                 ),
         )
         .subcommand(
             SubCommand::with_name("QuotaManager")
-                .subcommand(SubCommand::with_name("getBQL"))
-                .subcommand(SubCommand::with_name("getDefaultAQL"))
-                .subcommand(SubCommand::with_name("getAccounts"))
-                .subcommand(SubCommand::with_name("getQuotas"))
+                .subcommand(SubCommand::with_name("getBQL").arg(height_arg.clone()))
+                .subcommand(SubCommand::with_name("getDefaultAQL").arg(height_arg.clone()))
+                .subcommand(SubCommand::with_name("getAccounts").arg(height_arg.clone()))
+                .subcommand(SubCommand::with_name("getQuotas").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("getAQL").arg(
                         Arg::with_name("address")
@@ -347,9 +353,10 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("checkScope")
                         .arg(group_origin_arg.clone())
-                        .arg(group_target_arg.clone()),
+                        .arg(group_target_arg.clone())
+                        .arg(height_arg.clone()),
                 )
-                .subcommand(SubCommand::with_name("queryGroups")),
+                .subcommand(SubCommand::with_name("queryGroups").arg(height_arg.clone())),
         )
         .subcommand(
             SubCommand::with_name("Group")
@@ -357,37 +364,44 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("queryInfo")
                         .about("Query the information of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryName")
                         .about("Query the name of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryAccounts")
                         .about("Query the accounts of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryChild")
                         .about("Query the child of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryChildLength")
                         .about("Query the length of children of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryParent")
                         .about("Query the parent of the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("inGroup")
                         .about("Check the account in the group")
-                        .arg(group_address_arg.clone()),
+                        .arg(group_address_arg.clone())
+                        .arg(height_arg.clone()),
                 ),
         )
         .subcommand(
@@ -396,28 +410,33 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("queryRole")
                         .about("Query the information of the role")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryName")
                         .about("Query the name of the role")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryPermissions")
                         .about("Query the permissions of the role")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("lengthOfPermissions")
                         .about("Query the length of the permissions")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("inPermissions")
                         .about("Check the duplicate permission")
                         .arg(role_address_arg.clone())
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 ),
         )
         .subcommand(
@@ -488,12 +507,14 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("queryRoles")
                         .about("Query the roles of the account")
-                        .arg(account_address_arg.clone()),
+                        .arg(account_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryAccounts")
                         .about("Query the accounts that have the role")
-                        .arg(role_address_arg.clone()),
+                        .arg(role_address_arg.clone())
+                        .arg(height_arg.clone()),
                 ),
         )
         .subcommand(
@@ -502,26 +523,30 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("queryPermissions")
                         .about("Query the account's permissions")
-                        .arg(account_address_arg.clone()),
+                        .arg(account_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryAccounts")
                         .about("Query the permission's accounts")
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
-                .subcommand(SubCommand::with_name("queryAllAccounts").about("Query all accounts"))
+                .subcommand(SubCommand::with_name("queryAllAccounts").arg(height_arg.clone()).about("Query all accounts"))
                 .subcommand(
                     SubCommand::with_name("checkResource")
                         .about("Check Resource")
                         .arg(account_address_arg.clone())
                         .arg(contract_address_arg.clone())
-                        .arg(function_hash_arg.clone()),
+                        .arg(function_hash_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("checkPermission")
                         .about("Check Permission")
                         .arg(account_address_arg.clone())
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 ),
         )
         .subcommand(
@@ -532,22 +557,26 @@ pub fn contract_command() -> App<'static, 'static> {
                         .about("Check resource in the permission")
                         .arg(permission_address_arg.clone())
                         .arg(contract_address_arg.clone())
-                        .arg(function_hash_arg.clone()),
+                        .arg(function_hash_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryInfo")
                         .about("Query the information of the permission")
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryName")
                         .about("Query the name of the permission")
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("queryResource")
                         .about("Query the resource of the permission")
-                        .arg(permission_address_arg.clone()),
+                        .arg(permission_address_arg.clone())
+                        .arg(height_arg.clone()),
                 ),
         )
         .subcommand(
@@ -637,7 +666,7 @@ pub fn contract_command() -> App<'static, 'static> {
         )
         .subcommand(
             SubCommand::with_name("AdminManagement")
-                .subcommand(SubCommand::with_name("admin"))
+                .subcommand(SubCommand::with_name("admin").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("isAdmin").arg(
                         Arg::with_name("address")
@@ -646,7 +675,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .required(true)
                             .validator(|address| is_hex(address.as_ref()))
                             .help("Account address"),
-                    ),
+                    ).arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("update")
@@ -707,18 +736,18 @@ pub fn contract_processor(
 
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
-            ("listNode", _) => {
+            ("listNode", Some(m)) => {
                 let client = NodeManageClient::create(Some(client));
-                client.get_authorities()
+                client.get_authorities(m.value_of("height"))
             }
-            ("listStake", _) => {
+            ("listStake", Some(m)) => {
                 let client = NodeManageClient::create(Some(client));
-                client.list_stake()
+                client.list_stake(m.value_of("height"))
             }
             ("getStatus", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = NodeManageClient::create(Some(client));
-                client.node_status(address)
+                client.node_status(address, m.value_of("height"))
             }
             ("deleteNode", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -751,18 +780,26 @@ pub fn contract_processor(
             ("stakePermillage", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = NodeManageClient::create(Some(client));
-                client.stake_permillage(address)
+                client.stake_permillage(address, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", _) => QuotaManageClient::create(Some(client)).get_bql(),
-            ("getDefaultAQL", _) => QuotaManageClient::create(Some(client)).get_default_aql(),
-            ("getAccounts", _) => QuotaManageClient::create(Some(client)).get_accounts(),
-            ("getQuotas", _) => QuotaManageClient::create(Some(client)).get_quotas(),
+            ("getBQL", Some(m)) => {
+                QuotaManageClient::create(Some(client)).get_bql(m.value_of("height"))
+            }
+            ("getDefaultAQL", Some(m)) => {
+                QuotaManageClient::create(Some(client)).get_default_aql(m.value_of("height"))
+            }
+            ("getAccounts", Some(m)) => {
+                QuotaManageClient::create(Some(client)).get_accounts(m.value_of("height"))
+            }
+            ("getQuotas", Some(m)) => {
+                QuotaManageClient::create(Some(client)).get_quotas(m.value_of("height"))
+            }
             ("getAQL", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                QuotaManageClient::create(Some(client)).get_aql(address)
+                QuotaManageClient::create(Some(client)).get_aql(address, m.value_of("height"))
             }
             ("setBQL", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
@@ -797,34 +834,38 @@ pub fn contract_processor(
             ("queryInfo", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_info(&client, address)
+                GroupExt::query_info(&client, address, m.value_of("height"))
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_name(&client, address)
+                GroupExt::query_name(&client, address, m.value_of("height"))
             }
             ("queryAccounts", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = GroupClient::create(Some(client));
-                GroupExt::query_accounts(&client, address)
+                GroupExt::query_accounts(&client, address, m.value_of("height"))
             }
             ("queryChild", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                GroupClient::create(Some(client)).query_child(address)
+                GroupClient::create(Some(client)).query_child(address, m.value_of("height"))
             }
             ("queryChildLength", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                GroupClient::create(Some(client)).query_child_length(address)
+                GroupClient::create(Some(client)).query_child_length(address, m.value_of("height"))
             }
             ("queryParent", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                GroupClient::create(Some(client)).query_parent(address)
+                GroupClient::create(Some(client)).query_parent(address, m.value_of("height"))
             }
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let account_address = m.value_of("account").unwrap();
-                GroupClient::create(Some(client)).in_group(address, account_address)
+                GroupClient::create(Some(client)).in_group(
+                    address,
+                    account_address,
+                    m.value_of("height"),
+                )
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -882,11 +923,11 @@ pub fn contract_processor(
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let mut client = GroupManageClient::create(Some(client));
-                client.check_scope(origin, target)
+                client.check_scope(origin, target, m.value_of("height"))
             }
-            ("queryGroups", _) => {
+            ("queryGroups", Some(m)) => {
                 let mut client = GroupManageClient::create(Some(client));
-                client.query_groups()
+                client.query_groups(m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -894,28 +935,28 @@ pub fn contract_processor(
             ("queryRole", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = RoleClient::create(Some(client));
-                client.query_role(address)
+                client.query_role(address, m.value_of("height"))
             }
             ("queryName", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = RoleClient::create(Some(client));
-                client.query_name(address)
+                client.query_name(address, m.value_of("height"))
             }
             ("queryPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = RoleClient::create(Some(client));
-                client.query_permissions(address)
+                client.query_permissions(address, m.value_of("height"))
             }
             ("lengthOfPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let client = RoleClient::create(Some(client));
-                client.length_of_permissions(address)
+                client.length_of_permissions(address, m.value_of("height"))
             }
             ("inPermissions", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let permission = m.value_of("permission").unwrap();
                 let client = RoleClient::create(Some(client));
-                client.in_permissions(address, permission)
+                client.in_permissions(address, permission, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -958,7 +999,12 @@ pub fn contract_processor(
             ("queryRoles", Some(m)) => {
                 let account = m.value_of("account").unwrap();
                 let client = RoleManageClient::create(Some(client));
-                RoleManagementExt::query_roles(&client, account)
+                RoleManagementExt::query_roles(&client, account, m.value_of("height"))
+            }
+            ("queryAccounts", Some(m)) => {
+                let role = m.value_of("address").unwrap();
+                let client = RoleManageClient::create(Some(client));
+                RoleManagementExt::query_accounts(&client, role, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -966,29 +1012,40 @@ pub fn contract_processor(
             ("queryPermissions", Some(m)) => {
                 let account = m.value_of("account").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_permissions(&client, account)
+                AuthorizationExt::query_permissions(&client, account, m.value_of("height"))
             }
             ("queryAccounts", Some(m)) => {
                 let permission = m.value_of("permission").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_accounts(&client, permission)
+                AuthorizationExt::query_accounts(&client, permission, m.value_of("height"))
             }
-            ("queryAllAccounts", _) => {
+            ("queryAllAccounts", Some(m)) => {
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::query_all_accounts(&client)
+                AuthorizationExt::query_all_accounts(&client, m.value_of("height"))
             }
             ("checkResource", Some(m)) => {
                 let account = m.value_of("account").unwrap();
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::check_resource(&client, account, contract, function_hash)
+                AuthorizationExt::check_resource(
+                    &client,
+                    account,
+                    contract,
+                    function_hash,
+                    m.value_of("height"),
+                )
             }
             ("checkPermission", Some(m)) => {
                 let account = m.value_of("account").unwrap();
                 let permission = m.value_of("permission").unwrap();
                 let client = AuthorizationClient::create(Some(client));
-                AuthorizationExt::check_permission(&client, account, permission)
+                AuthorizationExt::check_permission(
+                    &client,
+                    account,
+                    permission,
+                    m.value_of("height"),
+                )
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -998,22 +1055,28 @@ pub fn contract_processor(
                 let contract = m.value_of("contract").unwrap();
                 let function_hash = m.value_of("function-hash").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::in_permission(&client, permission, contract, function_hash)
+                PermissionExt::in_permission(
+                    &client,
+                    permission,
+                    contract,
+                    function_hash,
+                    m.value_of("height"),
+                )
             }
             ("queryInfo", Some(m)) => {
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_info(&client, permission)
+                PermissionExt::query_info(&client, permission, m.value_of("height"))
             }
             ("queryName", Some(m)) => {
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_name(&client, permission)
+                PermissionExt::query_name(&client, permission, m.value_of("height"))
             }
             ("queryResource", Some(m)) => {
                 let permission = m.value_of("permission").unwrap();
                 let client = PermissionClient::create(Some(client));
-                PermissionExt::query_resource(&client, permission)
+                PermissionExt::query_resource(&client, permission, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1163,10 +1226,10 @@ pub fn contract_processor(
             _ => return Err(m.usage().to_owned()),
         },
         ("AdminManagement", Some(m)) => match m.subcommand() {
-            ("admin", _) => AdminClient::create(Some(client)).admin(),
+            ("admin", Some(m)) => AdminClient::create(Some(client)).admin(m.value_of("height")),
             ("isAdmin", Some(m)) => {
                 let address = m.value_of("address").unwrap();
-                AdminClient::create(Some(client)).is_admin(address)
+                AdminClient::create(Some(client)).is_admin(address, m.value_of("height"))
             }
             ("update", Some(m)) => {
                 let blake2b = blake2b(m, env_variable);
