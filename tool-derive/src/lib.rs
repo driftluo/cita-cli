@@ -87,7 +87,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                     /// Create a Contract Client
                     pub fn new(client: Option<Client>, address_str: &str, contract_json: &str) -> Self {
                         let client = client.unwrap_or_else(|| Client::new().unwrap());
-                        let address = Address::from_str(remove_0x(address_str)).unwrap();
+                        let address = Address::from_str(remove_0x(address_str)).unwrap_or_else(|_| Address::default());
                         let contract = Contract::load(contract_json.as_bytes()).unwrap();
                         #name {
                             client,
