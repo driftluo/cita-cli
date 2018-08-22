@@ -899,8 +899,7 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
     fn amend_h256kv(
         &mut self,
         address: &str,
-        h256_key: &str,
-        h256_value: &str,
+        h256_kv: &str,
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult;
@@ -964,15 +963,12 @@ impl AmendExt for Client {
     fn amend_h256kv(
         &mut self,
         address: &str,
-        h256_key: &str,
-        h256_value: &str,
+        h256_kv: &str,
         quota: Option<u64>,
         blake2b: bool,
     ) -> Self::RpcResult {
         let address = remove_0x(address);
-        let h256_key = remove_0x(h256_key);
-        let h256_value = remove_0x(h256_value);
-        let data = format!("0x{}{}{}", address, h256_key, h256_value);
+        let data = format!("0x{}{}", address, h256_kv);
         let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)

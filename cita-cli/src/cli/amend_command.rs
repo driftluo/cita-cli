@@ -1,7 +1,7 @@
 use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::{AmendExt, Client};
-use cita_tool::remove_0x;
+use cita_tool::{remove_0x, H256};
 
 use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
@@ -9,16 +9,13 @@ use printer::Printer;
 
 use std::fs;
 use std::io::Read;
+use std::str::FromStr;
 
 /// Amend(Update) ABI/contract code/H256KV
 pub fn amend_command() -> App<'static, 'static> {
     fn h256_validator(s: &str) -> Result<(), String> {
-        let s = remove_0x(s);
-        if s.len() != 64 {
-            Err(format!("Invalid H256 length={}", s.len()))
-        } else {
-            Ok(())
-        }
+        H256::from_str(remove_0x(s)).map_err(|_| "Invalid H256")?;
+        Ok(())
     }
 
     let common_args = [
@@ -100,20 +97,14 @@ pub fn amend_command() -> App<'static, 'static> {
                         .help("The account address"),
                 )
                 .arg(
-                    Arg::with_name("key")
-                        .long("key")
+                    Arg::with_name("kv")
+                        .long("kv")
                         .required(true)
                         .takes_value(true)
-                        .validator(|key| h256_validator(key.as_str()))
-                        .help("The key of pair"),
-                )
-                .arg(
-                    Arg::with_name("value")
-                        .long("value")
-                        .required(true)
-                        .takes_value(true)
-                        .validator(|key| h256_validator(key.as_str()))
-                        .help("The value of pair"),
+                        .multiple(true)
+                        .number_of_values(2)
+                        .validator(|kv| h256_validator(kv.as_str()))
+                        .help("The key value pair"),
                 )
                 .args(&common_args),
         )
@@ -215,10 +206,14 @@ pub fn amend_processor(
                 client.set_private_key(&parse_privkey(private_key)?);
             }
             let address = m.value_of("address").unwrap();
-            let h256_key = m.value_of("key").unwrap();
-            let h256_value = m.value_of("value").unwrap();
+            let h256_kv = m
+                .values_of("kv")
+                .unwrap()
+                .map(|s| remove_0x(s))
+                .collect::<Vec<&str>>()
+                .join("");
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_h256kv(address, h256_key, h256_value, quota, blake2b)
+            client.amend_h256kv(address, &h256_kv, quota, blake2b)
         }
         ("get-h256", Some(m)) => {
             let blake2b = blake2b(m, env_variable);
