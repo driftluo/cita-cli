@@ -11,7 +11,7 @@ use cita_tool::client::system_contract::{
     PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
 };
 
-use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u64};
+use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -21,7 +21,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("address")
         .takes_value(true)
         .required(true)
-        .validator(|address| is_hex(address.as_ref()));
+        .validator(|address| parse_address(address.as_str()));
     let name_arg = Arg::with_name("name")
         .long("name")
         .takes_value(true)
@@ -30,7 +30,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("quota")
         .takes_value(true)
         .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
-        .help("Transaction quota costs");
+        .help("Transaction quota costs, default 10_000_000");
     let height_arg = Arg::with_name("height")
         .long("height")
         .default_value("latest")
@@ -62,13 +62,13 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("account")
         .takes_value(true)
         .required(true)
-        .validator(|address| is_hex(address.as_ref()))
+        .validator(|address| parse_address(address.as_str()))
         .help("Account address");
     let contract_address_arg = Arg::with_name("contract")
         .long("contract")
         .takes_value(true)
         .required(true)
-        .validator(|address| is_hex(address.as_ref()))
+        .validator(|address| parse_address(address.as_str()))
         .help("The contract address");
     let function_hash_arg = Arg::with_name("function-hash")
         .long("function-hash")
@@ -79,6 +79,7 @@ pub fn contract_command() -> App<'static, 'static> {
     let contracts_address_arg = Arg::with_name("contracts")
         .long("contracts")
         .takes_value(true)
+        .validator(|address| parse_address(address.as_str()))
         .required(true)
         .help("Contract address list");
     let function_hashes_arg = Arg::with_name("function-hashes")
@@ -100,13 +101,14 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("permission")
         .takes_value(true)
         .required(true)
-        .validator(|address| is_hex(address.as_ref()))
+        .validator(|address| parse_address(address.as_str()))
         .help("Permission address");
     let permission_name_arg = name_arg.clone().help("Permission name");
     // TODO: how to deal with complex ethabi value like an array
     let permissions_address_arg = Arg::with_name("permissions")
         .long("permissions")
         .takes_value(true)
+        .validator(|address| parse_address(address.as_str()))
         .required(true)
         .help("Permission address list");
 
@@ -122,7 +124,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .long("address")
                             .takes_value(true)
                             .required(true)
-                            .validator(|address| is_hex(address.as_ref()))
+                            .validator(|address| parse_address(address.as_str()))
                             .help("Node address"),
                     ).arg(height_arg.clone()),
                 )
@@ -143,7 +145,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .long("address")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
+                                .validator(|address| parse_address(address.as_str()))
                                 .help("Degraded node address"),
                         )
                         .arg(quota_arg.clone()),
@@ -165,7 +167,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .long("address")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
+                                .validator(|address| parse_address(address.as_str()))
                                 .help("Approve node address"),
                         )
                         .arg(quota_arg.clone()),
@@ -195,7 +197,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .long("address")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
+                                .validator(|address| parse_address(address.as_str()))
                                 .help("Set address"),
                         )
                         .arg(quota_arg.clone()),
@@ -206,7 +208,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .long("address")
                             .takes_value(true)
                             .required(true)
-                            .validator(|address| is_hex(address.as_ref()))
+                            .validator(|address| parse_address(address.as_str()))
                             .help("Query address"),
                     ).arg(height_arg.clone()),
                 ),
@@ -223,7 +225,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .long("address")
                             .takes_value(true)
                             .required(true)
-                            .validator(|address| is_hex(address.as_ref()))
+                            .validator(|address| parse_address(address.as_str()))
                             .help("Account address"),
                     ),
                 )
@@ -302,7 +304,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .long("address")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
+                                .validator(|address| parse_address(address.as_str()))
                                 .help("Account address"),
                         )
                         .arg(quota_arg.clone()),
@@ -673,7 +675,7 @@ pub fn contract_command() -> App<'static, 'static> {
                             .long("address")
                             .takes_value(true)
                             .required(true)
-                            .validator(|address| is_hex(address.as_ref()))
+                            .validator(|address| parse_address(address.as_str()))
                             .help("Account address"),
                     ).arg(height_arg.clone()),
                 )
@@ -684,7 +686,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .long("address")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|address| is_hex(address.as_ref()))
+                                .validator(|address| parse_address(address.as_str()))
                                 .help("Account address"),
                         )
                         .arg(

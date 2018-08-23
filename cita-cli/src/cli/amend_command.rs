@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::{remove_0x, H256};
 
-use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64};
+use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -47,6 +47,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
+                        .validator(|address| parse_address(address.as_str()))
                         .required(true)
                         .takes_value(true)
                         .help("The contract address of the code"),
@@ -66,6 +67,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
+                        .validator(|address| parse_address(address.as_str()))
                         .required(true)
                         .takes_value(true)
                         .help("The contract address of the ABI"),
@@ -92,6 +94,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
+                        .validator(|address| parse_address(address.as_str()))
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),
@@ -114,6 +117,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
+                        .validator(|address| parse_address(address.as_str()))
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),
@@ -134,6 +138,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
+                        .validator(|address| parse_address(address.as_str()))
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),

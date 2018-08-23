@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use clap::{App, ArgMatches};
 
-use cita_tool::{remove_0x, PrivateKey, U256};
+use cita_tool::{remove_0x, Address, PrivateKey, U256};
 
 use interactive::GlobalConfig;
 
@@ -57,6 +57,13 @@ pub fn parse_u256(value: &str) -> Result<U256, String> {
             Ok(U256::from_dec_str(value).map_err(|_| String::from("Value can't parse into u256"))?)
         }
     }
+}
+
+pub fn parse_address(value: &str) -> Result<(), String> {
+    is_hex(value)?;
+    Address::from_str(remove_0x(value))
+        .map(|_| ())
+        .map_err(|err| err.to_string())
 }
 
 pub fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {

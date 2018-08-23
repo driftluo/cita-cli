@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::Client;
 use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
-use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u256, parse_u64};
+use cli::{blake2b, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 use std::str::FromStr;
@@ -28,7 +28,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .long("address")
                         .default_value("0x")
                         .takes_value(true)
-                        .validator(|address| is_hex(address.as_str()))
+                        .validator(|address| parse_address(address.as_str()))
                         .help(
                             "The address of the invoking contract, default is empty to \
                              create contract",
@@ -73,7 +73,7 @@ pub fn tx_command() -> App<'static, 'static> {
                     Arg::with_name("byte-code")
                         .long("byte-code")
                         .takes_value(true)
-                        .validator(|address| is_hex(address.as_str()))
+                        .validator(|code| is_hex(code.as_str()))
                         .required(true)
                         .help("Signed transaction binary data"),
                 ),
@@ -85,7 +85,7 @@ pub fn tx_command() -> App<'static, 'static> {
                     Arg::with_name("byte-code")
                         .long("byte-code")
                         .takes_value(true)
-                        .validator(|address| is_hex(address.as_str()))
+                        .validator(|code| is_hex(code.as_str()))
                         .required(true)
                         .help("Unsigned transaction binary data"),
                 )

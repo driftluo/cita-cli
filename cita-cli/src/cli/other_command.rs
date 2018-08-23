@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
-use cli::{blake2b, get_url, parse_privkey, parse_u256, parse_u64, search_app};
+use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64, search_app};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -50,6 +50,7 @@ pub fn transfer_command() -> App<'static, 'static> {
             Arg::with_name("address")
                 .long("address")
                 .takes_value(true)
+                .validator(|address| parse_address(address.as_str()))
                 .required(true)
                 .help("Transfer to address"),
         )

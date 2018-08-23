@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, StoreExt};
 use cita_tool::remove_0x;
 
-use cli::{blake2b, get_url, is_hex, parse_privkey, parse_u64};
+use cli::{blake2b, get_url, is_hex, parse_address, parse_privkey, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -56,6 +56,7 @@ pub fn store_command() -> App<'static, 'static> {
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The contract address of the ABI"),
                 )

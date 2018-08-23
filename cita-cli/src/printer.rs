@@ -174,12 +174,12 @@ impl Printable for KeyPair {
             OutputFormat::Json => json!({
                     "private": format!("0x{}", self.privkey()),
                     "public": format!("0x{}", self.pubkey()),
-                    "address": format!("0x{:#x}", self.address())
+                    "address": format!("0x{:x}", self.address())
                 }).rc_string(format, color),
             OutputFormat::Raw => {
                 let content = if color {
                     format!(
-                        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
+                        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:x}"),
                         Yellow.paint("[ private ]:"),
                         self.privkey(),
                         Yellow.paint("[ public  ]:"),
@@ -189,7 +189,7 @@ impl Printable for KeyPair {
                     )
                 } else {
                     format!(
-                        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:#x}"),
+                        concat!("{} 0x{}\n", "{} 0x{}\n", "{} 0x{:x}"),
                         "[ private ]:",
                         self.privkey(),
                         "[ public  ]:",
