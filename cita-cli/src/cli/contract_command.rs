@@ -30,7 +30,7 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("quota")
         .takes_value(true)
         .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
-        .help("Transaction quota costs");
+        .help("Transaction quota costs, default 10_000_000");
     let height_arg = Arg::with_name("height")
         .long("height")
         .default_value("latest")

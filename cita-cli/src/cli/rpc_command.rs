@@ -66,7 +66,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("quota")
                         .takes_value(true)
                         .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
-                        .help("Transaction quota costs, default is 1_000_000"),
+                        .help("Transaction quota costs, default 10_000_000"),
                 )
                 .arg(
                     Arg::with_name("value")

@@ -263,7 +263,7 @@ impl Client {
         tx.set_to(remove_0x(transaction_options.address()).to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(transaction_options.quota().unwrap_or(1_000_000));
+        tx.set_quota(transaction_options.quota().unwrap_or(10_000_000));
         let value = transaction_options
             .value()
             .map(|value| value.lower_hex())
