@@ -9,7 +9,8 @@ mod tx_command;
 mod util;
 
 pub(crate) use self::util::{
-    blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u256, parse_u64, search_app,
+    blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+    search_app,
 };
 
 pub use self::abi_command::{abi_command, abi_processor};

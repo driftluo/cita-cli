@@ -289,7 +289,7 @@ mod test {
         );
 
         assert_eq!(
-            format!("{:#x}", key_pair.address()).as_str(),
+            format!("{:x}", key_pair.address()).as_str(),
             "eea5c3cbb32fec85bc9b9bffa65fc027e4b1c6d5"
         );
     }
@@ -306,7 +306,7 @@ mod test {
         );
 
         assert_eq!(
-            format!("{:#x}", key_pair.address()).as_str(),
+            format!("{:x}", key_pair.address()).as_str(),
             "5ae200f77d5c7df715f6ccb182fc5073dab1cfe9"
         );
     }

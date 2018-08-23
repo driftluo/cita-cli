@@ -3,7 +3,9 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, ClientExt};
 use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction};
 
-use cli::{blake2b, get_url, is_hex, parse_height, parse_privkey, parse_u256, parse_u64};
+use cli::{
+    blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+};
 use interactive::GlobalConfig;
 use printer::Printer;
 use std::str::FromStr;
@@ -30,7 +32,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("address")
                         .default_value("0x")
                         .takes_value(true)
-                        .validator(|address| is_hex(address.as_str()))
+                        .validator(|address| parse_address(address.as_str()))
                         .help(
                             "The address of the invoking contract, default is empty to \
                              create contract",
@@ -116,6 +118,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the code"),
                 )
@@ -135,6 +138,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the abi data"),
                 )
@@ -154,6 +158,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the balance"),
                 )
@@ -183,12 +188,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("from")
                         .long("from")
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("From address"),
                 )
                 .arg(
                     Arg::with_name("to")
                         .long("to")
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .required(true)
                         .help("To address"),
@@ -238,7 +245,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("address")
                         .takes_value(true)
                         .multiple(true)
-                        .validator(|address| is_hex(address.as_ref()))
+                        .validator(|address| parse_address(address.as_str()))
                         .help("List of contract address"),
                 )
                 .arg(
@@ -286,6 +293,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The hash of the account"),
                 )
@@ -341,7 +349,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("address")
                         .long("address")
-                        .validator(|address| is_hex(address.as_ref()))
+                        .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .multiple(true)
                         .help("Contract Address"),
