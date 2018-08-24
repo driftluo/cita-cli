@@ -4,7 +4,8 @@ use cita_tool::client::basic::{Client, ClientExt};
 use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction};
 
 use cli::{
-    blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+    blake2b, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
+    parse_u256, parse_u64,
 };
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -377,6 +378,46 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .help("Starting block height"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("getBlockHeader")
+                .about("Get block headers based on block height")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .default_value("latest")
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("getStateProof")
+                .about("Get the proof of the variable at the specified height")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .required(true)
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .validator(|address| parse_address(address.as_str()))
+                        .takes_value(true)
+                        .help("Contract Address"),
+                )
+                .arg(
+                    Arg::with_name("key")
+                        .long("key")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|key| h256_validator(key.as_str()))
+                        .help("The position of the variable"),
+                ),
+        )
 }
 
 /// RPC processor
@@ -502,6 +543,16 @@ pub fn rpc_processor(
             let to = m.value_of("to");
             let topic = m.values_of("topic").map(|value| value.collect());
             client.new_filter(topic, address, from, to)
+        }
+        ("getBlockHeader", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            client.get_block_header(height)
+        }
+        ("getStateProof", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            let address = m.value_of("address").unwrap();
+            let key = m.value_of("key").unwrap();
+            client.get_state_proof(address, key, height)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
