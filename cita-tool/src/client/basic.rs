@@ -47,6 +47,9 @@ const UNINSTALL_FILTER: &str = "uninstallFilter";
 const GET_FILTER_CHANGES: &str = "getFilterChanges";
 const GET_FILTER_LOGS: &str = "getFilterLogs";
 
+const GET_BLOCK_HEADER: &str = "getBlockHeader";
+const GET_STATE_PROOF: &str = "getStateProof";
+
 /// Store action target address
 pub const STORE_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffff010000";
 /// StoreAbi action target address
@@ -448,6 +451,8 @@ impl Client {
 ///   * getFilterLogs
 ///   * getTransactionProof
 ///   * getMetaData
+///   * getBlockHeader
+///   * getStateProof
 pub trait ClientExt<T, E>
 where
     T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
@@ -518,6 +523,10 @@ where
     fn get_transaction_proof(&self, hash: &str) -> Self::RpcResult;
     /// getMetaData: Get metadata
     fn get_metadata(&self, height: &str) -> Self::RpcResult;
+    /// getBlockHeader: Get block headers based on block height
+    fn get_block_header(&self, height: &str) -> Self::RpcResult;
+    /// getStateProof: Get the proof of the variable at the specified height
+    fn get_state_proof(&self, address: &str, key: &str, height: &str) -> Self::RpcResult;
 }
 
 impl ClientExt<JsonRpcResponse, ToolError> for Client {
@@ -829,6 +838,33 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                 ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
             )
             .insert("method", ParamsValue::String(String::from(GET_META_DATA)));
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
+
+    fn get_block_header(&self, height: &str) -> Self::RpcResult {
+        let params = JsonRpcParams::new()
+            .insert(
+                "params",
+                ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
+            )
+            .insert(
+                "method",
+                ParamsValue::String(String::from(GET_BLOCK_HEADER)),
+            );
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
+
+    fn get_state_proof(&self, address: &str, key: &str, height: &str) -> Self::RpcResult {
+        let params = JsonRpcParams::new()
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(key)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            )
+            .insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 }

@@ -1,23 +1,17 @@
 use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::{AmendExt, Client};
-use cita_tool::{remove_0x, H256};
+use cita_tool::remove_0x;
 
-use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64};
+use cli::{blake2b, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64};
 use interactive::GlobalConfig;
 use printer::Printer;
 
 use std::fs;
 use std::io::Read;
-use std::str::FromStr;
 
 /// Amend(Update) ABI/contract code/H256KV
 pub fn amend_command() -> App<'static, 'static> {
-    fn h256_validator(s: &str) -> Result<(), String> {
-        H256::from_str(remove_0x(s)).map_err(|_| "Invalid H256")?;
-        Ok(())
-    }
-
     let common_args = [
         Arg::with_name("chain-id")
             .long("chain-id")
