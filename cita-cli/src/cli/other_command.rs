@@ -144,8 +144,8 @@ pub fn benchmark_processor(
             assert_eq!(result.len(), 1000);
             match start.elapsed() {
                 Ok(elapsed) => {
-                    let duration = f64::from_bits(elapsed.as_secs())
-                        + (f64::from_bits(elapsed.subsec_nanos().into()) / 1_000_000_000.0);
+                    let duration: f64 = f64::from_bits(elapsed.as_secs())
+                        + (<f64 as From<u32>>::from(elapsed.subsec_nanos()) / 1_000_000_000.0);
                     printer.println(
                         &format!(
                             "A total of 1,000 requests were sent, which took {} seconds and tps is {}",
