@@ -4,11 +4,11 @@ use cita_tool::client::basic::Client;
 use cita_tool::client::system_contract::{
     AdminClient, AdminExt, AuthorizationClient, BatchTxClient, GroupClient, GroupManageClient,
     NodeManageClient, PermissionClient, PermissionManageClient, QuotaManageClient, RoleClient,
-    RoleManageClient,
+    RoleManageClient, SysConfigClient,
 };
 use cita_tool::client::system_contract::{
     AuthorizationExt, BatchTxExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
-    PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt,
+    PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt, SysConfigExt,
 };
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
@@ -718,6 +718,107 @@ pub fn contract_command() -> App<'static, 'static> {
                     .arg(private_key.clone()),
             ),
         )
+        .subcommand(
+            SubCommand::with_name("SysConfig").subcommand(
+                SubCommand::with_name("getChainOwner")
+                    .arg(
+                        height_arg.clone()
+                    )
+            )
+                .subcommand(
+                    SubCommand::with_name("getDelayBlockNumber")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getFeeBackPlatformCheck")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getEconomicalModel")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getPermissionCheck")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getQuotaCheck")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("setChainName")
+                        .arg(
+                            Arg::with_name("chain-name")
+                                .long("chain-name")
+                                .takes_value(true)
+                                .required(true)
+                                .help("Set chain name")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(
+                            Arg::with_name("admin-private")
+                            .long("admin-private")
+                            .takes_value(true)
+                            .required(true)
+                            .validator(|private_key| {
+                                parse_privkey(private_key.as_ref()).map(|_| ())
+                            })
+                            .help("Private key must be admin")
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("setOperator")
+                        .arg(
+                            Arg::with_name("operator")
+                                .long("operator")
+                                .takes_value(true)
+                                .required(true)
+                                .help("Set operator")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin")
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("setWebsite")
+                        .arg(
+                            Arg::with_name("website")
+                                .long("website")
+                                .takes_value(true)
+                                .required(true)
+                                .help("Set website")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin")
+                        )
+                )
+        )
 }
 
 /// System contract processor
@@ -1249,6 +1350,57 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let txs = m.values_of("tx-code").map(|value| value.collect()).unwrap();
                 BatchTxClient::create(Some(client)).multi_transactions(txs, quota, blake2b)
+            }
+            _ => return Err(m.usage().to_owned()),
+        },
+        ("SysConfig", Some(m)) => match m.subcommand() {
+            ("getChainOwner", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_chain_owner(&client, m.value_of("height"))
+            }
+            ("getDelayBlockNumber", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_delay_block_number(&client, m.value_of("height"))
+            }
+            ("getFeeBackPlatformCheck", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_feeback_platform_check(&client, m.value_of("height"))
+            }
+            ("getEconomicalModel", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_economical_model(&client, m.value_of("height"))
+            }
+            ("getPermissionCheck", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_permission_check(&client, m.value_of("height"))
+            }
+            ("getQuotaCheck", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_quota_check(&client, m.value_of("height"))
+            }
+            ("setChainName", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let mut client: SysConfigClient = SysConfigExt::create(Some(client));
+                let name = m.value_of("chain-name").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                SysConfigExt::set_chain_name(&mut client, name, quota, blake2b)
+            }
+            ("setOperator", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let mut client: SysConfigClient = SysConfigExt::create(Some(client));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let operator = m.value_of("operator").unwrap();
+                SysConfigExt::set_operator(&mut client, operator, quota, blake2b)
+            }
+            ("setWebsite", Some(m)) => {
+                let blake2b = blake2b(m, env_variable);
+                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let mut client: SysConfigClient = SysConfigExt::create(Some(client));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let website = m.value_of("website").unwrap();
+                SysConfigExt::set_website(&mut client, website, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
         },

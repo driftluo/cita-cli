@@ -936,3 +936,78 @@ pub trait BatchTxExt: ContractCall {
         self.contract_send_tx("multiTxs", &value, quota, None, blake2b)
     }
 }
+
+/// System config contract
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff020000")]
+#[contract(path = "../../contract_abi/SysConfig.abi")]
+#[contract(name = "SysConfigExt")]
+pub struct SysConfigClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// System config contract
+pub trait SysConfigExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Get chain owner
+    fn get_chain_owner(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getChainOwner", &[], None, height)
+    }
+
+    /// Get delay block number
+    fn get_delay_block_number(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getDelayBlockNumber", &[], None, height)
+    }
+
+    /// Whether economic incentives are returned to operators
+    fn get_feeback_platform_check(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getFeeBackPlatformCheck", &[], None, height)
+    }
+
+    /// Whether to open the charging mode
+    fn get_economical_model(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getEconomicalModel", &[], None, height)
+    }
+
+    /// Whether to open the permission check
+    fn get_permission_check(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getPermissionCheck", &[], None, height)
+    }
+
+    /// Whether to open the quota check
+    fn get_quota_check(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getQuotaCheck", &[], None, height)
+    }
+
+    /// Set chain name
+    fn set_chain_name(
+        &mut self,
+        chain_name: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let value = [chain_name];
+        self.contract_send_tx("setChainName", &value, quota, None, blake2b)
+    }
+
+    /// Set operator
+    fn set_operator(
+        &mut self,
+        operator: &str,
+        quota: Option<u64>,
+        blake2b: bool,
+    ) -> Self::RpcResult {
+        let value = [operator];
+        self.contract_send_tx("setOperator", &value, quota, None, blake2b)
+    }
+
+    /// Set website
+    fn set_website(&mut self, website: &str, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
+        let value = [website];
+        self.contract_send_tx("setWebsite", &value, quota, None, blake2b)
+    }
+}
