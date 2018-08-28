@@ -4,7 +4,7 @@ use cita_tool::client::basic::{Client, StoreExt};
 use cita_tool::remove_0x;
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_privkey, parse_u64};
-use interactive::{set_transaction_hash, GlobalConfig};
+use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
 use std::fs;
@@ -81,21 +81,17 @@ pub fn store_command() -> App<'static, 'static> {
 pub fn store_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    env_variable: &mut GlobalConfig,
+    config: &mut GlobalConfig,
 ) -> Result<(), String> {
-    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let debug = sub_matches.is_present("debug") || config.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
+        .set_uri(get_url(sub_matches, config));
 
     let result = match sub_matches.subcommand() {
         ("data", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let content = remove_0x(m.value_of("content").unwrap());
             // TODO: this really should be fixed, private key must required
@@ -105,7 +101,7 @@ pub fn store_processor(
             client.store_data(content, quota, blake2b)
         }
         ("abi", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
@@ -130,8 +126,8 @@ pub fn store_processor(
         }
     };
     let resp = result.map_err(|err| format!("{}", err))?;
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     printer.println(&resp, is_color);
-    set_transaction_hash(&resp, env_variable);
+    set_output(&resp, config);
     Ok(())
 }

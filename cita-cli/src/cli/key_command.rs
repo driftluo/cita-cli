@@ -40,19 +40,19 @@ pub fn key_command() -> App<'static, 'static> {
 pub fn key_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    env_variable: &GlobalConfig,
+    config: &GlobalConfig,
 ) -> Result<(), String> {
     match sub_matches.subcommand() {
         ("create", Some(m)) => {
-            let blake2b = m.is_present("blake2b") || env_variable.blake2b();
+            let blake2b = m.is_present("blake2b") || config.blake2b();
             let key_pair = KeyPair::new(blake2b);
-            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+            let is_color = !sub_matches.is_present("no-color") && config.color();
             printer.println(&key_pair, is_color);
         }
         ("from-private-key", Some(m)) => {
             let private_key = m.value_of("private-key").unwrap();
             let key_pair = KeyPair::from_str(remove_0x(private_key))?;
-            let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+            let is_color = !sub_matches.is_present("no-color") && config.color();
             printer.println(&key_pair, is_color);
         }
         ("pub-to-address", Some(m)) => {

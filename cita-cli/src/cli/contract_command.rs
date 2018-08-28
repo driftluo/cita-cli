@@ -12,7 +12,7 @@ use cita_tool::client::system_contract::{
 };
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
-use interactive::{set_transaction_hash, GlobalConfig};
+use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
 /// System contract
@@ -825,17 +825,13 @@ pub fn contract_command() -> App<'static, 'static> {
 pub fn contract_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    env_variable: &mut GlobalConfig,
+    config: &mut GlobalConfig,
 ) -> Result<(), String> {
-    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let debug = sub_matches.is_present("debug") || config.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
+        .set_uri(get_url(sub_matches, config));
 
     let result = match sub_matches.subcommand() {
         ("NodeManager", Some(m)) => match m.subcommand() {
@@ -853,7 +849,7 @@ pub fn contract_processor(
                 client.node_status(address, m.value_of("height"))
             }
             ("deleteNode", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -861,7 +857,7 @@ pub fn contract_processor(
                 client.downgrade_consensus_node(address, quota, blake2b)
             }
             ("approveNode", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -869,7 +865,7 @@ pub fn contract_processor(
                 client.approve_node(address, quota, blake2b)
             }
             ("setStake", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -905,21 +901,21 @@ pub fn contract_processor(
                 QuotaManageClient::create(Some(client)).get_aql(address, m.value_of("height"))
             }
             ("setBQL", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_bql(quota_limit, quota, blake2b)
             }
             ("setDefaultAQL", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_default_aql(quota_limit, quota, blake2b)
             }
             ("setAQL", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let address = m.value_of("address").unwrap();
@@ -974,7 +970,7 @@ pub fn contract_processor(
         },
         ("GroupManagement", Some(m)) => match m.subcommand() {
             ("newGroup", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
@@ -984,7 +980,7 @@ pub fn contract_processor(
                 client.new_group(origin, name, accounts, quota, blake2b)
             }
             ("deleteGroup", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -993,7 +989,7 @@ pub fn contract_processor(
                 client.delete_group(origin, target, quota, blake2b)
             }
             ("updateGroupName", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
@@ -1003,7 +999,7 @@ pub fn contract_processor(
                 client.update_group_name(origin, target, name, quota, blake2b)
             }
             ("addAccounts", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
@@ -1013,7 +1009,7 @@ pub fn contract_processor(
                 client.add_accounts(origin, target, accounts, quota, blake2b)
             }
             ("deleteAccounts", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
@@ -1065,7 +1061,7 @@ pub fn contract_processor(
         },
         ("RoleManagement", Some(m)) => match m.subcommand() {
             ("newRole", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let name = m.value_of("name").unwrap();
                 let permissions = m.value_of("permissions").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1074,7 +1070,7 @@ pub fn contract_processor(
                 RoleManagementExt::new_role(&mut client, name, permissions, quota, blake2b)
             }
             ("deleteRole", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1083,7 +1079,7 @@ pub fn contract_processor(
                 RoleManagementExt::set_role(&mut client, account, role, quota, blake2b)
             }
             ("cancelRole", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1092,7 +1088,7 @@ pub fn contract_processor(
                 RoleManagementExt::cancel_role(&mut client, account, role, quota, blake2b)
             }
             ("clearRole", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
@@ -1185,7 +1181,7 @@ pub fn contract_processor(
         },
         ("PermissionManagement", Some(m)) => match m.subcommand() {
             ("newPermission", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let name = m.value_of("name").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -1202,7 +1198,7 @@ pub fn contract_processor(
                 )
             }
             ("deletePermission", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
@@ -1210,7 +1206,7 @@ pub fn contract_processor(
                 PermissionManagementExt::delete_permission(&mut client, permission, quota, blake2b)
             }
             ("updatePermissionName", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let name = m.value_of("name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1225,7 +1221,7 @@ pub fn contract_processor(
                 )
             }
             ("addResources", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -1242,7 +1238,7 @@ pub fn contract_processor(
                 )
             }
             ("deleteResources", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
@@ -1259,7 +1255,7 @@ pub fn contract_processor(
                 )
             }
             ("setAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1274,7 +1270,7 @@ pub fn contract_processor(
                 )
             }
             ("setAuthorizations", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permissions = m.value_of("permissions").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1289,7 +1285,7 @@ pub fn contract_processor(
                 )
             }
             ("cancelAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1304,7 +1300,7 @@ pub fn contract_processor(
                 )
             }
             ("cancelAuthorizations", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let permissions = m.value_of("permissions").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1319,7 +1315,7 @@ pub fn contract_processor(
                 )
             }
             ("clearAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
@@ -1335,7 +1331,7 @@ pub fn contract_processor(
                 AdminClient::create(Some(client)).is_admin(address, m.value_of("height"))
             }
             ("update", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let address = m.value_of("address").unwrap();
@@ -1345,7 +1341,7 @@ pub fn contract_processor(
         },
         ("BatchTx", Some(m)) => match m.subcommand() {
             ("multiTxs", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let txs = m.values_of("tx-code").map(|value| value.collect()).unwrap();
@@ -1379,7 +1375,7 @@ pub fn contract_processor(
                 SysConfigExt::get_quota_check(&client, m.value_of("height"))
             }
             ("setChainName", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let name = m.value_of("chain-name").unwrap();
@@ -1387,7 +1383,7 @@ pub fn contract_processor(
                 SysConfigExt::set_chain_name(&mut client, name, quota, blake2b)
             }
             ("setOperator", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1395,7 +1391,7 @@ pub fn contract_processor(
                 SysConfigExt::set_operator(&mut client, operator, quota, blake2b)
             }
             ("setWebsite", Some(m)) => {
-                let blake2b = blake2b(m, env_variable);
+                let blake2b = blake2b(m, config);
                 client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
@@ -1406,9 +1402,9 @@ pub fn contract_processor(
         },
         _ => return Err(sub_matches.usage().to_owned()),
     };
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     let response = result.map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
-    set_transaction_hash(&response, env_variable);
+    set_output(&response, config);
     Ok(())
 }

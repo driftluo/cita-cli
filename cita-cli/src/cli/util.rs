@@ -7,11 +7,16 @@ use cita_tool::{remove_0x, Address, H256, PrivateKey, U256};
 use interactive::GlobalConfig;
 
 /// Get url from arg match
-pub fn get_url<'a>(m: &'a ArgMatches) -> &'a str {
-    m.value_of("url").unwrap()
+pub fn get_url<'a>(m: &'a ArgMatches, config: &'a GlobalConfig) -> &'a str {
+    match m.subcommand() {
+        (_, Some(m)) => m
+            .value_of("url")
+            .unwrap_or_else(|| config.get_url().as_str()),
+        _ => config.get_url().as_str(),
+    }
 }
 
-/// The hexadecimal or numeric type string resolves to u64
+/// the hexadecimal or numeric type string resolves to u64
 pub fn parse_u64(height: &str) -> Result<u64, String> {
     match is_hex(height) {
         Ok(()) => Ok(u64::from_str_radix(remove_0x(height), 16).map_err(|err| format!("{}", err))?),
@@ -73,12 +78,13 @@ pub fn parse_address(value: &str) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-pub fn blake2b(_m: &ArgMatches, _env_variable: &GlobalConfig) -> bool {
-    #[cfg(feature = "blake2b_hash")]
-    let blake2b = _m.is_present("blake2b") || _env_variable.blake2b();
-    #[cfg(not(feature = "blake2b_hash"))]
-    let blake2b = false;
-    blake2b
+#[cfg(feature = "blake2b_hash")]
+pub fn blake2b(m: &ArgMatches, config: &GlobalConfig) -> bool {
+    m.is_present("blake2b") || config.blake2b()
+}
+#[cfg(not(feature = "blake2b_hash"))]
+pub fn blake2b(_m: &ArgMatches, _config: &GlobalConfig) -> bool {
+    false
 }
 
 /// Search command tree

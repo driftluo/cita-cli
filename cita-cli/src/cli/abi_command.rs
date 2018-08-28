@@ -115,9 +115,9 @@ pub fn abi_command() -> App<'static, 'static> {
 pub fn abi_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    env_variable: &GlobalConfig,
+    config: &GlobalConfig,
 ) -> Result<(), String> {
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     match sub_matches.subcommand() {
         ("encode", Some(em)) => match em.subcommand() {
             ("function", Some(m)) => {

@@ -133,17 +133,6 @@ impl JsonRpcResponse {
     pub fn is_ok(&self) -> bool {
         self.result.is_some()
     }
-
-    /// Get transaction hash
-    pub fn transaction_hash(&self) -> Option<&str> {
-        match self.result {
-            Some(ResponseValue::Map(ref result)) => match result.get("hash") {
-                Some(ParamsValue::String(ref hash)) => Some(hash),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
 }
 
 impl fmt::Debug for JsonRpcResponse {

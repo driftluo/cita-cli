@@ -4,7 +4,7 @@ use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::remove_0x;
 
 use cli::{blake2b, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64};
-use interactive::{set_transaction_hash, GlobalConfig};
+use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
 use std::fs;
@@ -153,21 +153,17 @@ pub fn amend_command() -> App<'static, 'static> {
 pub fn amend_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    env_variable: &mut GlobalConfig,
+    config: &mut GlobalConfig,
 ) -> Result<(), String> {
-    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let debug = sub_matches.is_present("debug") || config.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
+        .set_uri(get_url(sub_matches, config));
 
     let result = match sub_matches.subcommand() {
         ("code", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
@@ -178,7 +174,7 @@ pub fn amend_processor(
             client.amend_code(address, content, quota, blake2b)
         }
         ("abi", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
@@ -199,7 +195,7 @@ pub fn amend_processor(
             client.amend_abi(address, content, quota, blake2b)
         }
         ("kv-h256", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             // TODO: this really should be fixed, private key must required
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
@@ -215,7 +211,7 @@ pub fn amend_processor(
             client.amend_h256kv(address, &h256_kv, quota, blake2b)
         }
         ("get-h256", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
             }
@@ -225,7 +221,7 @@ pub fn amend_processor(
             client.amend_get_h256kv(address, h256_key, quota, blake2b)
         }
         ("balance", Some(m)) => {
-            let blake2b = blake2b(m, env_variable);
+            let blake2b = blake2b(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
             }
@@ -242,8 +238,8 @@ pub fn amend_processor(
         }
     };
     let resp = result.map_err(|err| format!("{}", err))?;
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     printer.println(&resp, is_color);
-    set_transaction_hash(&resp, env_variable);
+    set_output(&resp, config);
     Ok(())
 }
