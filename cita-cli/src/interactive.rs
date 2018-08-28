@@ -482,16 +482,12 @@ fn remove_private(line: &str) -> String {
 }
 
 fn replace_cmd(regex: &Regex, line: &str, env_variable: &GlobalConfig) -> String {
-    let replaced = regex.replace_all(line, |caps: &Captures| {
-        if let Some(key) = caps.name("key") {
-            if let Some(value) = env_variable.get(key.as_str()) {
-                value.to_owned()
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        }
+    let replaced = regex.replace_all(line, |caps: &Captures| match caps.name("key") {
+        Some(key) => env_variable
+            .get(key.as_str())
+            .unwrap_or(&String::new())
+            .to_owned(),
+        None => "".to_string(),
     });
     replaced.into_owned()
 }

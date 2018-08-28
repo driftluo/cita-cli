@@ -136,18 +136,12 @@ impl JsonRpcResponse {
 
     /// Get transaction hash
     pub fn transaction_hash(&self) -> Option<&str> {
-        if self.is_ok() {
-            if let Some(ResponseValue::Map(ref result)) = self.result {
-                if let Some(ParamsValue::String(ref hash)) = result.get("hash") {
-                    Some(hash)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
+        match self.result {
+            Some(ResponseValue::Map(ref result)) => match result.get("hash") {
+                Some(ParamsValue::String(ref hash)) => Some(hash),
+                _ => None,
+            },
+            _ => None,
         }
     }
 }
