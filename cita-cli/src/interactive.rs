@@ -405,18 +405,26 @@ impl GlobalConfig {
     }
 
     pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
-        key.split('.')
-            .fold(
-                (true, None),
-                |(is_init, result): (bool, Option<&serde_json::Value>), key| match (is_init, result)
-                {
-                    (false, Some(value)) => (false, value.get(key)),
-                    (false, None) => (false, None),
-                    (true, None) => (false, self.env_variable.get(key)),
-                    _ => unreachable!(),
-                },
-            )
-            .1
+        let mut parts_iter = key.split('.');
+        if let Some(name) = parts_iter.next() {
+            parts_iter
+                .try_fold(
+                    self.env_variable.get(name),
+                    |value_opt: Option<&serde_json::Value>, part| match value_opt {
+                        Some(value) => match part.parse::<usize>() {
+                            Ok(index) => match value.get(index) {
+                                None => Ok(value.get(part)),
+                                result => Ok(result),
+                            },
+                            _ => Ok(value.get(part)),
+                        },
+                        None => Err(()),
+                    },
+                )
+                .unwrap_or_default()
+        } else {
+            None
+        }
     }
 
     pub fn set_url(&mut self, value: String) {
