@@ -23,18 +23,20 @@ pub fn search_command() -> App<'static, 'static> {
 
 /// Processor search command
 pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
-    let keyword = sub_matches
+    let keywords = sub_matches
         .values_of("keyword")
         .unwrap()
         .map(|s| s.to_lowercase())
-        .collect::<Vec<String>>()
-        .join(" ");
+        .collect::<Vec<String>>();
     let mut value: Vec<Vec<String>> = Vec::new();
     search_app(app, &None, &mut value);
     let result = value
         .into_iter()
         .map(|cmd| cmd.join(" "))
-        .filter(|cmd| cmd.to_lowercase().contains(&keyword))
+        .filter(|cmd| {
+            let cmd_lower = cmd.to_lowercase();
+            keywords.iter().all(|keyword| cmd_lower.contains(keyword))
+        })
         .collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
