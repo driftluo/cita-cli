@@ -12,7 +12,7 @@ use cita_tool::client::system_contract::{
 };
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
-use interactive::GlobalConfig;
+use interactive::{set_transaction_hash, GlobalConfig};
 use printer::Printer;
 
 /// System contract
@@ -826,7 +826,7 @@ pub fn contract_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
     url: Option<&str>,
-    env_variable: &GlobalConfig,
+    env_variable: &mut GlobalConfig,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
@@ -1409,5 +1409,6 @@ pub fn contract_processor(
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     let response = result.map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
+    set_transaction_hash(&response, env_variable);
     Ok(())
 }

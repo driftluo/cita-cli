@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io;
@@ -14,9 +14,11 @@ use dirs;
 use linefeed::complete::{Completer, Completion};
 use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
+use regex::{Captures, Regex};
 use serde_json;
 use shell_words;
 
+use cita_tool::JsonRpcResponse;
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
     key_processor, parse_privkey, rpc_processor, search_processor, store_processor,
@@ -33,8 +35,11 @@ const ASCII_WORD: &str = r#"
    |_____| |_| |_|   |_|    |_|       |_|   |_| |_| |_|     |_____|
 "#;
 
+const CMD_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
+
 /// Interactive command line
 pub fn start(url: &str) -> io::Result<()> {
+    let re = Regex::new(CMD_PATTERN).unwrap();
     let interface = Arc::new(Interface::new("cita-cli")?);
     let mut url = url.to_string();
     let mut env_variable = GlobalConfig::new();
@@ -96,7 +101,8 @@ pub fn start(url: &str) -> io::Result<()> {
     println!("{}", Red.bold().paint(ASCII_WORD));
     env_variable.print(&url);
     while let ReadResult::Input(line) = interface.read_line()? {
-        let args = shell_words::split(line.as_str()).unwrap();
+        let args =
+            shell_words::split(replace_cmd(&re, line.as_str(), &env_variable).as_str()).unwrap();
 
         if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
             Ok(matches) => {
@@ -144,22 +150,37 @@ pub fn start(url: &str) -> io::Result<()> {
                         file.write_all(content.as_bytes())?;
                         Ok(())
                     }
+                    ("set", Some(m)) => {
+                        let key = m.value_of("key").unwrap().to_owned();
+                        let value = m.value_of("value").unwrap().to_owned();
+                        env_variable.set(key, value);
+                        Ok(())
+                    }
+                    ("get", Some(m)) => {
+                        let key = m.value_of("key").unwrap();
+                        if let Some(value) = env_variable.get(key) {
+                            println!("{}", value);
+                        } else {
+                            println!("None");
+                        }
+                        Ok(())
+                    }
                     ("rpc", Some(m)) => {
-                        rpc_processor(m, &printer, Some(url.as_str()), &env_variable)
+                        rpc_processor(m, &printer, Some(url.as_str()), &mut env_variable)
                     }
                     ("ethabi", Some(m)) => abi_processor(m, &printer, &env_variable),
                     ("key", Some(m)) => key_processor(m, &printer, &env_variable),
                     ("scm", Some(m)) => {
-                        contract_processor(m, &printer, Some(url.as_str()), &env_variable)
+                        contract_processor(m, &printer, Some(url.as_str()), &mut env_variable)
                     }
                     ("transfer", Some(m)) => {
-                        transfer_processor(m, &printer, Some(url.as_str()), &env_variable)
+                        transfer_processor(m, &printer, Some(url.as_str()), &mut env_variable)
                     }
                     ("store", Some(m)) => {
-                        store_processor(m, &printer, Some(url.as_str()), &env_variable)
+                        store_processor(m, &printer, Some(url.as_str()), &mut env_variable)
                     }
                     ("amend", Some(m)) => {
-                        amend_processor(m, &printer, Some(url.as_str()), &env_variable)
+                        amend_processor(m, &printer, Some(url.as_str()), &mut env_variable)
                     }
                     ("info", _) => {
                         env_variable.print(&url);
@@ -169,7 +190,9 @@ pub fn start(url: &str) -> io::Result<()> {
                         search_processor(&parser, m);
                         Ok(())
                     }
-                    ("tx", Some(m)) => tx_processor(m, &printer, Some(url.as_str()), &env_variable),
+                    ("tx", Some(m)) => {
+                        tx_processor(m, &printer, Some(url.as_str()), &mut env_variable)
+                    }
                     ("benchmark", Some(m)) => {
                         benchmark_processor(m, &printer, Some(url.as_str()), &env_variable)
                     }
@@ -335,6 +358,7 @@ pub struct GlobalConfig {
     debug: bool,
     json_format: bool,
     path: PathBuf,
+    env_variable: HashMap<String, String>,
 }
 
 impl GlobalConfig {
@@ -345,7 +369,17 @@ impl GlobalConfig {
             debug: false,
             json_format: true,
             path: env::current_dir().unwrap(),
+            env_variable: HashMap::new(),
         }
+    }
+
+    pub fn set(&mut self, key: String, value: String) -> &mut Self {
+        self.env_variable.insert(key, value);
+        self
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.env_variable.get(key)
     }
 
     #[cfg(feature = "blake2b_hash")]
@@ -444,5 +478,77 @@ fn remove_private(line: &str) -> String {
         )
     } else {
         line.to_string()
+    }
+}
+
+fn replace_cmd(regex: &Regex, line: &str, env_variable: &GlobalConfig) -> String {
+    let replaced = regex.replace_all(line, |caps: &Captures| {
+        if let Some(key) = caps.name("key") {
+            if let Some(value) = env_variable.get(key.as_str()) {
+                value.to_owned()
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
+    });
+    replaced.into_owned()
+}
+
+pub fn set_transaction_hash(response: &JsonRpcResponse, env_variable: &mut GlobalConfig) {
+    if let Some(hash) = response.transaction_hash() {
+        env_variable.set("tx-hash".to_string(), hash.to_string());
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::CMD_PATTERN;
+    use regex::{Captures, Regex};
+
+    #[test]
+    fn test_re() {
+        fn capture(regex: &Regex, line: &str) -> String {
+            let replaced = regex.replace_all(line, |caps: &Captures| {
+                format!("{}", caps.name("key").unwrap().as_str())
+            });
+            replaced.into_owned()
+        }
+
+        let re = Regex::new(CMD_PATTERN).unwrap();
+        let texts = [
+            "${name1}",
+            "${ name2 }",
+            "${ name3}",
+            "${name4 }",
+            "${    name5 }",
+            "${    name6}",
+            "${ name7rd }",
+            // Wrong case
+            "${ name7 rd }",
+            "abc${name8}def",
+            "${name9a} ${name9b}",
+            "abc${name10a} def ${name10b} xyz",
+            "abc${name11a}jobs def clear${name11b}xyz",
+        ];
+        let replaced = [
+            "name1",
+            "name2",
+            "name3",
+            "name4",
+            "name5",
+            "name6",
+            "name7rd",
+            "${ name7 rd }",
+            "abcname8def",
+            "name9a name9b",
+            "abcname10a def name10b xyz",
+            "abcname11ajobs def clearname11bxyz",
+        ];
+
+        for (index, line) in texts.iter().enumerate() {
+            assert_eq!(replaced[index], &capture(&re, line));
+        }
     }
 }

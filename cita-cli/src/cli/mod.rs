@@ -126,4 +126,30 @@ pub fn build_interactive() -> App<'static, 'static> {
                 .visible_alias("quit")
                 .about("Exit the interactive interface"),
         )
+        .subcommand(
+            SubCommand::with_name("set")
+                .about("Set temporary variables")
+                .arg(
+                    Arg::with_name("key")
+                        .required(true)
+                        .index(1)
+                        .help("The name of variable"),
+                )
+                .arg(
+                    Arg::with_name("value")
+                        .required(true)
+                        .index(2)
+                        .help("Variable value"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("get")
+                .about("Get variable value")
+                .arg(
+                    Arg::with_name("key")
+                        .required(true)
+                        .index(1)
+                        .help("The name of variable"),
+                ),
+        )
 }
