@@ -12,7 +12,7 @@ use ansi_term::Colour::{Red, Yellow};
 use clap;
 use dirs;
 use linefeed::complete::{Completer, Completion};
-use linefeed::terminal::Terminal;
+use linefeed::terminal::{DefaultTerminal, Terminal};
 use linefeed::{Interface, Prompter, ReadResult};
 use regex::{Captures, Regex};
 use serde_json;
@@ -100,120 +100,152 @@ pub fn start(url: &str) -> io::Result<()> {
 
     println!("{}", Red.bold().paint(ASCII_WORD));
     env_variable.print(&url);
-    while let ReadResult::Input(line) = interface.read_line()? {
-        let args =
-            shell_words::split(replace_cmd(&re, line.as_str(), &env_variable).as_str()).unwrap();
+    loop {
+        match interface.read_line()? {
+            ReadResult::Input(line) => {
+                let args = shell_words::split(
+                    replace_cmd(&re, line.as_str(), &env_variable).as_str(),
+                ).unwrap();
 
-        if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
-            Ok(matches) => {
-                match matches.subcommand() {
-                    ("switch", Some(m)) => {
-                        m.value_of("host").and_then(|host| {
-                            url = host.to_string();
-                            Some(())
-                        });
-                        if m.is_present("color") {
-                            env_variable.switch_color();
+                if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
+                    Ok(matches) => match handle_commands(
+                        &matches,
+                        &mut url,
+                        &mut env_variable,
+                        &mut printer,
+                        &config_file,
+                        history_file,
+                        &interface,
+                        &parser,
+                    ) {
+                        Ok(true) => {
+                            break;
                         }
+                        result => result,
+                    },
+                    Err(err) => Err(err.to_string()),
+                } {
+                    printer.eprintln(&err.to_string(), true);
+                }
 
-                        if m.is_present("json") {
-                            printer.switch_format();
-                            env_variable.switch_format();
-                        }
+                interface.add_history_unique(remove_private(&line));
+            }
+            ReadResult::Eof => {
+                if let Err(err) = interface.save_history(history_file) {
+                    eprintln!("Save command history failed: {}", err);
+                }
+                break;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
-                        if m.is_present("debug") {
-                            env_variable.switch_debug();
-                        }
+fn handle_commands(
+    matches: &clap::ArgMatches,
+    url: &mut String,
+    env_variable: &mut GlobalConfig,
+    printer: &mut Printer,
+    config_file: &PathBuf,
+    history_file: &str,
+    interface: &Arc<Interface<DefaultTerminal>>,
+    parser: &clap::App<'static, 'static>,
+) -> Result<bool, String> {
+    let result = match matches.subcommand() {
+        ("switch", Some(m)) => {
+            m.value_of("host").and_then(|host| {
+                *url = host.to_string();
+                Some(())
+            });
+            if m.is_present("color") {
+                env_variable.switch_color();
+            }
 
-                        #[cfg(feature = "blake2b_hash")]
-                        {
-                            if m.is_present("algorithm") {
-                                env_variable.switch_encryption();
-                            }
-                        }
-                        #[cfg(not(feature = "blake2b_hash"))]
-                        {
-                            if m.is_present("algorithm") {
-                                println!("[{}]", Red.paint("The current version does not support the blake2b algorithm. \
-                                                    Open 'blak2b' feature and recompile cita-cli, please."));
-                            }
-                        }
-                        env_variable.print(&url);
-                        let mut file = fs::File::create(config_file.as_path())?;
-                        let content = serde_json::to_string_pretty(&json!({
-                            "url": url,
-                            "blake2b": env_variable.blake2b(),
-                            "color": env_variable.color(),
-                            "debug": env_variable.debug(),
-                            "json_format": env_variable.json_format(),
-                        })).unwrap();
-                        file.write_all(content.as_bytes())?;
-                        Ok(())
-                    }
-                    ("set", Some(m)) => {
-                        let key = m.value_of("key").unwrap().to_owned();
-                        let value = m.value_of("value").unwrap().to_owned();
-                        env_variable.set(key, value);
-                        Ok(())
-                    }
-                    ("get", Some(m)) => {
-                        let key = m.value_of("key").unwrap();
-                        if let Some(value) = env_variable.get(key) {
-                            println!("{}", value);
-                        } else {
-                            println!("None");
-                        }
-                        Ok(())
-                    }
-                    ("rpc", Some(m)) => {
-                        rpc_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("ethabi", Some(m)) => abi_processor(m, &printer, &env_variable),
-                    ("key", Some(m)) => key_processor(m, &printer, &env_variable),
-                    ("scm", Some(m)) => {
-                        contract_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("transfer", Some(m)) => {
-                        transfer_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("store", Some(m)) => {
-                        store_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("amend", Some(m)) => {
-                        amend_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("info", _) => {
-                        env_variable.print(&url);
-                        Ok(())
-                    }
-                    ("search", Some(m)) => {
-                        search_processor(&parser, m);
-                        Ok(())
-                    }
-                    ("tx", Some(m)) => {
-                        tx_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("benchmark", Some(m)) => {
-                        benchmark_processor(m, &printer, Some(url.as_str()), &env_variable)
-                    }
-                    ("exit", _) => {
-                        if let Err(err) = interface.save_history(history_file) {
-                            eprintln!("Save command history failed: {}", err);
-                        };
-                        break;
-                    }
-                    _ => Ok(()),
+            if m.is_present("json") {
+                printer.switch_format();
+                env_variable.switch_format();
+            }
+
+            if m.is_present("debug") {
+                env_variable.switch_debug();
+            }
+
+            #[cfg(feature = "blake2b_hash")]
+            {
+                if m.is_present("algorithm") {
+                    env_variable.switch_encryption();
                 }
             }
-            Err(err) => Err(err.to_string()),
-        } {
-            printer.eprintln(&err.to_string(), true);
+            #[cfg(not(feature = "blake2b_hash"))]
+            {
+                if m.is_present("algorithm") {
+                    println!(
+                        "[{}]",
+                        Red.paint(
+                            "The current version does not support the blake2b algorithm. \
+                             Open 'blak2b' feature and recompile cita-cli, please."
+                        )
+                    );
+                }
+            }
+            env_variable.print(&url);
+            let mut file = fs::File::create(config_file.as_path())
+                .map_err(|err| format!("open config error: {:?}", err))?;
+            let content = serde_json::to_string_pretty(&json!({
+                "url": url,
+                "blake2b": env_variable.blake2b(),
+                "color": env_variable.color(),
+                "debug": env_variable.debug(),
+                "json_format": env_variable.json_format(),
+            })).unwrap();
+            file.write_all(content.as_bytes())
+                .map_err(|err| format!("save config error: {:?}", err))?;
+            Ok(())
         }
-
-        interface.add_history_unique(remove_private(&line));
-    }
-
-    Ok(())
+        ("set", Some(m)) => {
+            let key = m.value_of("key").unwrap().to_owned();
+            let value = m.value_of("value").unwrap().to_owned();
+            env_variable.set(key, value);
+            Ok(())
+        }
+        ("get", Some(m)) => {
+            let key = m.value_of("key").unwrap();
+            if let Some(value) = env_variable.get(key) {
+                println!("{}", value);
+            } else {
+                println!("None");
+            }
+            Ok(())
+        }
+        ("rpc", Some(m)) => rpc_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("ethabi", Some(m)) => abi_processor(m, &printer, &env_variable),
+        ("key", Some(m)) => key_processor(m, &printer, &env_variable),
+        ("scm", Some(m)) => contract_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("transfer", Some(m)) => transfer_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("store", Some(m)) => store_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("amend", Some(m)) => amend_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("info", _) => {
+            env_variable.print(&url);
+            Ok(())
+        }
+        ("search", Some(m)) => {
+            search_processor(&parser, m);
+            Ok(())
+        }
+        ("tx", Some(m)) => tx_processor(m, &printer, Some(url.as_str()), env_variable),
+        ("benchmark", Some(m)) => {
+            benchmark_processor(m, &printer, Some(url.as_str()), &env_variable)
+        }
+        ("exit", _) => {
+            if let Err(err) = interface.save_history(history_file) {
+                eprintln!("Save command history failed: {}", err);
+            };
+            return Ok(true);
+        }
+        _ => Ok(()),
+    };
+    result.map(|_| false)
 }
 
 struct CitaCompleter<'a, 'b>
