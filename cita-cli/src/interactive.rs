@@ -482,14 +482,15 @@ fn remove_private(line: &str) -> String {
 }
 
 fn replace_cmd(regex: &Regex, line: &str, env_variable: &GlobalConfig) -> String {
-    let replaced = regex.replace_all(line, |caps: &Captures| match caps.name("key") {
-        Some(key) => env_variable
-            .get(key.as_str())
-            .unwrap_or(&String::new())
-            .to_owned(),
-        None => "".to_string(),
-    });
-    replaced.into_owned()
+    regex
+        .replace_all(line, |caps: &Captures| match caps.name("key") {
+            Some(key) => env_variable
+                .get(key.as_str())
+                .unwrap_or(&String::new())
+                .to_owned(),
+            None => "".to_string(),
+        })
+        .into_owned()
 }
 
 pub fn set_transaction_hash(response: &JsonRpcResponse, env_variable: &mut GlobalConfig) {
