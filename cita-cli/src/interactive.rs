@@ -12,7 +12,7 @@ use ansi_term::Colour::{Red, Yellow};
 use clap;
 use dirs;
 use linefeed::complete::{Completer, Completion};
-use linefeed::terminal::Terminal;
+use linefeed::terminal::{DefaultTerminal, Terminal};
 use linefeed::{Interface, Prompter, ReadResult};
 use regex::{Captures, Regex};
 use serde_json;
@@ -41,8 +41,7 @@ const CMD_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
 pub fn start(url: &str) -> io::Result<()> {
     let re = Regex::new(CMD_PATTERN).unwrap();
     let interface = Arc::new(Interface::new("cita-cli")?);
-    let mut url = url.to_string();
-    let mut env_variable = GlobalConfig::new();
+    let mut config = GlobalConfig::new(url.to_string());
 
     let mut cita_cli_dir = dirs::home_dir().unwrap();
     cita_cli_dir.push(".cita-cli");
@@ -60,12 +59,12 @@ pub fn start(url: &str) -> io::Result<()> {
         file.read_to_string(&mut content)?;
         let configs: serde_json::Value = serde_json::from_str(content.as_str()).unwrap();
         if let Some(value) = configs["url"].as_str() {
-            url = value.to_string();
+            config.set_url(value.to_string());
         }
-        env_variable.set_debug(configs["debug"].as_bool().unwrap_or(false));
-        env_variable.set_color(configs["color"].as_bool().unwrap_or(true));
-        env_variable.set_blake2b(configs["blake2b"].as_bool().unwrap_or(false));
-        env_variable.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
+        config.set_debug(configs["debug"].as_bool().unwrap_or(false));
+        config.set_color(configs["color"].as_bool().unwrap_or(true));
+        config.set_blake2b(configs["blake2b"].as_bool().unwrap_or(false));
+        config.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
     }
 
     let mut parser = build_interactive();
@@ -94,126 +93,151 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut printer = Printer::default();
-    if !env_variable.json_format() {
+    if !config.json_format() {
         printer.switch_format();
     }
 
     println!("{}", Red.bold().paint(ASCII_WORD));
-    env_variable.print(&url);
-    while let ReadResult::Input(line) = interface.read_line()? {
-        let args =
-            shell_words::split(replace_cmd(&re, line.as_str(), &env_variable).as_str()).unwrap();
+    config.print();
+    loop {
+        match interface.read_line()? {
+            ReadResult::Input(line) => {
+                let args =
+                    shell_words::split(replace_cmd(&re, line.as_str(), &config).as_str()).unwrap();
 
-        if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
-            Ok(matches) => {
-                match matches.subcommand() {
-                    ("switch", Some(m)) => {
-                        m.value_of("host").and_then(|host| {
-                            url = host.to_string();
-                            Some(())
-                        });
-                        if m.is_present("color") {
-                            env_variable.switch_color();
+                if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
+                    Ok(matches) => match handle_commands(
+                        &matches,
+                        &mut config,
+                        &mut printer,
+                        (&config_file, history_file),
+                        &interface,
+                        &parser,
+                    ) {
+                        Ok(true) => {
+                            break;
                         }
+                        result => result,
+                    },
+                    Err(err) => Err(err.to_string()),
+                } {
+                    printer.eprintln(&err.to_string(), true);
+                }
 
-                        if m.is_present("json") {
-                            printer.switch_format();
-                            env_variable.switch_format();
-                        }
+                interface.add_history_unique(remove_private(&line));
+            }
+            ReadResult::Eof => {
+                if let Err(err) = interface.save_history(history_file) {
+                    eprintln!("Save command history failed: {}", err);
+                }
+                break;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
-                        if m.is_present("debug") {
-                            env_variable.switch_debug();
-                        }
+fn handle_commands(
+    matches: &clap::ArgMatches,
+    config: &mut GlobalConfig,
+    printer: &mut Printer,
+    (config_file, history_file): (&PathBuf, &str),
+    interface: &Arc<Interface<DefaultTerminal>>,
+    parser: &clap::App<'static, 'static>,
+) -> Result<bool, String> {
+    let result = match matches.subcommand() {
+        ("switch", Some(m)) => {
+            m.value_of("host").and_then(|host| {
+                config.set_url(host.to_string());
+                Some(())
+            });
+            if m.is_present("color") {
+                config.switch_color();
+            }
 
-                        #[cfg(feature = "blake2b_hash")]
-                        {
-                            if m.is_present("algorithm") {
-                                env_variable.switch_encryption();
-                            }
-                        }
-                        #[cfg(not(feature = "blake2b_hash"))]
-                        {
-                            if m.is_present("algorithm") {
-                                println!("[{}]", Red.paint("The current version does not support the blake2b algorithm. \
-                                                    Open 'blak2b' feature and recompile cita-cli, please."));
-                            }
-                        }
-                        env_variable.print(&url);
-                        let mut file = fs::File::create(config_file.as_path())?;
-                        let content = serde_json::to_string_pretty(&json!({
-                            "url": url,
-                            "blake2b": env_variable.blake2b(),
-                            "color": env_variable.color(),
-                            "debug": env_variable.debug(),
-                            "json_format": env_variable.json_format(),
-                        })).unwrap();
-                        file.write_all(content.as_bytes())?;
-                        Ok(())
-                    }
-                    ("set", Some(m)) => {
-                        let key = m.value_of("key").unwrap().to_owned();
-                        let value = m.value_of("value").unwrap().to_owned();
-                        env_variable.set(key, value);
-                        Ok(())
-                    }
-                    ("get", Some(m)) => {
-                        let key = m.value_of("key").unwrap();
-                        if let Some(value) = env_variable.get(key) {
-                            println!("{}", value);
-                        } else {
-                            println!("None");
-                        }
-                        Ok(())
-                    }
-                    ("rpc", Some(m)) => {
-                        rpc_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("ethabi", Some(m)) => abi_processor(m, &printer, &env_variable),
-                    ("key", Some(m)) => key_processor(m, &printer, &env_variable),
-                    ("scm", Some(m)) => {
-                        contract_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("transfer", Some(m)) => {
-                        transfer_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("store", Some(m)) => {
-                        store_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("amend", Some(m)) => {
-                        amend_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("info", _) => {
-                        env_variable.print(&url);
-                        Ok(())
-                    }
-                    ("search", Some(m)) => {
-                        search_processor(&parser, m);
-                        Ok(())
-                    }
-                    ("tx", Some(m)) => {
-                        tx_processor(m, &printer, Some(url.as_str()), &mut env_variable)
-                    }
-                    ("benchmark", Some(m)) => {
-                        benchmark_processor(m, &printer, Some(url.as_str()), &env_variable)
-                    }
-                    ("exit", _) => {
-                        if let Err(err) = interface.save_history(history_file) {
-                            eprintln!("Save command history failed: {}", err);
-                        };
-                        break;
-                    }
-                    _ => Ok(()),
+            if m.is_present("json") {
+                printer.switch_format();
+                config.switch_format();
+            }
+
+            if m.is_present("debug") {
+                config.switch_debug();
+            }
+
+            #[cfg(feature = "blake2b_hash")]
+            {
+                if m.is_present("algorithm") {
+                    config.switch_encryption();
                 }
             }
-            Err(err) => Err(err.to_string()),
-        } {
-            printer.eprintln(&err.to_string(), true);
+            #[cfg(not(feature = "blake2b_hash"))]
+            {
+                if m.is_present("algorithm") {
+                    println!(
+                        "[{}]",
+                        Red.paint(
+                            "The current version does not support the blake2b algorithm. \
+                             Open 'blak2b' feature and recompile cita-cli, please."
+                        )
+                    );
+                }
+            }
+            config.print();
+            let mut file = fs::File::create(config_file.as_path())
+                .map_err(|err| format!("open config error: {:?}", err))?;
+            let content = serde_json::to_string_pretty(&json!({
+                "url": config.get_url().clone(),
+                "blake2b": config.blake2b(),
+                "color": config.color(),
+                "debug": config.debug(),
+                "json_format": config.json_format(),
+            })).unwrap();
+            file.write_all(content.as_bytes())
+                .map_err(|err| format!("save config error: {:?}", err))?;
+            Ok(())
         }
-
-        interface.add_history_unique(remove_private(&line));
-    }
-
-    Ok(())
+        ("set", Some(m)) => {
+            let key = m.value_of("key").unwrap().to_owned();
+            let value = m.value_of("value").unwrap().to_owned();
+            config.set(key, serde_json::Value::String(value));
+            Ok(())
+        }
+        ("get", Some(m)) => {
+            let key = m.value_of("key").unwrap();
+            if let Some(value) = config.get(key) {
+                printer.println(value, config.color());
+            } else {
+                println!("None");
+            }
+            Ok(())
+        }
+        ("rpc", Some(m)) => rpc_processor(m, &printer, config),
+        ("ethabi", Some(m)) => abi_processor(m, &printer, &config),
+        ("key", Some(m)) => key_processor(m, &printer, &config),
+        ("scm", Some(m)) => contract_processor(m, &printer, config),
+        ("transfer", Some(m)) => transfer_processor(m, &printer, config),
+        ("store", Some(m)) => store_processor(m, &printer, config),
+        ("amend", Some(m)) => amend_processor(m, &printer, config),
+        ("info", _) => {
+            config.print();
+            Ok(())
+        }
+        ("search", Some(m)) => {
+            search_processor(&parser, m);
+            Ok(())
+        }
+        ("tx", Some(m)) => tx_processor(m, &printer, config),
+        ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
+        ("exit", _) => {
+            if let Err(err) = interface.save_history(history_file) {
+                eprintln!("Save command history failed: {}", err);
+            };
+            return Ok(true);
+        }
+        _ => Ok(()),
+    };
+    result.map(|_| false)
 }
 
 struct CitaCompleter<'a, 'b>
@@ -353,17 +377,19 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
 }
 
 pub struct GlobalConfig {
+    url: String,
     blake2b: bool,
     color: bool,
     debug: bool,
     json_format: bool,
     path: PathBuf,
-    env_variable: HashMap<String, String>,
+    env_variable: HashMap<String, serde_json::Value>,
 }
 
 impl GlobalConfig {
-    pub fn new() -> Self {
+    pub fn new(url: String) -> Self {
         GlobalConfig {
+            url,
             blake2b: false,
             color: true,
             debug: false,
@@ -373,13 +399,40 @@ impl GlobalConfig {
         }
     }
 
-    pub fn set(&mut self, key: String, value: String) -> &mut Self {
+    pub fn set(&mut self, key: String, value: serde_json::Value) -> &mut Self {
         self.env_variable.insert(key, value);
         self
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.env_variable.get(key)
+    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
+        let mut parts_iter = key.split('.');
+        if let Some(name) = parts_iter.next() {
+            parts_iter
+                .try_fold(
+                    self.env_variable.get(name),
+                    |value_opt: Option<&serde_json::Value>, part| match value_opt {
+                        Some(value) => match part.parse::<usize>() {
+                            Ok(index) => match value.get(index) {
+                                None => Ok(value.get(part)),
+                                result => Ok(result),
+                            },
+                            _ => Ok(value.get(part)),
+                        },
+                        None => Err(()),
+                    },
+                )
+                .unwrap_or_default()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_url(&mut self, value: String) {
+        self.url = value;
+    }
+
+    pub fn get_url(&self) -> &String {
+        &self.url
     }
 
     #[cfg(feature = "blake2b_hash")]
@@ -431,14 +484,14 @@ impl GlobalConfig {
         self.json_format
     }
 
-    fn print(&self, url: &str) {
+    fn print(&self) {
         let path = self.path.to_string_lossy();
         let encryption = if self.blake2b { "ed25519" } else { "secp256k1" };
         let color = self.color.to_string();
         let debug = self.debug.to_string();
         let json = self.json_format.to_string();
         let values = [
-            ("url", url),
+            ("url", self.url.as_str()),
             ("pwd", path.deref()),
             ("color", color.as_str()),
             ("debug", debug.as_str()),
@@ -481,21 +534,28 @@ fn remove_private(line: &str) -> String {
     }
 }
 
-fn replace_cmd(regex: &Regex, line: &str, env_variable: &GlobalConfig) -> String {
+fn replace_cmd(regex: &Regex, line: &str, config: &GlobalConfig) -> String {
     regex
         .replace_all(line, |caps: &Captures| match caps.name("key") {
-            Some(key) => env_variable
+            Some(key) => config
                 .get(key.as_str())
-                .unwrap_or(&String::new())
-                .to_owned(),
-            None => "".to_string(),
+                .map(|value| match value {
+                    serde_json::Value::String(s) => s.to_owned(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    _ => String::new(),
+                })
+                .unwrap_or_else(String::new),
+            None => String::new(),
         })
         .into_owned()
 }
 
-pub fn set_transaction_hash(response: &JsonRpcResponse, env_variable: &mut GlobalConfig) {
-    if let Some(hash) = response.transaction_hash() {
-        env_variable.set("tx-hash".to_string(), hash.to_string());
+pub fn set_output(response: &JsonRpcResponse, config: &mut GlobalConfig) {
+    if let Some(result) = response.result() {
+        config.set(
+            "result".to_string(),
+            serde_json::from_str(serde_json::to_string(&result).unwrap().as_str()).unwrap(),
+        );
     }
 }
 

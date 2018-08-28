@@ -4,7 +4,7 @@ use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
 use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64, search_app};
-use interactive::{set_transaction_hash, GlobalConfig};
+use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
 use std::collections::BTreeSet;
@@ -23,18 +23,20 @@ pub fn search_command() -> App<'static, 'static> {
 
 /// Processor search command
 pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
-    let keyword = sub_matches
+    let keywords = sub_matches
         .values_of("keyword")
         .unwrap()
         .map(|s| s.to_lowercase())
-        .collect::<Vec<String>>()
-        .join(" ");
+        .collect::<Vec<String>>();
     let mut value: Vec<Vec<String>> = Vec::new();
     search_app(app, &None, &mut value);
     let result = value
         .into_iter()
         .map(|cmd| cmd.join(" "))
-        .filter(|cmd| cmd.to_lowercase().contains(&keyword))
+        .filter(|cmd| {
+            let cmd_lower = cmd.to_lowercase();
+            keywords.iter().all(|keyword| cmd_lower.contains(keyword))
+        })
         .collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
@@ -84,18 +86,15 @@ pub fn transfer_command() -> App<'static, 'static> {
 pub fn transfer_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    env_variable: &mut GlobalConfig,
+    config: &mut GlobalConfig,
 ) -> Result<(), String> {
-    let debug = sub_matches.is_present("debug") || env_variable.debug();
+    let debug = sub_matches.is_present("debug") || config.debug();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
-    let blake2b = blake2b(sub_matches, env_variable);
+        .set_uri(get_url(sub_matches, config));
+
+    let blake2b = blake2b(sub_matches, config);
     client.set_private_key(&parse_privkey(
         sub_matches.value_of("private-key").unwrap(),
     )?);
@@ -104,12 +103,12 @@ pub fn transfer_processor(
         .value_of("quota")
         .map(|quota| parse_u64(quota).unwrap());
     let value = parse_u256(sub_matches.value_of("value").unwrap()).unwrap();
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     let response = client
         .transfer(value, address, quota, blake2b)
         .map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
-    set_transaction_hash(&response, env_variable);
+    set_output(&response, config);
     Ok(())
 }
 
@@ -124,15 +123,11 @@ pub fn benchmark_command() -> App<'static, 'static> {
 pub fn benchmark_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    _env_variable: &GlobalConfig,
+    config: &GlobalConfig,
 ) -> Result<(), String> {
     let client = Client::new()
         .map_err(|err| format!("{}", err))?
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
+        .set_uri(get_url(sub_matches, config));
 
     match sub_matches.subcommand() {
         ("get-height", _) => {

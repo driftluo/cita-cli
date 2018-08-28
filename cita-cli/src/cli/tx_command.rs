@@ -4,7 +4,7 @@ use cita_tool::client::basic::Client;
 use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u64};
-use interactive::{set_transaction_hash, GlobalConfig};
+use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 use std::str::FromStr;
 
@@ -115,18 +115,15 @@ pub fn tx_command() -> App<'static, 'static> {
 pub fn tx_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
-    url: Option<&str>,
-    env_variable: &mut GlobalConfig,
+    config: &mut GlobalConfig,
 ) -> Result<(), String> {
-    let debug = sub_matches.is_present("debug") || env_variable.debug();
-    let is_color = !sub_matches.is_present("no-color") && env_variable.color();
+    let debug = sub_matches.is_present("debug") || config.debug();
+    let is_color = !sub_matches.is_present("no-color") && config.color();
     let mut client = Client::new()
         .map_err(|err| format!("{}", err))?
         .set_debug(debug)
-        .set_uri(url.unwrap_or_else(|| match sub_matches.subcommand() {
-            (_, Some(m)) => get_url(m),
-            _ => "http://127.0.0.1:1337",
-        }));
+        .set_uri(get_url(sub_matches, config));
+
     let result = match sub_matches.subcommand() {
         ("make", Some(m)) => {
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
@@ -163,7 +160,7 @@ pub fn tx_processor(
             client.send_signed_transaction(byte_code)
         }
         ("sendTransaction", Some(m)) => {
-            let blake2b = blake2b(sub_matches, env_variable);
+            let blake2b = blake2b(sub_matches, config);
             if let Some(private_key) = m.value_of("private-key") {
                 client.set_private_key(&parse_privkey(private_key)?);
             }
@@ -171,7 +168,7 @@ pub fn tx_processor(
             client.send_transaction(byte_code, blake2b)
         }
         ("decode-unverifiedTransaction", Some(m)) => {
-            let blake2b = blake2b(sub_matches, env_variable);
+            let blake2b = blake2b(sub_matches, config);
             let content = m.value_of("content").unwrap();
             let tx = UnverifiedTransaction::from_str(&content).map_err(|err| format!("{}", err))?;
             printer.println(&tx.to_json(blake2b)?, is_color);
@@ -183,6 +180,6 @@ pub fn tx_processor(
     };
     let resp = result.map_err(|err| format!("{}", err))?;
     printer.println(&resp, is_color);
-    set_transaction_hash(&resp, env_variable);
+    set_output(&resp, config);
     Ok(())
 }
