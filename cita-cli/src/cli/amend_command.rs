@@ -4,7 +4,7 @@ use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::remove_0x;
 
 use cli::{blake2b, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64};
-use interactive::GlobalConfig;
+use interactive::{set_transaction_hash, GlobalConfig};
 use printer::Printer;
 
 use std::fs;
@@ -154,7 +154,7 @@ pub fn amend_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
     url: Option<&str>,
-    env_variable: &GlobalConfig,
+    env_variable: &mut GlobalConfig,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
@@ -244,5 +244,6 @@ pub fn amend_processor(
     let resp = result.map_err(|err| format!("{}", err))?;
     let is_color = !sub_matches.is_present("no-color") && env_variable.color();
     printer.println(&resp, is_color);
+    set_transaction_hash(&resp, env_variable);
     Ok(())
 }

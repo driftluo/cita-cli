@@ -4,7 +4,7 @@ use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
 use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64, search_app};
-use interactive::GlobalConfig;
+use interactive::{set_transaction_hash, GlobalConfig};
 use printer::Printer;
 
 use std::collections::BTreeSet;
@@ -26,7 +26,7 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
     let keyword = sub_matches
         .values_of("keyword")
         .unwrap()
-        .map(|s| s.to_owned())
+        .map(|s| s.to_lowercase())
         .collect::<Vec<String>>()
         .join(" ");
     let mut value: Vec<Vec<String>> = Vec::new();
@@ -85,7 +85,7 @@ pub fn transfer_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
     url: Option<&str>,
-    env_variable: &GlobalConfig,
+    env_variable: &mut GlobalConfig,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || env_variable.debug();
     let mut client = Client::new()
@@ -109,6 +109,7 @@ pub fn transfer_processor(
         .transfer(value, address, quota, blake2b)
         .map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
+    set_transaction_hash(&response, env_variable);
     Ok(())
 }
 
