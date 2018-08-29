@@ -24,7 +24,7 @@ use cli::{
     key_processor, parse_privkey, rpc_processor, search_processor, store_processor,
     transfer_processor, tx_processor,
 };
-use printer::Printer;
+use printer::{OutputFormat, Printable, Printer};
 
 const ASCII_WORD: &str = r#"
    ._____. ._____.  _. ._   ._____. ._____.   ._.   ._____. ._____.
@@ -204,12 +204,8 @@ fn handle_commands(
             Ok(())
         }
         ("get", Some(m)) => {
-            let key = m.value_of("key").unwrap();
-            if let Some(value) = config.get(key) {
-                printer.println(value, config.color());
-            } else {
-                println!("None");
-            }
+            let key = m.value_of("key");
+            printer.println(&config.get(key).clone(), config.color());
             Ok(())
         }
         ("rpc", Some(m)) => rpc_processor(m, &printer, config),
@@ -399,31 +395,36 @@ impl GlobalConfig {
         }
     }
 
-    pub fn set(&mut self, key: String, value: serde_json::Value) -> &mut Self {
+    fn set(&mut self, key: String, value: serde_json::Value) -> &mut Self {
         self.env_variable.insert(key, value);
         self
     }
 
-    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
-        let mut parts_iter = key.split('.');
-        if let Some(name) = parts_iter.next() {
-            parts_iter
-                .try_fold(
-                    self.env_variable.get(name),
-                    |value_opt: Option<&serde_json::Value>, part| match value_opt {
-                        Some(value) => match part.parse::<usize>() {
-                            Ok(index) => match value.get(index) {
-                                None => Ok(value.get(part)),
-                                result => Ok(result),
+    fn get(&self, key: Option<&str>) -> KV {
+        match key {
+            Some(key) => {
+                let mut parts_iter = key.split('.');
+                let value = match parts_iter.next() {
+                    Some(name) => parts_iter
+                        .try_fold(
+                            self.env_variable.get(name),
+                            |value_opt: Option<&serde_json::Value>, part| match value_opt {
+                                Some(value) => match part.parse::<usize>() {
+                                    Ok(index) => match value.get(index) {
+                                        None => Ok(value.get(part)),
+                                        result => Ok(result),
+                                    },
+                                    _ => Ok(value.get(part)),
+                                },
+                                None => Err(()),
                             },
-                            _ => Ok(value.get(part)),
-                        },
-                        None => Err(()),
-                    },
-                )
-                .unwrap_or_default()
-        } else {
-            None
+                        )
+                        .unwrap_or_default(),
+                    None => None,
+                };
+                KV::Value(value)
+            }
+            None => KV::Keys(self.env_variable.keys().cloned().collect::<Vec<String>>()),
         }
     }
 
@@ -538,13 +539,14 @@ fn replace_cmd(regex: &Regex, line: &str, config: &GlobalConfig) -> String {
     regex
         .replace_all(line, |caps: &Captures| match caps.name("key") {
             Some(key) => config
-                .get(key.as_str())
+                .get(Some(key.as_str()))
                 .map(|value| match value {
                     serde_json::Value::String(s) => s.to_owned(),
                     serde_json::Value::Number(n) => n.to_string(),
                     _ => String::new(),
                 })
-                .unwrap_or_else(String::new),
+                .next()
+                .unwrap(),
             None => String::new(),
         })
         .into_owned()
@@ -556,6 +558,40 @@ pub fn set_output(response: &JsonRpcResponse, config: &mut GlobalConfig) {
             "result".to_string(),
             serde_json::from_str(serde_json::to_string(&result).unwrap().as_str()).unwrap(),
         );
+    }
+}
+
+#[derive(Clone)]
+enum KV<'a> {
+    Value(Option<&'a serde_json::Value>),
+    Keys(Vec<String>),
+}
+
+impl<'a> Printable for KV<'a> {
+    fn rc_string(&self, format: OutputFormat, color: bool) -> ::std::rc::Rc<String> {
+        match self {
+            KV::Value(Some(value)) => value.rc_string(format, color),
+            KV::Keys(value) => ::std::rc::Rc::new(
+                value
+                    .iter()
+                    .enumerate()
+                    .map(|(index, key)| format!("{}) {}", index, key))
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+            ),
+            KV::Value(None) => ::std::rc::Rc::new("None".to_string()),
+        }
+    }
+}
+
+impl<'a> ::std::iter::Iterator for KV<'a> {
+    type Item = serde_json::Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            KV::Value(value) => value.cloned(),
+            _ => None,
+        }
     }
 }
 
