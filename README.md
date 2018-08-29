@@ -26,7 +26,7 @@ Just like the relationship between redis-cli and redis.
 
 ### Screencast
 
-![A asciicast of cita-cli](./asciicast.svg)
+![A asciicast of cita-cli](./cita-cli.gif)
 
 ### Clone and Build
 

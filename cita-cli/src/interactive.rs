@@ -424,7 +424,12 @@ impl GlobalConfig {
                 };
                 KV::Value(value)
             }
-            None => KV::Keys(self.env_variable.keys().cloned().collect::<Vec<String>>()),
+            None => KV::Keys(
+                self.env_variable
+                    .keys()
+                    .map(|key| key.as_str())
+                    .collect::<Vec<&str>>(),
+            ),
         }
     }
 
@@ -564,7 +569,7 @@ pub fn set_output(response: &JsonRpcResponse, config: &mut GlobalConfig) {
 #[derive(Clone)]
 enum KV<'a> {
     Value(Option<&'a serde_json::Value>),
-    Keys(Vec<String>),
+    Keys(Vec<&'a str>),
 }
 
 impl<'a> Printable for KV<'a> {
@@ -585,11 +590,11 @@ impl<'a> Printable for KV<'a> {
 }
 
 impl<'a> ::std::iter::Iterator for KV<'a> {
-    type Item = serde_json::Value;
+    type Item = &'a serde_json::Value;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            KV::Value(value) => value.cloned(),
+            KV::Value(value) => *value.deref(),
             _ => None,
         }
     }
