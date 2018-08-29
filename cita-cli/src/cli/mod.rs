@@ -145,11 +145,6 @@ pub fn build_interactive() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("get")
                 .about("Get variable value")
-                .arg(
-                    Arg::with_name("key")
-                        .required(true)
-                        .index(1)
-                        .help("The name of variable"),
-                ),
+                .arg(Arg::with_name("key").index(1).help("The name of variable")),
         )
 }
