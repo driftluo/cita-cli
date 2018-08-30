@@ -70,7 +70,17 @@ fn main() {
         ("tx", Some(m)) => tx_processor(m, &printer, &mut config),
         ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
         _ => {
-            let _ = interactive::start(&default_jsonrpc_url);
+            if let Err(err) = interactive::start(&default_jsonrpc_url) {
+                match err.kind() {
+                    ::std::io::ErrorKind::Other | ::std::io::ErrorKind::NotFound => {
+                        env::set_var("TERM", "xterm-color");
+                        if let Err(e) = interactive::start(&default_jsonrpc_url) {
+                            eprintln!("{}", e)
+                        }
+                    }
+                    _ => eprintln!("{}", err),
+                }
+            }
             Ok(())
         }
     } {
