@@ -69,6 +69,11 @@ pub fn build_cli(default_url: &str) -> App {
                 .global(true)
                 .help("Display request parameters"),
         )
+        .arg(
+            Arg::with_name("rustyline")
+                .long("rustyline")
+                .help("Use rustyline readline library"),
+        )
 }
 
 /// Interactive parser
