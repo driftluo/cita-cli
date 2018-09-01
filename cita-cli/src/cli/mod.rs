@@ -70,9 +70,9 @@ pub fn build_cli(default_url: &str) -> App {
                 .help("Display request parameters"),
         )
         .arg(
-            Arg::with_name("rustyline")
-                .long("rustyline")
-                .help("Use rustyline readline library"),
+            Arg::with_name("linefeed")
+                .long("linefeed")
+                .help("Use linefeed readline library"),
         )
 }
 

@@ -60,7 +60,7 @@ static DEFAULT_BREAK_CHARS: [u8; 17] = [
 static ESCAPE_CHAR: Option<char> = None;
 
 /// Interactive command line
-pub fn start(url: &str, use_rustyline: bool) -> io::Result<()> {
+pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
     let env_regex = Regex::new(ENV_PATTERN).unwrap();
     let mut config = GlobalConfig::new(url.to_string());
 
@@ -105,8 +105,8 @@ pub fn start(url: &str, use_rustyline: bool) -> io::Result<()> {
     println!("{}", Red.bold().paint(ASCII_WORD));
     config.print();
 
-    if use_rustyline {
-        start_rustyline(
+    if use_linefeed {
+        start_linefeed(
             &mut parser,
             &mut config,
             &mut printer,
@@ -116,7 +116,7 @@ pub fn start(url: &str, use_rustyline: bool) -> io::Result<()> {
             history_file,
         )
     } else {
-        start_linefeed(
+        start_rustyline(
             &mut parser,
             &mut config,
             &mut printer,
