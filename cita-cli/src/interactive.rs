@@ -96,7 +96,7 @@ pub fn start(url: &str, use_rustyline: bool) -> io::Result<()> {
             &mut config,
             &mut printer,
             &env_regex,
-            &colored_prompt,
+            colored_prompt.as_str(),
             &config_file,
             history_file,
         )
@@ -106,7 +106,7 @@ pub fn start(url: &str, use_rustyline: bool) -> io::Result<()> {
             &mut config,
             &mut printer,
             &env_regex,
-            &colored_prompt,
+            colored_prompt.as_str(),
             &config_file,
             history_file,
         )
@@ -118,7 +118,7 @@ fn start_rustyline(
     config: &mut GlobalConfig,
     printer: &mut Printer,
     env_regex: &Regex,
-    colored_prompt: &String,
+    colored_prompt: &str,
     config_file: &PathBuf,
     history_file: &str,
 ) -> io::Result<()> {
@@ -138,7 +138,14 @@ fn start_rustyline(
     loop {
         match rl.readline(colored_prompt) {
             Ok(line) => {
-                match handle_commands(&line, config, printer, parser, env_regex, config_file) {
+                match handle_commands(
+                    line.as_str(),
+                    config,
+                    printer,
+                    parser,
+                    env_regex,
+                    config_file,
+                ) {
                     Ok(true) => {
                         if let Err(err) = rl.save_history(history_file) {
                             eprintln!("Save command history failed: {}", err);
@@ -177,7 +184,7 @@ fn start_linefeed(
     config: &mut GlobalConfig,
     printer: &mut Printer,
     env_regex: &Regex,
-    colored_prompt: &String,
+    colored_prompt: &str,
     config_file: &PathBuf,
     history_file: &str,
 ) -> io::Result<()> {
@@ -226,15 +233,14 @@ fn start_linefeed(
 }
 
 fn handle_commands(
-    line: &String,
+    line: &str,
     config: &mut GlobalConfig,
     printer: &mut Printer,
     parser: &mut clap::App<'static, 'static>,
     env_regex: &Regex,
     config_file: &PathBuf,
 ) -> Result<bool, String> {
-    let args =
-        shell_words::split(replace_cmd(&env_regex, line.as_str(), &config).as_str()).unwrap();
+    let args = shell_words::split(replace_cmd(&env_regex, line, &config).as_str()).unwrap();
 
     match parser.get_matches_from_safe_borrow(args) {
         Ok(matches) => match matches.subcommand() {
@@ -483,7 +489,7 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                 })
                 .collect::<Vec<_>>()
         });
-        Ok((pos, pairs.unwrap_or(vec![])))
+        Ok((pos, pairs.unwrap_or_else(Vec::new)))
     }
 }
 
@@ -731,7 +737,7 @@ impl<'a> ::std::iter::Iterator for KV<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::CMD_PATTERN;
+    use super::ENV_PATTERN;
     use regex::{Captures, Regex};
 
     #[test]
@@ -743,7 +749,7 @@ mod test {
             replaced.into_owned()
         }
 
-        let re = Regex::new(CMD_PATTERN).unwrap();
+        let re = Regex::new(ENV_PATTERN).unwrap();
         let texts = [
             "${name1}",
             "${ name2 }",
