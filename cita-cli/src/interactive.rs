@@ -8,7 +8,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ansi_term::Colour::{Red, Yellow};
+use ansi_term::Colour::{Red, Yellow, RGB};
 use clap;
 use dirs;
 use linefeed::complete::{Completer as LinefeedCompleter, Completion};
@@ -16,6 +16,7 @@ use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
 
 use rustyline::completion::{extract_word, Completer, Pair};
+use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -86,17 +87,29 @@ pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
         config.set_color(configs["color"].as_bool().unwrap_or(true));
         config.set_blake2b(configs["blake2b"].as_bool().unwrap_or(false));
         config.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
+        config.set_completion_style(configs["completion_style"].as_bool().unwrap_or(true));
+        config.set_edit_style(configs["edit_style"].as_bool().unwrap_or(true));
+        config.set_use_linefeed(use_linefeed);
     }
 
     let mut parser = build_interactive();
     let style = Red.bold();
     let text = "cita> ";
-    let colored_prompt = format!(
-        "\x01{prefix}\x02{text}\x01{suffix}\x02",
-        prefix = style.prefix(),
-        text = text,
-        suffix = style.suffix()
-    );
+    let colored_prompt = if use_linefeed {
+        format!(
+            "\x01{prefix}\x02{text}\x01{suffix}\x02",
+            prefix = style.prefix(),
+            text = text,
+            suffix = style.suffix()
+        )
+    } else {
+        format!(
+            "{prefix}{text}{suffix}",
+            prefix = style.prefix(),
+            text = text,
+            suffix = style.suffix()
+        )
+    };
 
     let mut printer = Printer::default();
     if !config.json_format() {
@@ -162,9 +175,6 @@ fn start_rustyline(
                     config_file,
                 ) {
                     Ok(true) => {
-                        if let Err(err) = rl.save_history(history_file) {
-                            eprintln!("Save command history failed: {}", err);
-                        }
                         break;
                     }
                     Ok(false) => {}
@@ -173,6 +183,18 @@ fn start_rustyline(
                     }
                 }
                 rl.add_history_entry(line.as_ref());
+
+                if config.completion_style() {
+                    rl.set_completion_type(CompletionType::List)
+                } else {
+                    rl.set_completion_type(CompletionType::Circular)
+                }
+
+                if config.edit_style() {
+                    rl.set_edit_mode(EditMode::Emacs)
+                } else {
+                    rl.set_edit_mode(EditMode::Vi)
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -276,6 +298,14 @@ fn handle_commands(
                     config.switch_debug();
                 }
 
+                if m.is_present("edit_style") && !config.use_linefeed() {
+                    config.switch_edit_style();
+                }
+
+                if m.is_present("completion_style") && !config.use_linefeed() {
+                    config.switch_completion_style();
+                }
+
                 #[cfg(feature = "blake2b_hash")]
                 {
                     if m.is_present("algorithm") {
@@ -303,6 +333,8 @@ fn handle_commands(
                     "color": config.color(),
                     "debug": config.debug(),
                     "json_format": config.json_format(),
+                    "completion_style": config.completion_style(),
+                    "edit_style": config.edit_style(),
                 })).unwrap();
                 file.write_all(content.as_bytes())
                     .map_err(|err| format!("save config error: {:?}", err))?;
@@ -516,8 +548,40 @@ impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {}
 
 impl<'a, 'b> Hinter for CitaCompleter<'a, 'b> {
     fn hint(&self, line: &str, _pos: usize) -> Option<String> {
-        if line == "hello" {
-            Some(" World".to_owned())
+        if line == "get" {
+            Some(RGB(105, 105, 105).paint(" [key]").to_string())
+        } else if line == "set" {
+            Some(RGB(105, 105, 105).paint(" <key> <value>").to_string())
+        } else if line == "ethabi encode function" {
+            Some(
+                RGB(105, 105, 105)
+                    .paint(" <file path> <function name> --param [value]...")
+                    .to_string(),
+            )
+        } else if line == "ethabi encode params" {
+            Some(
+                RGB(105, 105, 105)
+                    .paint(" --param <type> <value>")
+                    .to_string(),
+            )
+        } else if line == "ethabi decode function" {
+            Some(
+                RGB(105, 105, 105)
+                    .paint("  <file path> <function name> --data <data>")
+                    .to_string(),
+            )
+        } else if line == "ethabi decode log" {
+            Some(
+                RGB(105, 105, 105)
+                    .paint("  <file path> <event name> --data <data> --param <topic>...")
+                    .to_string(),
+            )
+        } else if line == "ethabi decode params" {
+            Some(
+                RGB(105, 105, 105)
+                    .paint(" --type <type>... --data <data>")
+                    .to_string(),
+            )
         } else {
             None
         }
@@ -533,6 +597,9 @@ pub struct GlobalConfig {
     debug: bool,
     json_format: bool,
     path: PathBuf,
+    completion_style: bool,
+    edit_style: bool,
+    use_linefeed: bool,
     env_variable: HashMap<String, serde_json::Value>,
 }
 
@@ -545,6 +612,9 @@ impl GlobalConfig {
             debug: false,
             json_format: true,
             path: env::current_dir().unwrap(),
+            completion_style: true,
+            edit_style: true,
+            use_linefeed: false,
             env_variable: HashMap::new(),
         }
     }
@@ -612,6 +682,14 @@ impl GlobalConfig {
         self.json_format = !self.json_format;
     }
 
+    fn switch_completion_style(&mut self) {
+        self.completion_style = !self.completion_style;
+    }
+
+    fn switch_edit_style(&mut self) {
+        self.edit_style = !self.edit_style;
+    }
+
     pub fn set_blake2b(&mut self, value: bool) {
         self.blake2b = value;
     }
@@ -626,6 +704,18 @@ impl GlobalConfig {
 
     fn set_json_format(&mut self, value: bool) {
         self.json_format = value;
+    }
+
+    fn set_completion_style(&mut self, value: bool) {
+        self.completion_style = value;
+    }
+
+    fn set_edit_style(&mut self, value: bool) {
+        self.edit_style = value;
+    }
+
+    fn set_use_linefeed(&mut self, value: bool) {
+        self.use_linefeed = value;
     }
 
     pub fn blake2b(&self) -> bool {
@@ -644,12 +734,30 @@ impl GlobalConfig {
         self.json_format
     }
 
+    fn completion_style(&self) -> bool {
+        self.completion_style
+    }
+
+    fn edit_style(&self) -> bool {
+        self.edit_style
+    }
+
+    fn use_linefeed(&self) -> bool {
+        self.use_linefeed
+    }
+
     fn print(&self) {
         let path = self.path.to_string_lossy();
         let encryption = if self.blake2b { "ed25519" } else { "secp256k1" };
         let color = self.color.to_string();
         let debug = self.debug.to_string();
         let json = self.json_format.to_string();
+        let completion_style = if self.completion_style {
+            "List"
+        } else {
+            "Circular"
+        };
+        let edit_style = if self.edit_style { "Emacs" } else { "Vi" };
         let values = [
             ("url", self.url.as_str()),
             ("pwd", path.deref()),
@@ -657,6 +765,8 @@ impl GlobalConfig {
             ("debug", debug.as_str()),
             ("json", json.as_str()),
             ("encryption", encryption),
+            ("completion_style", completion_style),
+            ("edit_style", edit_style),
         ];
 
         let max_width = values

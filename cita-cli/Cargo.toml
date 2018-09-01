@@ -6,7 +6,7 @@ authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 [dependencies]
 dotenv = "^0.11.0"
 clap = "^2.31.2"
-ansi_term = "^0.10.0"
+ansi_term = "^0.11.0"
 colored = "^1.6.0"
 atty = "^0.2.10"
 serde = "^1.0.66"
