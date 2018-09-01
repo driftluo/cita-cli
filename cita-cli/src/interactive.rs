@@ -176,7 +176,6 @@ fn start_rustyline(
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
-                break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
@@ -706,7 +705,7 @@ fn replace_cmd(regex: &Regex, line: &str, config: &GlobalConfig) -> String {
                     _ => String::new(),
                 })
                 .next()
-                .unwrap(),
+                .unwrap_or_default(),
             None => String::new(),
         })
         .into_owned()
