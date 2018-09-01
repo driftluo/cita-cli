@@ -151,6 +151,20 @@ fn start_rustyline(
     config_file: &PathBuf,
     history_file: &str,
 ) -> io::Result<()> {
+    let rl_mode = |rl: &mut Editor<CitaCompleter>, config: &GlobalConfig| {
+        if config.completion_style() {
+            rl.set_completion_type(CompletionType::List)
+        } else {
+            rl.set_completion_type(CompletionType::Circular)
+        }
+
+        if config.edit_style() {
+            rl.set_edit_mode(EditMode::Emacs)
+        } else {
+            rl.set_edit_mode(EditMode::Vi)
+        }
+    };
+
     let rl_config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -164,7 +178,9 @@ fn start_rustyline(
     if rl.load_history(history_file).is_err() {
         eprintln!("No previous history.");
     }
+
     loop {
+        rl_mode(&mut rl, &config);
         match rl.readline(colored_prompt) {
             Ok(line) => {
                 match handle_commands(
@@ -184,18 +200,6 @@ fn start_rustyline(
                     }
                 }
                 rl.add_history_entry(line.as_ref());
-
-                if config.completion_style() {
-                    rl.set_completion_type(CompletionType::List)
-                } else {
-                    rl.set_completion_type(CompletionType::Circular)
-                }
-
-                if config.edit_style() {
-                    rl.set_edit_mode(EditMode::Emacs)
-                } else {
-                    rl.set_edit_mode(EditMode::Vi)
-                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
