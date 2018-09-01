@@ -11,9 +11,16 @@ use std::sync::Arc;
 use ansi_term::Colour::{Red, Yellow};
 use clap;
 use dirs;
-use linefeed::complete::{Completer, Completion};
-use linefeed::terminal::{DefaultTerminal, Terminal};
+use linefeed::complete::{Completer as LinefeedCompleter, Completion};
+use linefeed::terminal::Terminal;
 use linefeed::{Interface, Prompter, ReadResult};
+
+use rustyline::completion::{extract_word, Completer, Pair};
+use rustyline::error::ReadlineError;
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress};
+
 use regex::{Captures, Regex};
 use serde_json;
 use shell_words;
@@ -35,12 +42,26 @@ const ASCII_WORD: &str = r#"
    |_____| |_| |_|   |_|    |_|       |_|   |_| |_| |_|     |_____|
 "#;
 
-const CMD_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
+const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
+#[cfg(unix)]
+static DEFAULT_BREAK_CHARS: [u8; 18] = [
+    b' ', b'\t', b'\n', b'"', b'\\', b'\'', b'`', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&',
+    b'{', b'(', b'\0',
+];
+#[cfg(unix)]
+static ESCAPE_CHAR: Option<char> = Some('\\');
+// Remove \ to make file completion works on windows
+#[cfg(windows)]
+static DEFAULT_BREAK_CHARS: [u8; 17] = [
+    b' ', b'\t', b'\n', b'"', b'\'', b'`', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&', b'{',
+    b'(', b'\0',
+];
+#[cfg(windows)]
+static ESCAPE_CHAR: Option<char> = None;
 
 /// Interactive command line
-pub fn start(url: &str) -> io::Result<()> {
-    let re = Regex::new(CMD_PATTERN).unwrap();
-    let interface = Arc::new(Interface::new("cita-cli")?);
+pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
+    let env_regex = Regex::new(ENV_PATTERN).unwrap();
     let mut config = GlobalConfig::new(url.to_string());
 
     let mut cita_cli_dir = dirs::home_dir().unwrap();
@@ -68,18 +89,123 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut parser = build_interactive();
-    let complete = Arc::new(CitaCompleter::new(parser.clone()));
-
-    interface.set_completer(complete.clone());
     let style = Red.bold();
     let text = "cita> ";
-
-    interface.set_prompt(&format!(
+    let colored_prompt = format!(
         "\x01{prefix}\x02{text}\x01{suffix}\x02",
         prefix = style.prefix(),
         text = text,
         suffix = style.suffix()
-    ))?;
+    );
+
+    let mut printer = Printer::default();
+    if !config.json_format() {
+        printer.switch_format();
+    }
+    println!("{}", Red.bold().paint(ASCII_WORD));
+    config.print();
+
+    if use_linefeed {
+        start_linefeed(
+            &mut parser,
+            &mut config,
+            &mut printer,
+            &env_regex,
+            colored_prompt.as_str(),
+            &config_file,
+            history_file,
+        )
+    } else {
+        start_rustyline(
+            &mut parser,
+            &mut config,
+            &mut printer,
+            &env_regex,
+            colored_prompt.as_str(),
+            &config_file,
+            history_file,
+        )
+    }
+}
+
+fn start_rustyline(
+    parser: &mut clap::App<'static, 'static>,
+    config: &mut GlobalConfig,
+    printer: &mut Printer,
+    env_regex: &Regex,
+    colored_prompt: &str,
+    config_file: &PathBuf,
+    history_file: &str,
+) -> io::Result<()> {
+    let rl_config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
+    let helper = CitaCompleter::new(parser.clone());
+    let mut rl = Editor::with_config(rl_config);
+    rl.set_helper(Some(helper));
+    rl.bind_sequence(KeyPress::Meta('N'), Cmd::HistorySearchForward);
+    rl.bind_sequence(KeyPress::Meta('P'), Cmd::HistorySearchBackward);
+    if rl.load_history(history_file).is_err() {
+        eprintln!("No previous history.");
+    }
+    loop {
+        match rl.readline(colored_prompt) {
+            Ok(line) => {
+                match handle_commands(
+                    line.as_str(),
+                    config,
+                    printer,
+                    parser,
+                    env_regex,
+                    config_file,
+                ) {
+                    Ok(true) => {
+                        if let Err(err) = rl.save_history(history_file) {
+                            eprintln!("Save command history failed: {}", err);
+                        }
+                        break;
+                    }
+                    Ok(false) => {}
+                    Err(err) => {
+                        printer.eprintln(&err.to_string(), true);
+                    }
+                }
+                rl.add_history_entry(line.as_ref());
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+    if let Err(err) = rl.save_history(history_file) {
+        eprintln!("Save command history failed: {}", err);
+    }
+    Ok(())
+}
+
+fn start_linefeed(
+    parser: &mut clap::App<'static, 'static>,
+    config: &mut GlobalConfig,
+    printer: &mut Printer,
+    env_regex: &Regex,
+    colored_prompt: &str,
+    config_file: &PathBuf,
+    history_file: &str,
+) -> io::Result<()> {
+    let complete = Arc::new(CitaCompleter::new(parser.clone()));
+    let interface = Arc::new(Interface::new("cita-cli")?);
+    interface.set_completer(complete.clone());
+    interface.set_prompt(&colored_prompt)?;
 
     if let Err(e) = interface.load_history(history_file) {
         if e.kind() == io::ErrorKind::NotFound {
@@ -91,39 +217,21 @@ pub fn start(url: &str) -> io::Result<()> {
             eprintln!("Could not load history file {}: {}", history_file, e);
         }
     }
-
-    let mut printer = Printer::default();
-    if !config.json_format() {
-        printer.switch_format();
-    }
-
-    println!("{}", Red.bold().paint(ASCII_WORD));
-    config.print();
     loop {
         match interface.read_line()? {
             ReadResult::Input(line) => {
-                let args =
-                    shell_words::split(replace_cmd(&re, line.as_str(), &config).as_str()).unwrap();
-
-                if let Err(err) = match parser.get_matches_from_safe_borrow(args) {
-                    Ok(matches) => match handle_commands(
-                        &matches,
-                        &mut config,
-                        &mut printer,
-                        (&config_file, history_file),
-                        &interface,
-                        &parser,
-                    ) {
-                        Ok(true) => {
-                            break;
+                match handle_commands(&line, config, printer, parser, env_regex, config_file) {
+                    Ok(true) => {
+                        if let Err(err) = interface.save_history(history_file) {
+                            eprintln!("Save command history failed: {}", err);
                         }
-                        result => result,
-                    },
-                    Err(err) => Err(err.to_string()),
-                } {
-                    printer.eprintln(&err.to_string(), true);
+                        break;
+                    }
+                    Ok(false) => {}
+                    Err(err) => {
+                        printer.eprintln(&err.to_string(), true);
+                    }
                 }
-
                 interface.add_history_unique(remove_private(&line));
             }
             ReadResult::Eof => {
@@ -139,101 +247,102 @@ pub fn start(url: &str) -> io::Result<()> {
 }
 
 fn handle_commands(
-    matches: &clap::ArgMatches,
+    line: &str,
     config: &mut GlobalConfig,
     printer: &mut Printer,
-    (config_file, history_file): (&PathBuf, &str),
-    interface: &Arc<Interface<DefaultTerminal>>,
-    parser: &clap::App<'static, 'static>,
+    parser: &mut clap::App<'static, 'static>,
+    env_regex: &Regex,
+    config_file: &PathBuf,
 ) -> Result<bool, String> {
-    let result = match matches.subcommand() {
-        ("switch", Some(m)) => {
-            m.value_of("host").and_then(|host| {
-                config.set_url(host.to_string());
-                Some(())
-            });
-            if m.is_present("color") {
-                config.switch_color();
-            }
+    let args = shell_words::split(replace_cmd(&env_regex, line, &config).as_str()).unwrap();
 
-            if m.is_present("json") {
-                printer.switch_format();
-                config.switch_format();
-            }
-
-            if m.is_present("debug") {
-                config.switch_debug();
-            }
-
-            #[cfg(feature = "blake2b_hash")]
-            {
-                if m.is_present("algorithm") {
-                    config.switch_encryption();
+    match parser.get_matches_from_safe_borrow(args) {
+        Ok(matches) => match matches.subcommand() {
+            ("switch", Some(m)) => {
+                m.value_of("host").and_then(|host| {
+                    config.set_url(host.to_string());
+                    Some(())
+                });
+                if m.is_present("color") {
+                    config.switch_color();
                 }
-            }
-            #[cfg(not(feature = "blake2b_hash"))]
-            {
-                if m.is_present("algorithm") {
-                    println!(
-                        "[{}]",
-                        Red.paint(
-                            "The current version does not support the blake2b algorithm. \
-                             Open 'blak2b' feature and recompile cita-cli, please."
-                        )
-                    );
+
+                if m.is_present("json") {
+                    printer.switch_format();
+                    config.switch_format();
                 }
+
+                if m.is_present("debug") {
+                    config.switch_debug();
+                }
+
+                #[cfg(feature = "blake2b_hash")]
+                {
+                    if m.is_present("algorithm") {
+                        config.switch_encryption();
+                    }
+                }
+                #[cfg(not(feature = "blake2b_hash"))]
+                {
+                    if m.is_present("algorithm") {
+                        println!(
+                            "[{}]",
+                            Red.paint(
+                                "The current version does not support the blake2b algorithm. \
+                                 Open 'blak2b' feature and recompile cita-cli, please."
+                            )
+                        );
+                    }
+                }
+                config.print();
+                let mut file = fs::File::create(config_file.as_path())
+                    .map_err(|err| format!("open config error: {:?}", err))?;
+                let content = serde_json::to_string_pretty(&json!({
+                    "url": config.get_url().clone(),
+                    "blake2b": config.blake2b(),
+                    "color": config.color(),
+                    "debug": config.debug(),
+                    "json_format": config.json_format(),
+                })).unwrap();
+                file.write_all(content.as_bytes())
+                    .map_err(|err| format!("save config error: {:?}", err))?;
+                Ok(())
             }
-            config.print();
-            let mut file = fs::File::create(config_file.as_path())
-                .map_err(|err| format!("open config error: {:?}", err))?;
-            let content = serde_json::to_string_pretty(&json!({
-                "url": config.get_url().clone(),
-                "blake2b": config.blake2b(),
-                "color": config.color(),
-                "debug": config.debug(),
-                "json_format": config.json_format(),
-            })).unwrap();
-            file.write_all(content.as_bytes())
-                .map_err(|err| format!("save config error: {:?}", err))?;
-            Ok(())
-        }
-        ("set", Some(m)) => {
-            let key = m.value_of("key").unwrap().to_owned();
-            let value = m.value_of("value").unwrap().to_owned();
-            config.set(key, serde_json::Value::String(value));
-            Ok(())
-        }
-        ("get", Some(m)) => {
-            let key = m.value_of("key");
-            printer.println(&config.get(key).clone(), config.color());
-            Ok(())
-        }
-        ("rpc", Some(m)) => rpc_processor(m, &printer, config),
-        ("ethabi", Some(m)) => abi_processor(m, &printer, &config),
-        ("key", Some(m)) => key_processor(m, &printer, &config),
-        ("scm", Some(m)) => contract_processor(m, &printer, config),
-        ("transfer", Some(m)) => transfer_processor(m, &printer, config),
-        ("store", Some(m)) => store_processor(m, &printer, config),
-        ("amend", Some(m)) => amend_processor(m, &printer, config),
-        ("info", _) => {
-            config.print();
-            Ok(())
-        }
-        ("search", Some(m)) => {
-            search_processor(&parser, m);
-            Ok(())
-        }
-        ("tx", Some(m)) => tx_processor(m, &printer, config),
-        ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
-        ("exit", _) => {
-            if let Err(err) = interface.save_history(history_file) {
-                eprintln!("Save command history failed: {}", err);
-            };
-            return Ok(true);
-        }
-        _ => Ok(()),
-    };
-    result.map(|_| false)
+            ("set", Some(m)) => {
+                let key = m.value_of("key").unwrap().to_owned();
+                let value = m.value_of("value").unwrap().to_owned();
+                config.set(key, serde_json::Value::String(value));
+                Ok(())
+            }
+            ("get", Some(m)) => {
+                let key = m.value_of("key");
+                printer.println(&config.get(key).clone(), config.color());
+                Ok(())
+            }
+            ("rpc", Some(m)) => rpc_processor(m, &printer, config),
+            ("ethabi", Some(m)) => abi_processor(m, &printer, &config),
+            ("key", Some(m)) => key_processor(m, &printer, &config),
+            ("scm", Some(m)) => contract_processor(m, &printer, config),
+            ("transfer", Some(m)) => transfer_processor(m, &printer, config),
+            ("store", Some(m)) => store_processor(m, &printer, config),
+            ("amend", Some(m)) => amend_processor(m, &printer, config),
+            ("info", _) => {
+                config.print();
+                Ok(())
+            }
+            ("search", Some(m)) => {
+                search_processor(&parser, m);
+                Ok(())
+            }
+            ("tx", Some(m)) => tx_processor(m, &printer, config),
+            ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
+            ("exit", _) => {
+                return Ok(true);
+            }
+            _ => Ok(()),
+        },
+        Err(err) => Err(err.to_string()),
+    }.map(|_| false)
 }
 
 struct CitaCompleter<'a, 'b>
@@ -250,7 +359,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
         }
     }
 
-    fn get_completions(app: &Arc<clap::App<'a, 'b>>, args: &[String]) -> Vec<Completion> {
+    fn get_completions(app: &Arc<clap::App<'a, 'b>>, args: &[String]) -> Vec<(String, String)> {
         let args_set = args.iter().collect::<HashSet<&String>>();
         let switched_completions =
             |short: Option<char>, long: Option<&str>, multiple: bool, required: bool| {
@@ -261,17 +370,15 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                     .filter_map(|s| s)
                     .map(|s| {
                         let display = if required {
-                            Some(format!("{}(*)", s))
+                            format!("{}(*)", s)
                         } else {
-                            None
+                            s.clone()
                         };
-                        let mut completion = Completion::simple(s);
-                        completion.display = display;
-                        completion
+                        (display, s)
                     })
-                    .collect::<Vec<Completion>>();
+                    .collect::<Vec<(String, String)>>();
 
-                if !multiple && names.iter().any(|c| args_set.contains(&c.completion)) {
+                if !multiple && names.iter().any(|(_, s)| args_set.contains(&s)) {
                     vec![]
                 } else {
                     names
@@ -281,7 +388,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
             .subcommands()
             .map(|app| {
                 [
-                    vec![Completion::simple(app.p.meta.name.clone())],
+                    vec![(app.p.meta.name.clone(), app.p.meta.name.clone())],
                     app.p
                         .meta
                         .aliases
@@ -289,8 +396,8 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                         .map(|aliases| {
                             aliases
                                 .iter()
-                                .map(|(alias, _)| Completion::simple(alias.to_string()))
-                                .collect::<Vec<Completion>>()
+                                .map(|(alias, _)| (alias.to_string(), alias.to_string()))
+                                .collect::<Vec<(String, String)>>()
                         })
                         .unwrap_or_else(|| vec![]),
                 ].concat()
@@ -311,7 +418,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                     a.b.is_set(clap::ArgSettings::Required),
                 )
             }))
-            .collect::<Vec<Vec<Completion>>>()
+            .collect::<Vec<Vec<(String, String)>>>()
             .concat()
     }
 
@@ -349,7 +456,7 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
 unsafe impl<'a, 'b> ::std::marker::Sync for CitaCompleter<'a, 'b> {}
 unsafe impl<'a, 'b> ::std::marker::Send for CitaCompleter<'a, 'b> {}
 
-impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
+impl<'a, 'b, Term: Terminal> LinefeedCompleter<Term> for CitaCompleter<'a, 'b> {
     fn complete(
         &self,
         word: &str,
@@ -366,11 +473,58 @@ impl<'a, 'b, Term: Terminal> Completer<Term> for CitaCompleter<'a, 'b> {
             let word_lower = word.to_lowercase();
             Self::get_completions(&current_app, &args)
                 .into_iter()
-                .filter(|s| word.is_empty() || s.completion.to_lowercase().contains(&word_lower))
+                .filter(|(_, replacement)| {
+                    word.is_empty() || replacement.to_lowercase().contains(&word_lower)
+                })
+                .map(|(display, replacement)| {
+                    let mut completion = Completion::simple(replacement);
+                    completion.display = Some(display);
+                    completion
+                })
                 .collect::<Vec<_>>()
         })
     }
 }
+
+impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
+    type Candidate = Pair;
+
+    fn complete(&self, line: &str, pos: usize) -> Result<(usize, Vec<Pair>), ReadlineError> {
+        let (start, word) = extract_word(line, pos, ESCAPE_CHAR, &DEFAULT_BREAK_CHARS);
+        let args = shell_words::split(&line[..pos]).unwrap();
+        let pairs = Self::find_subcommand(
+            self.clap_app.clone(),
+            args.iter().map(|s| s.as_str()).peekable(),
+        ).map(|current_app| {
+            let word_lower = word.to_lowercase();
+            Self::get_completions(&current_app, &args)
+                .into_iter()
+                .filter(|(_, replacement)| {
+                    word.is_empty() || replacement.to_lowercase().contains(&word_lower)
+                })
+                .map(|(display, replacement)| Pair {
+                    display,
+                    replacement,
+                })
+                .collect::<Vec<_>>()
+        });
+        Ok((start, pairs.unwrap_or_else(Vec::new)))
+    }
+}
+
+impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {}
+
+impl<'a, 'b> Hinter for CitaCompleter<'a, 'b> {
+    fn hint(&self, line: &str, _pos: usize) -> Option<String> {
+        if line == "hello" {
+            Some(" World".to_owned())
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, 'b> Helper for CitaCompleter<'a, 'b> {}
 
 pub struct GlobalConfig {
     url: String,
@@ -551,7 +705,7 @@ fn replace_cmd(regex: &Regex, line: &str, config: &GlobalConfig) -> String {
                     _ => String::new(),
                 })
                 .next()
-                .unwrap(),
+                .unwrap_or_default(),
             None => String::new(),
         })
         .into_owned()
@@ -602,7 +756,7 @@ impl<'a> ::std::iter::Iterator for KV<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::CMD_PATTERN;
+    use super::ENV_PATTERN;
     use regex::{Captures, Regex};
 
     #[test]
@@ -614,7 +768,7 @@ mod test {
             replaced.into_owned()
         }
 
-        let re = Regex::new(CMD_PATTERN).unwrap();
+        let re = Regex::new(ENV_PATTERN).unwrap();
         let texts = [
             "${name1}",
             "${ name2 }",

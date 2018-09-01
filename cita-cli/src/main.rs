@@ -6,6 +6,7 @@ extern crate colored;
 extern crate clap;
 extern crate dotenv;
 extern crate linefeed;
+extern crate rustyline;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
@@ -54,6 +55,7 @@ fn main() {
     let mut config = GlobalConfig::new(default_jsonrpc_url.to_string());
     let parser = build_cli(&default_jsonrpc_url);
     let matches = parser.clone().get_matches();
+    let use_linefeed = matches.is_present("linefeed");
 
     if let Err(err) = match matches.subcommand() {
         ("rpc", Some(m)) => rpc_processor(m, &printer, &mut config),
@@ -70,11 +72,11 @@ fn main() {
         ("tx", Some(m)) => tx_processor(m, &printer, &mut config),
         ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
         _ => {
-            if let Err(err) = interactive::start(&default_jsonrpc_url) {
+            if let Err(err) = interactive::start(&default_jsonrpc_url, use_linefeed) {
                 match err.kind() {
                     ::std::io::ErrorKind::Other | ::std::io::ErrorKind::NotFound => {
                         env::set_var("TERM", "xterm-color");
-                        if let Err(e) = interactive::start(&default_jsonrpc_url) {
+                        if let Err(e) = interactive::start(&default_jsonrpc_url, use_linefeed) {
                             eprintln!("{}", e)
                         }
                     }
