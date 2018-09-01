@@ -113,6 +113,16 @@ pub fn build_interactive() -> App<'static, 'static> {
                     Arg::with_name("json")
                         .long("json")
                         .help("Switching json format"),
+                )
+                .arg(
+                    Arg::with_name("completion_style")
+                        .long("completion_style")
+                        .help("Switching completion style"),
+                )
+                .arg(
+                    Arg::with_name("edit_style")
+                        .long("edit_style")
+                        .help("Switching edit style"),
                 ),
         )
         .subcommand(search_command())
