@@ -1,3 +1,4 @@
+use std::borrow::Cow::{self, Owned};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
@@ -8,7 +9,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ansi_term::Colour::{Red, Yellow, RGB};
+use ansi_term::Colour::{Green, Red, Yellow, RGB};
 use clap;
 use dirs;
 use linefeed::complete::{Completer as LinefeedCompleter, Completion};
@@ -544,7 +545,32 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {}
+impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {
+    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        Owned("\x1b[1m".to_owned() + hint + "\x1b[m")
+    }
+
+    fn highlight_candidate<'c>(
+        &self,
+        candidate: &'c str,
+        _completion: CompletionType,
+    ) -> Cow<'c, str> {
+        let candidate_with_color = candidate
+            .split('\n')
+            .map(|param| {
+                if param.contains('*') {
+                    Red.paint(param).to_string()
+                } else if !param.starts_with("--") {
+                    Green.paint(param).to_string()
+                } else {
+                    param.to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        Owned(candidate_with_color)
+    }
+}
 
 impl<'a, 'b> Hinter for CitaCompleter<'a, 'b> {
     fn hint(&self, line: &str, _pos: usize) -> Option<String> {
