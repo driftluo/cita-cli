@@ -2,13 +2,14 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 use cita_tool::client::basic::Client;
 use cita_tool::client::system_contract::{
-    AdminClient, AdminExt, AuthorizationClient, BatchTxClient, GroupClient, GroupManageClient,
-    NodeManageClient, PermissionClient, PermissionManageClient, QuotaManageClient, RoleClient,
-    RoleManageClient, SysConfigClient,
+    AdminClient, AdminExt, AuthorizationClient, BatchTxClient, EmergencyBrakeClient, GroupClient,
+    GroupManageClient, NodeManageClient, PermissionClient, PermissionManageClient,
+    QuotaManageClient, RoleClient, RoleManageClient, SysConfigClient,
 };
 use cita_tool::client::system_contract::{
-    AuthorizationExt, BatchTxExt, GroupExt, GroupManagementExt, NodeManagementExt, PermissionExt,
-    PermissionManagementExt, QuotaManagementExt, RoleExt, RoleManagementExt, SysConfigExt,
+    AuthorizationExt, BatchTxExt, EmergencyBrakeExt, GroupExt, GroupManagementExt,
+    NodeManagementExt, PermissionExt, PermissionManagementExt, QuotaManagementExt, RoleExt,
+    RoleManagementExt, SysConfigExt,
 };
 
 use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
@@ -819,6 +820,34 @@ pub fn contract_command() -> App<'static, 'static> {
                         )
                 )
         )
+        .subcommand(
+            SubCommand::with_name("EmergencyBrake")
+                .subcommand(
+                    SubCommand::with_name("state").arg(height_arg.clone())
+                )
+                .subcommand(
+                    SubCommand::with_name("setState")
+                        .arg(
+                            Arg::with_name("state")
+                                .long("state")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|state| state.as_str().parse::<bool>().map(|_| ()).map_err(|err| err.to_string()))
+                                .help("State value")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(
+                            Arg::with_name("admin-private")
+                                .long("admin-private")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|private_key| {
+                                    parse_privkey(private_key.as_ref()).map(|_| ())
+                                })
+                                .help("Private key must be admin")
+                        )
+                )
+        )
 }
 
 /// System contract processor
@@ -1399,6 +1428,24 @@ pub fn contract_processor(
                 SysConfigExt::set_website(&mut client, website, quota, blake2b)
             }
             _ => return Err(m.usage().to_owned()),
+        },
+        ("EmergencyBrake", Some(m)) => match m.subcommand() {
+            ("state", Some(m)) => {
+                let client: EmergencyBrakeClient = EmergencyBrakeExt::create(Some(client));
+                EmergencyBrakeExt::state(&client, m.value_of("height"))
+            }
+            ("setState", Some(m)) => {
+                let blake2b = blake2b(m, config);
+                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let mut client: EmergencyBrakeClient = EmergencyBrakeExt::create(Some(client));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let state = m
+                    .value_of("state")
+                    .map(|state| state.parse::<bool>().unwrap())
+                    .unwrap();
+                EmergencyBrakeExt::set_state(&mut client, state, quota, blake2b)
+            }
+            _ => return Err(sub_matches.usage().to_owned()),
         },
         _ => return Err(sub_matches.usage().to_owned()),
     };

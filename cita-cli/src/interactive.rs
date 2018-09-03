@@ -199,7 +199,7 @@ fn start_rustyline(
                         printer.eprintln(&err.to_string(), true);
                     }
                 }
-                rl.add_history_entry(line.as_ref());
+                rl.add_history_entry(remove_private(line.as_ref()));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
