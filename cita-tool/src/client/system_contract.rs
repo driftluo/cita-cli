@@ -1011,3 +1011,32 @@ pub trait SysConfigExt: ContractCall {
         self.contract_send_tx("setWebsite", &value, quota, None, blake2b)
     }
 }
+
+/// Emergency brake contract
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff02000f")]
+#[contract(path = "../../contract_abi/EmergencyBrake.abi")]
+#[contract(name = "EmergencyBrakeExt")]
+pub struct EmergencyBrakeClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// Emergency brake contract
+pub trait EmergencyBrakeExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Get state
+    fn state(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("state", &[], None, height)
+    }
+
+    /// Set state
+    fn set_state(&mut self, state: bool, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
+        let state = state.to_string();
+        let value = [state.as_str()];
+        self.contract_send_tx("setState", &value, quota, None, blake2b)
+    }
+}
