@@ -1,1 +1,0 @@
-[{"anonymous":false,"inputs":[{"indexed":true,"name":"errorType","type":"uint8"},{"indexed":false,"name":"msg","type":"string"}],"name":"ErrorLog","type":"event"}]
