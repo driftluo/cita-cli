@@ -2,7 +2,7 @@
 // @generated
 
 // https://github.com/Manishearth/rust-clippy/issues/702
-#![allow(unknown_lints)]
+#![allow(unknown_lints, warnings)]
 #![allow(clippy)]
 
 #![cfg_attr(rustfmt, rustfmt_skip)]

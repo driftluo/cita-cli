@@ -4,15 +4,17 @@ use cita_tool::client::basic::Client;
 use cita_tool::client::system_contract::{
     AdminClient, AdminExt, AuthorizationClient, BatchTxClient, EmergencyBrakeClient, GroupClient,
     GroupManageClient, NodeManageClient, PermissionClient, PermissionManageClient,
-    QuotaManageClient, RoleClient, RoleManageClient, SysConfigClient,
+    PriceManagerClient, QuotaManageClient, RoleClient, RoleManageClient, SysConfigClient,
 };
 use cita_tool::client::system_contract::{
     AuthorizationExt, BatchTxExt, EmergencyBrakeExt, GroupExt, GroupManagementExt,
-    NodeManagementExt, PermissionExt, PermissionManagementExt, QuotaManagementExt, RoleExt,
-    RoleManagementExt, SysConfigExt,
+    NodeManagementExt, PermissionExt, PermissionManagementExt, PriceManagerExt, QuotaManagementExt,
+    RoleExt, RoleManagementExt, SysConfigExt,
 };
 
-use cli::{blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u64};
+use cli::{
+    blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+};
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
@@ -94,6 +96,12 @@ pub fn contract_command() -> App<'static, 'static> {
         .required(true)
         .validator(|private_key| parse_privkey(private_key.as_ref()).map(|_| ()))
         .help("Private key");
+    let admin_private = Arg::with_name("admin-private")
+        .long("admin-private")
+        .takes_value(true)
+        .required(true)
+        .validator(|private_key| parse_privkey(private_key.as_ref()).map(|_| ()))
+        .help("Private key must be admin");
 
     let role_address_arg = address_arg.clone().help("Role address");
     let role_name_arg = name_arg.clone().help("Role name");
@@ -121,70 +129,28 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(SubCommand::with_name("listStake").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("getStatus").arg(
-                        Arg::with_name("address")
-                            .long("address")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|address| parse_address(address.as_str()))
-                            .help("Node address"),
+                        address_arg.clone().help("Node address"),
                     ).arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("deleteNode")
+                        .arg(admin_private.clone())
                         .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| parse_address(address.as_str()))
-                                .help("Degraded node address"),
+                            address_arg.clone().help("Degraded node address"),
                         )
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("approveNode")
+                        .arg(admin_private.clone())
                         .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| parse_address(address.as_str()))
-                                .help("Approve node address"),
+                            address_arg.clone().help("Approve node address"),
                         )
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("setStake")
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
+                        .arg(admin_private.clone())
                         .arg(
                             Arg::with_name("stake")
                                 .long("stake")
@@ -194,23 +160,13 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("The stake you want to set"),
                         )
                         .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| parse_address(address.as_str()))
-                                .help("Set address"),
+                            address_arg.clone().help("Set address"),
                         )
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("stakePermillage").arg(
-                        Arg::with_name("address")
-                            .long("address")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|address| parse_address(address.as_str()))
-                            .help("Query address"),
+                        address_arg.clone().help("Query address"),
                     ).arg(height_arg.clone()),
                 ),
         )
@@ -222,12 +178,7 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(SubCommand::with_name("getQuotas").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("getAQL").arg(
-                        Arg::with_name("address")
-                            .long("address")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|address| parse_address(address.as_str()))
-                            .help("Account address"),
+                        address_arg.clone().help("Account address"),
                     ),
                 )
                 .subcommand(
@@ -242,16 +193,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                     "The quota value must be between 2 ** 63 - 1 and 2 ** 28 - 1",
                                 ),
                         )
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
+                        .arg(admin_private.clone())
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
@@ -266,16 +208,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                     "The quota value must be between 2 ** 63 - 1 and 2 ** 22 - 1",
                                 ),
                         )
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
+                        .arg(admin_private.clone())
                         .arg(quota_arg.clone()),
                 )
                 .subcommand(
@@ -290,23 +223,9 @@ pub fn contract_command() -> App<'static, 'static> {
                                     "The quota value must be between 2 ** 63 - 1 and 2 ** 22 - 1",
                                 ),
                         )
+                        .arg(admin_private.clone())
                         .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
-                        .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| parse_address(address.as_str()))
-                                .help("Account address"),
+                            address_arg.clone().help("Account address"),
                         )
                         .arg(quota_arg.clone()),
                 ),
@@ -672,34 +591,15 @@ pub fn contract_command() -> App<'static, 'static> {
                 .subcommand(SubCommand::with_name("admin").arg(height_arg.clone()))
                 .subcommand(
                     SubCommand::with_name("isAdmin").arg(
-                        Arg::with_name("address")
-                            .long("address")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|address| parse_address(address.as_str()))
-                            .help("Account address"),
+                        address_arg.clone().help("Account address"),
                     ).arg(height_arg.clone()),
                 )
                 .subcommand(
                     SubCommand::with_name("update")
                         .arg(
-                            Arg::with_name("address")
-                                .long("address")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|address| parse_address(address.as_str()))
-                                .help("Account address"),
+                            address_arg.clone().help("Account address"),
                         )
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin"),
-                        )
+                        .arg(admin_private.clone())
                         .arg(quota_arg.clone()),
                 ),
         )
@@ -766,16 +666,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("Set chain name")
                         )
                         .arg(quota_arg.clone())
-                        .arg(
-                            Arg::with_name("admin-private")
-                            .long("admin-private")
-                            .takes_value(true)
-                            .required(true)
-                            .validator(|private_key| {
-                                parse_privkey(private_key.as_ref()).map(|_| ())
-                            })
-                            .help("Private key must be admin")
-                        )
+                        .arg(admin_private.clone())
                 )
                 .subcommand(
                     SubCommand::with_name("setOperator")
@@ -787,16 +678,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("Set operator")
                         )
                         .arg(quota_arg.clone())
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin")
-                        )
+                        .arg(admin_private.clone())
                 )
                 .subcommand(
                     SubCommand::with_name("setWebsite")
@@ -808,16 +690,7 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("Set website")
                         )
                         .arg(quota_arg.clone())
-                        .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
-                                .takes_value(true)
-                                .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin")
-                        )
+                        .arg(admin_private.clone())
                 )
         )
         .subcommand(
@@ -836,16 +709,26 @@ pub fn contract_command() -> App<'static, 'static> {
                                 .help("State value")
                         )
                         .arg(quota_arg.clone())
+                        .arg(admin_private.clone())
+                )
+        )
+        .subcommand(
+            SubCommand::with_name("PriceManager")
+                .subcommand(
+                    SubCommand::with_name("getQuotaPrice").arg(height_arg.clone())
+                )
+                .subcommand(
+                    SubCommand::with_name("setQuotaPrice")
                         .arg(
-                            Arg::with_name("admin-private")
-                                .long("admin-private")
+                            Arg::with_name("price")
+                                .long("price")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(|private_key| {
-                                    parse_privkey(private_key.as_ref()).map(|_| ())
-                                })
-                                .help("Private key must be admin")
+                                .validator(|price| parse_u256(price.as_ref()).map(|_| ()))
+                                .help("Price value")
                         )
+                        .arg(quota_arg.clone())
+                        .arg(admin_private.clone())
                 )
         )
 }
@@ -1444,6 +1327,24 @@ pub fn contract_processor(
                     .map(|state| state.parse::<bool>().unwrap())
                     .unwrap();
                 EmergencyBrakeExt::set_state(&mut client, state, quota, blake2b)
+            }
+            _ => return Err(sub_matches.usage().to_owned()),
+        },
+        ("PriceManager", Some(m)) => match m.subcommand() {
+            ("getQuotaPrice", Some(m)) => {
+                let client: PriceManagerClient = PriceManagerExt::create(Some(client));
+                PriceManagerExt::price(&client, m.value_of("height"))
+            }
+            ("setQuotaPrice", Some(m)) => {
+                let blake2b = blake2b(m, config);
+                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let mut client: PriceManagerClient = PriceManagerExt::create(Some(client));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let price = m
+                    .value_of("price")
+                    .map(|price| parse_u256(price).unwrap())
+                    .unwrap();
+                PriceManagerExt::set_price(&mut client, price, quota, blake2b)
             }
             _ => return Err(sub_matches.usage().to_owned()),
         },

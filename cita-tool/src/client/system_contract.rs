@@ -7,6 +7,7 @@ use abi::contract_encode_input;
 use error::ToolError;
 use ethabi::{Address, Contract};
 use rpctypes::JsonRpcResponse;
+use types::{traits::LowerHex, U256};
 
 /// Group Client
 #[derive(ContractExt)]
@@ -1038,5 +1039,34 @@ pub trait EmergencyBrakeExt: ContractCall {
         let state = state.to_string();
         let value = [state.as_str()];
         self.contract_send_tx("setState", &value, quota, None, blake2b)
+    }
+}
+
+/// Price manager contract
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff020010")]
+#[contract(path = "../../contract_abi/PriceManager.abi")]
+#[contract(name = "PriceManagerExt")]
+pub struct PriceManagerClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// Price manager contract
+pub trait PriceManagerExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Get quota price
+    fn price(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getQuotaPrice", &[], None, height)
+    }
+
+    /// Set quota price
+    fn set_price(&mut self, price: U256, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
+        let price = format!("{:0>64}", price.lower_hex());
+        let value = [price.as_str()];
+        self.contract_send_tx("setQuotaPrice", &value, quota, None, blake2b)
     }
 }
