@@ -8,11 +8,13 @@ use interactive::GlobalConfig;
 
 /// Get url from arg match
 pub fn get_url<'a>(m: &'a ArgMatches, config: &'a GlobalConfig) -> &'a str {
-    match m.subcommand() {
-        (_, Some(m)) => m
-            .value_of("url")
-            .unwrap_or_else(|| config.get_url().as_str()),
-        _ => config.get_url().as_str(),
+    match m.value_of("url") {
+        Some(url) => url,
+        _ => if m.subcommand().1.is_some() {
+            get_url(m.subcommand().1.unwrap(), config)
+        } else {
+            config.get_url().as_str()
+        },
     }
 }
 

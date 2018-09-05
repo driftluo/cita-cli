@@ -29,10 +29,9 @@ use cita_tool::parse_url;
 use clap::{App, AppSettings, Arg, SubCommand};
 
 /// Generate cli
-pub fn build_cli(default_url: &str) -> App {
+pub fn build_cli() -> App<'static, 'static> {
     let arg_url = Arg::with_name("url")
         .long("url")
-        .default_value(default_url)
         .takes_value(true)
         .validator(|url| parse_url(url.as_ref()).map(|_| ()))
         .global(true)
@@ -68,11 +67,6 @@ pub fn build_cli(default_url: &str) -> App {
                 .long("debug")
                 .global(true)
                 .help("Display request parameters"),
-        )
-        .arg(
-            Arg::with_name("linefeed")
-                .long("linefeed")
-                .help("Use linefeed readline library"),
         )
 }
 
