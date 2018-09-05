@@ -90,14 +90,7 @@ pub fn start(url: &str) -> io::Result<()> {
     }
 
     let mut parser = build_interactive();
-    let style = Red.bold();
-    let text = "cita> ";
-    let colored_prompt = format!(
-        "{prefix}{text}{suffix}",
-        prefix = style.prefix(),
-        text = text,
-        suffix = style.suffix()
-    );
+    let colored_prompt = Red.bold().paint("cita> ").to_string();
 
     let mut printer = Printer::default();
     if !config.json_format() {
