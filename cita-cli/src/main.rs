@@ -5,7 +5,6 @@ extern crate colored;
 #[macro_use]
 extern crate clap;
 extern crate dotenv;
-extern crate linefeed;
 extern crate rustyline;
 extern crate serde;
 #[macro_use]
@@ -13,13 +12,8 @@ extern crate serde_json;
 extern crate dirs;
 extern crate regex;
 extern crate shell_words;
-#[cfg(feature = "syntect")]
-extern crate syntect;
 
 mod cli;
-#[cfg(feature = "syntect")]
-#[allow(dead_code)]
-mod highlight;
 mod interactive;
 mod json_color;
 mod printer;
@@ -53,9 +47,8 @@ fn main() {
 
     let printer = Printer::default();
     let mut config = GlobalConfig::new(default_jsonrpc_url.to_string());
-    let parser = build_cli(&default_jsonrpc_url);
+    let parser = build_cli();
     let matches = parser.clone().get_matches();
-    let use_linefeed = matches.is_present("linefeed");
 
     if let Err(err) = match matches.subcommand() {
         ("rpc", Some(m)) => rpc_processor(m, &printer, &mut config),
@@ -72,16 +65,8 @@ fn main() {
         ("tx", Some(m)) => tx_processor(m, &printer, &mut config),
         ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
         _ => {
-            if let Err(err) = interactive::start(&default_jsonrpc_url, use_linefeed) {
-                match err.kind() {
-                    ::std::io::ErrorKind::Other | ::std::io::ErrorKind::NotFound => {
-                        env::set_var("TERM", "xterm-color");
-                        if let Err(e) = interactive::start(&default_jsonrpc_url, use_linefeed) {
-                            eprintln!("{}", e)
-                        }
-                    }
-                    _ => eprintln!("{}", err),
-                }
+            if let Err(err) = interactive::start(&default_jsonrpc_url) {
+                eprintln!("Something error: kind {:?}, message {}", err.kind(), err)
             }
             Ok(())
         }

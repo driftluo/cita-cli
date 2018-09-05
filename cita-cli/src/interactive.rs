@@ -12,9 +12,6 @@ use std::sync::Arc;
 use ansi_term::Colour::{Green, Red, Yellow, RGB};
 use clap;
 use dirs;
-use linefeed::complete::{Completer as LinefeedCompleter, Completion};
-use linefeed::terminal::Terminal;
-use linefeed::{Interface, Prompter, ReadResult};
 
 use rustyline::completion::{extract_word, Completer, Pair};
 use rustyline::config::Configurer;
@@ -62,7 +59,7 @@ static DEFAULT_BREAK_CHARS: [u8; 17] = [
 static ESCAPE_CHAR: Option<char> = None;
 
 /// Interactive command line
-pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
+pub fn start(url: &str) -> io::Result<()> {
     let env_regex = Regex::new(ENV_PATTERN).unwrap();
     let mut config = GlobalConfig::new(url.to_string());
 
@@ -90,27 +87,17 @@ pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
         config.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
         config.set_completion_style(configs["completion_style"].as_bool().unwrap_or(true));
         config.set_edit_style(configs["edit_style"].as_bool().unwrap_or(true));
-        config.set_use_linefeed(use_linefeed);
     }
 
     let mut parser = build_interactive();
     let style = Red.bold();
     let text = "cita> ";
-    let colored_prompt = if use_linefeed {
-        format!(
-            "\x01{prefix}\x02{text}\x01{suffix}\x02",
-            prefix = style.prefix(),
-            text = text,
-            suffix = style.suffix()
-        )
-    } else {
-        format!(
-            "{prefix}{text}{suffix}",
-            prefix = style.prefix(),
-            text = text,
-            suffix = style.suffix()
-        )
-    };
+    let colored_prompt = format!(
+        "{prefix}{text}{suffix}",
+        prefix = style.prefix(),
+        text = text,
+        suffix = style.suffix()
+    );
 
     let mut printer = Printer::default();
     if !config.json_format() {
@@ -119,27 +106,15 @@ pub fn start(url: &str, use_linefeed: bool) -> io::Result<()> {
     println!("{}", Red.bold().paint(ASCII_WORD));
     config.print();
 
-    if use_linefeed {
-        start_linefeed(
-            &mut parser,
-            &mut config,
-            &mut printer,
-            &env_regex,
-            colored_prompt.as_str(),
-            &config_file,
-            history_file,
-        )
-    } else {
-        start_rustyline(
-            &mut parser,
-            &mut config,
-            &mut printer,
-            &env_regex,
-            colored_prompt.as_str(),
-            &config_file,
-            history_file,
-        )
-    }
+    start_rustyline(
+        &mut parser,
+        &mut config,
+        &mut printer,
+        &env_regex,
+        colored_prompt.as_str(),
+        &config_file,
+        history_file,
+    )
 }
 
 fn start_rustyline(
@@ -220,59 +195,6 @@ fn start_rustyline(
     Ok(())
 }
 
-fn start_linefeed(
-    parser: &mut clap::App<'static, 'static>,
-    config: &mut GlobalConfig,
-    printer: &mut Printer,
-    env_regex: &Regex,
-    colored_prompt: &str,
-    config_file: &PathBuf,
-    history_file: &str,
-) -> io::Result<()> {
-    let complete = Arc::new(CitaCompleter::new(parser.clone()));
-    let interface = Arc::new(Interface::new("cita-cli")?);
-    interface.set_completer(complete.clone());
-    interface.set_prompt(&colored_prompt)?;
-
-    if let Err(e) = interface.load_history(history_file) {
-        if e.kind() == io::ErrorKind::NotFound {
-            println!(
-                "History file {} doesn't exist, not loading history.",
-                history_file
-            );
-        } else {
-            eprintln!("Could not load history file {}: {}", history_file, e);
-        }
-    }
-    loop {
-        match interface.read_line()? {
-            ReadResult::Input(line) => {
-                match handle_commands(&line, config, printer, parser, env_regex, config_file) {
-                    Ok(true) => {
-                        if let Err(err) = interface.save_history(history_file) {
-                            eprintln!("Save command history failed: {}", err);
-                        }
-                        break;
-                    }
-                    Ok(false) => {}
-                    Err(err) => {
-                        printer.eprintln(&err.to_string(), true);
-                    }
-                }
-                interface.add_history_unique(remove_private(&line));
-            }
-            ReadResult::Eof => {
-                if let Err(err) = interface.save_history(history_file) {
-                    eprintln!("Save command history failed: {}", err);
-                }
-                break;
-            }
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
 fn handle_commands(
     line: &str,
     config: &mut GlobalConfig,
@@ -303,11 +225,11 @@ fn handle_commands(
                     config.switch_debug();
                 }
 
-                if m.is_present("edit_style") && !config.use_linefeed() {
+                if m.is_present("edit_style") {
                     config.switch_edit_style();
                 }
 
-                if m.is_present("completion_style") && !config.use_linefeed() {
+                if m.is_present("completion_style") {
                     config.switch_completion_style();
                 }
 
@@ -490,39 +412,6 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
     }
 }
 
-unsafe impl<'a, 'b> ::std::marker::Sync for CitaCompleter<'a, 'b> {}
-unsafe impl<'a, 'b> ::std::marker::Send for CitaCompleter<'a, 'b> {}
-
-impl<'a, 'b, Term: Terminal> LinefeedCompleter<Term> for CitaCompleter<'a, 'b> {
-    fn complete(
-        &self,
-        word: &str,
-        prompter: &Prompter<Term>,
-        start: usize,
-        _end: usize,
-    ) -> Option<Vec<Completion>> {
-        let line = prompter.buffer();
-        let args = shell_words::split(&line[..start]).unwrap();
-        Self::find_subcommand(
-            self.clap_app.clone(),
-            args.iter().map(|s| s.as_str()).peekable(),
-        ).map(|current_app| {
-            let word_lower = word.to_lowercase();
-            Self::get_completions(&current_app, &args)
-                .into_iter()
-                .filter(|(_, replacement)| {
-                    word.is_empty() || replacement.to_lowercase().contains(&word_lower)
-                })
-                .map(|(display, replacement)| {
-                    let mut completion = Completion::simple(replacement);
-                    completion.display = Some(display);
-                    completion
-                })
-                .collect::<Vec<_>>()
-        })
-    }
-}
-
 impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
     type Candidate = Pair;
 
@@ -629,7 +518,6 @@ pub struct GlobalConfig {
     path: PathBuf,
     completion_style: bool,
     edit_style: bool,
-    use_linefeed: bool,
     env_variable: HashMap<String, serde_json::Value>,
 }
 
@@ -644,7 +532,6 @@ impl GlobalConfig {
             path: env::current_dir().unwrap(),
             completion_style: true,
             edit_style: true,
-            use_linefeed: false,
             env_variable: HashMap::new(),
         }
     }
@@ -744,10 +631,6 @@ impl GlobalConfig {
         self.edit_style = value;
     }
 
-    fn set_use_linefeed(&mut self, value: bool) {
-        self.use_linefeed = value;
-    }
-
     pub fn blake2b(&self) -> bool {
         self.blake2b
     }
@@ -770,10 +653,6 @@ impl GlobalConfig {
 
     fn edit_style(&self) -> bool {
         self.edit_style
-    }
-
-    fn use_linefeed(&self) -> bool {
-        self.use_linefeed
     }
 
     fn print(&self) {
