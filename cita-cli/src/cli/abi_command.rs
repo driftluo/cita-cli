@@ -25,16 +25,25 @@ pub fn abi_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("function")
                         .arg(
-                            Arg::with_name("file")
+                            Arg::with_name("abi")
+                                .long("abi")
+                                .takes_value(true)
                                 .required(true)
-                                .index(1)
+                                .conflicts_with("file")
+                                .help("ABI json string"),
+                        )
+                        .arg(
+                            Arg::with_name("file")
+                                .long("file")
+                                .takes_value(true)
                                 .help("ABI json file path"),
                         )
                         .arg(
                             Arg::with_name("name")
+                                .long("name")
+                                .takes_value(true)
                                 .required(true)
-                                .index(2)
-                                .help("function name"),
+                                .help("Function name"),
                         )
                         .arg(param_arg.clone().number_of_values(1).value_name("value"))
                         .arg(no_lenient_flag.clone()),
@@ -66,16 +75,25 @@ pub fn abi_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("function")
                         .arg(
-                            Arg::with_name("file")
+                            Arg::with_name("abi")
+                                .long("abi")
+                                .takes_value(true)
                                 .required(true)
-                                .index(1)
+                                .conflicts_with("file")
+                                .help("ABI json string"),
+                        )
+                        .arg(
+                            Arg::with_name("file")
+                                .long("file")
+                                .takes_value(true)
                                 .help("ABI json file path"),
                         )
                         .arg(
                             Arg::with_name("name")
+                                .long("name")
+                                .takes_value(true)
                                 .required(true)
-                                .index(2)
-                                .help("function name"),
+                                .help("Function name"),
                         )
                         .arg(
                             Arg::with_name("data")
@@ -88,16 +106,25 @@ pub fn abi_command() -> App<'static, 'static> {
                 .subcommand(
                     SubCommand::with_name("log")
                         .arg(
-                            Arg::with_name("file")
+                            Arg::with_name("abi")
+                                .long("abi")
+                                .takes_value(true)
                                 .required(true)
-                                .index(1)
+                                .conflicts_with("file")
+                                .help("ABI json string"),
+                        )
+                        .arg(
+                            Arg::with_name("file")
+                                .long("file")
+                                .takes_value(true)
                                 .help("ABI json file path"),
                         )
                         .arg(
                             Arg::with_name("event")
+                                .long("event")
+                                .takes_value(true)
                                 .required(true)
-                                .index(2)
-                                .help("event name"),
+                                .help("Event name"),
                         )
                         .arg(param_arg.clone().number_of_values(1).value_name("topic"))
                         .arg(
@@ -121,15 +148,16 @@ pub fn abi_processor(
     match sub_matches.subcommand() {
         ("encode", Some(em)) => match em.subcommand() {
             ("function", Some(m)) => {
-                let file = m.value_of("file").unwrap();
+                let file = m.value_of("file");
+                let abi = m.value_of("abi");
                 let name = m.value_of("name").unwrap();
                 let lenient = !m.is_present("no-lenient");
                 let values: Vec<String> = match m.values_of("param") {
                     None => Vec::new(),
                     Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
                 };
-                let output =
-                    encode_input(file, name, &values, lenient).map_err(|err| format!("{}", err))?;
+                let output = encode_input(file, abi, name, &values, lenient)
+                    .map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), is_color);
             }
             ("params", Some(m)) => {
@@ -168,10 +196,11 @@ pub fn abi_processor(
                 printer.println(&Value::Array(output), is_color);
             }
             ("function", Some(m)) => {
-                let file = m.value_of("file").unwrap();
+                let file = m.value_of("file");
+                let abi = m.value_of("abi");
                 let name = m.value_of("name").unwrap();
                 let values = m.value_of("data").unwrap();
-                let output = decode_input(file, name, values)
+                let output = decode_input(file, abi, name, values)
                     .map_err(|err| format!("{}", err))?
                     .iter()
                     .map(|value| serde_json::from_str(value).unwrap())
@@ -179,14 +208,15 @@ pub fn abi_processor(
                 printer.println(&Value::Array(output), is_color);
             }
             ("log", Some(m)) => {
-                let file = m.value_of("file").unwrap();
+                let file = m.value_of("file");
+                let abi = m.value_of("abi");
                 let event = m.value_of("event").unwrap();
                 let topic: Vec<String> = match m.values_of("param") {
                     None => Vec::new(),
                     Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
                 };
                 let data = m.value_of("data").unwrap();
-                let output = decode_logs(file, event, &topic, data)
+                let output = decode_logs(file, abi, event, &topic, data)
                     .map_err(|err| format!("{}", err))?
                     .iter()
                     .map(|value| serde_json::from_str(value).unwrap())
