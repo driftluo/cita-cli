@@ -464,28 +464,10 @@ impl<'a, 'b> Hinter for CitaCompleter<'a, 'b> {
             Some(RGB(105, 105, 105).paint(" [key]").to_string())
         } else if line == "set" {
             Some(RGB(105, 105, 105).paint(" <key> <value>").to_string())
-        } else if line == "ethabi encode function" {
-            Some(
-                RGB(105, 105, 105)
-                    .paint(" <file path> <function name> --param [value]...")
-                    .to_string(),
-            )
         } else if line == "ethabi encode params" {
             Some(
                 RGB(105, 105, 105)
                     .paint(" --param <type> <value>")
-                    .to_string(),
-            )
-        } else if line == "ethabi decode function" {
-            Some(
-                RGB(105, 105, 105)
-                    .paint("  <file path> <function name> --data <data>")
-                    .to_string(),
-            )
-        } else if line == "ethabi decode log" {
-            Some(
-                RGB(105, 105, 105)
-                    .paint("  <file path> <event name> --data <data> --param <topic>...")
                     .to_string(),
             )
         } else if line == "ethabi decode params" {
