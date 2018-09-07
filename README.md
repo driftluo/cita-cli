@@ -31,7 +31,7 @@ Just like the relationship between redis-cli and redis.
 ### Clone and Build
 
 You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases),
-if you want the latest version, compile the source code like follow:
+if you want the latest version, compile the source code like follow, default support Secp256k1/Sm2 algorithms:
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
@@ -40,7 +40,7 @@ $ cargo install
 ```
 it will install on `~/.cargo/bin/cita-cli`
 
-If you want to support both the secp256k1 and ed25519 algorithms, as follows and make sure clang version > 3.9
+If you want to support Secp256k1/Sm2/Ed25519 three algorithms at the same time, as follows and make sure clang version > 3.9
 
 ```bash
 $ sudo apt install clang
@@ -54,7 +54,7 @@ $ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
-$ cargo install --features blake2b_hash
+$ cargo install --features ed25519
 $ cd ..
 ```
 
@@ -82,7 +82,7 @@ $ rustup target add x86_64-unknown-linux-musl
 $ cargo install --target x86_64-unknown-linux-musl
 ```
 
-> Note: only for secp256k1 version, since libsodium is dynamically linked,
+> Note: only for secp256k1/sm2 version, since libsodium is dynamically linked,
 > first need to be changed to static link,
 > then need to use musl-gcc to recompile libsodium the entire library
 
@@ -95,10 +95,15 @@ or the corresponding environment variable cli will get it automatically.
 
 ```bash
 $ cita-cli
-
-[url: http://127.0.0.1:1337] [encryption: secp256k1] [color: true]
+[       url        ]: http://121.196.200.225:1337
+[       pwd        ]: /home/luoc/Rust-work/cita-cli
+[      color       ]: true
+[      debug       ]: true
+[       json       ]: true
+[    encryption    ]: secp256k1
+[ completion_style ]: List
+[    edit_style    ]: Emacs
 cita> switch --host http://121.196.200.225:1337
-[url: http://121.196.200.225:1337] [encryption: secp256k1] [color: true]
 cita> rpc blockNumber
 {
   "jsonrpc": "2.0",
@@ -112,10 +117,17 @@ cita> key create
   "public": "0xc10a38330fe144062d4a67e2de6f7eed5acf30da9dfd0fb0ecb86d05643afcc4a1b3b34b07731da088c2f564807049ba6632cb94dbcae81d1984ba248d5e5d1e"
 }
 cita> info
-[url: http://121.196.200.225:1337] [encryption: secp256k1] [color: true]
+[       url        ]: http://121.196.200.225:1337
+[       pwd        ]: /home/luoc/Rust-work/cita-cli
+[      color       ]: true
+[      debug       ]: true
+[       json       ]: true
+[    encryption    ]: secp256k1
+[ completion_style ]: List
+[    edit_style    ]: Emacs
 cita> ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-cita> ethabi encode function ../HelloWorld.abi update --param 16
+cita> ethabi encode function --file ../HelloWorld.abi --name update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 cita> ethabi encode params --param address 08d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb --param uint256 16
 "00000000000000000000000008d1a8bbec3dbc2e4fa930dfb6886732f3a72aeb0000000000000000000000000000000000000000000000000000000000000010"
@@ -230,7 +242,7 @@ $ cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5
 ```bash
 $ cita-cli ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
-$ cita-cli ethabi encode function ../HelloWorld.abi update --param 16
+$ cita-cli ethabi encode function --file ../HelloWorld.abi --name update --param 16
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
 

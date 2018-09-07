@@ -9,8 +9,8 @@ mod tx_command;
 mod util;
 
 pub(crate) use self::util::{
-    blake2b, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
-    parse_u256, parse_u64, search_app,
+    encryption, get_url, h256_validator, is_hex, parse_address, parse_encryption, parse_height,
+    parse_privkey, parse_u256, parse_u64, privkey_validator, pubkey_validator, search_app,
 };
 
 pub use self::abi_command::{abi_command, abi_processor};
@@ -51,10 +51,13 @@ pub fn build_cli() -> App<'static, 'static> {
         .subcommand(tx_command().arg(arg_url.clone()))
         .subcommand(benchmark_command().arg(arg_url.clone()))
         .arg(
-            Arg::with_name("blake2b")
-                .long("blake2b")
+            Arg::with_name("algorithm")
+                .long("algorithm")
                 .global(true)
-                .help("Use blake2b encryption algorithm, must build with feature blake2b"),
+                .takes_value(true)
+                .possible_values(&["secp256k1", "ed25519", "sm2"])
+                .validator(|v| parse_encryption(v.as_ref()).map(|_| ()))
+                .help("Select the encryption algorithm you want, the default is secp256k1"),
         )
         .arg(
             Arg::with_name("no-color")
@@ -96,7 +99,10 @@ pub fn build_interactive() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("algorithm")
                         .long("algorithm")
-                        .help("Switching encryption algorithm"),
+                        .takes_value(true)
+                        .possible_values(&["secp256k1", "ed25519", "sm2"])
+                        .validator(|v| parse_encryption(v.as_ref()).map(|_| ()))
+                        .help("Select the encryption algorithm you want, the default is secp256k1"),
                 )
                 .arg(
                     Arg::with_name("debug")

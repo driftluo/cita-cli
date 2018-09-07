@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{str, u64};
 
+use super::super::LowerHex;
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, Future, Stream};
 use hex::{decode, encode};
@@ -12,14 +13,12 @@ use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
 use tokio::runtime::Runtime;
-use types::{traits::LowerHex, U256};
+use types::U256;
 use uuid::Uuid;
 
 use abi::encode_params;
 use client::{remove_0x, TransactionOptions};
-#[cfg(feature = "blake2b_hash")]
-use crypto::Blake2bPrivKey;
-use crypto::{PrivateKey, Sha3PrivKey};
+use crypto::PrivateKey;
 use error::ToolError;
 use protos::{Transaction, UnverifiedTransaction};
 use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
@@ -75,9 +74,7 @@ pub struct Client {
     url: Uri,
     run_time: RefCell<Runtime>,
     chain_id: Option<u32>,
-    sha3_private_key: Option<Sha3PrivKey>,
-    #[cfg(feature = "blake2b_hash")]
-    blake2b_private_key: Option<Blake2bPrivKey>,
+    private_key: Option<PrivateKey>,
     debug: bool,
 }
 
@@ -90,9 +87,7 @@ impl Client {
             url: "http://127.0.0.1:1337".parse().unwrap(),
             run_time: RefCell::new(run_time),
             chain_id: None,
-            sha3_private_key: None,
-            #[cfg(feature = "blake2b_hash")]
-            blake2b_private_key: None,
+            private_key: None,
             debug: false,
         })
     }
@@ -119,27 +114,15 @@ impl Client {
     /// Set private key
     pub fn set_private_key(&mut self, private_key: &PrivateKey) -> &mut Self {
         match private_key {
-            PrivateKey::Sha3(sha3_private_key) => {
-                self.sha3_private_key = Some(*sha3_private_key);
-            }
-            #[cfg(feature = "blake2b_hash")]
-            PrivateKey::Blake2b(blake2b_private_key) => {
-                self.blake2b_private_key = Some(*blake2b_private_key)
-            }
             PrivateKey::Null => {}
+            _ => self.private_key = Some(*private_key),
         }
         self
     }
 
     /// Get private key
-    #[cfg(feature = "blake2b_hash")]
-    pub fn blake2b_private_key(&self) -> Option<&Blake2bPrivKey> {
-        self.blake2b_private_key.as_ref()
-    }
-
-    /// Get private key
-    pub fn sha3_private_key(&self) -> Option<&Sha3PrivKey> {
-        self.sha3_private_key.as_ref()
+    pub fn private_key(&self) -> Option<&PrivateKey> {
+        self.private_key.as_ref()
     }
 
     /// Get debug
@@ -278,45 +261,16 @@ impl Client {
 
     /// Constructing a UnverifiedTransaction hex string
     #[inline]
-    pub fn generate_sign_transaction(
-        &self,
-        tx: &Transaction,
-        blake2b: bool,
-    ) -> Result<String, ToolError> {
-        if blake2b {
-            #[cfg(feature = "blake2b_hash")]
-            {
-                return Ok(format!(
-                    "0x{}",
-                    encode(
-                        tx.blake2b_build_unverified(*self.blake2b_private_key().ok_or_else(
-                            || ToolError::Customize(
-                                "The provided private key do not match the algorithm".to_string()
-                            )
-                        )?).write_to_bytes()
-                            .map_err(ToolError::Proto)?
-                    )
-                ));
-            }
-            #[cfg(not(feature = "blake2b_hash"))]
-            Err(ToolError::Customize(
-                "The current version does not support ed25519 algorithm, \
-                 should build with feature blake2b_hash"
-                    .to_string(),
-            ))
-        } else {
-            Ok(format!(
-                "0x{}",
-                encode(
-                    tx.sha3_build_unverified(*self.sha3_private_key().ok_or_else(|| {
-                        ToolError::Customize(
-                            "The provided private key do not match the algorithm".to_string(),
-                        )
-                    })?).write_to_bytes()
-                        .map_err(ToolError::Proto)?
-                )
-            ))
-        }
+    pub fn generate_sign_transaction(&self, tx: &Transaction) -> Result<String, ToolError> {
+        Ok(format!(
+            "0x{}",
+            encode(
+                tx.build_unverified(*self.private_key().ok_or_else(|| ToolError::Customize(
+                    "The provided private key do not match the algorithm".to_string(),
+                ))?).write_to_bytes()
+                    .map_err(ToolError::Proto)?
+            )
+        ))
     }
 
     /// Send a signed transaction
@@ -346,17 +300,13 @@ impl Client {
     }
 
     /// Send unsigned transactions
-    pub fn send_transaction(
-        &mut self,
-        param: &str,
-        blake2b: bool,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    pub fn send_transaction(&mut self, param: &str) -> Result<JsonRpcResponse, ToolError> {
         let tx: Transaction = parse_from_bytes(
             decode(remove_0x(param))
                 .map_err(ToolError::Decode)?
                 .as_slice(),
         ).map_err(ToolError::Proto)?;
-        let byte_code = self.generate_sign_transaction(&tx, blake2b)?;
+        let byte_code = self.generate_sign_transaction(&tx)?;
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -466,11 +416,7 @@ where
     /// blockNumber: Get current height
     fn get_block_number(&self) -> Self::RpcResult;
     /// sendTransaction: Send a transaction return transaction hash
-    fn send_raw_transaction(
-        &mut self,
-        transaction_option: TransactionOptions,
-        blake2b: bool,
-    ) -> Self::RpcResult;
+    fn send_raw_transaction(&mut self, transaction_option: TransactionOptions) -> Self::RpcResult;
     /// getBlockByHash: Get block by hash
     fn get_block_by_hash(&self, hash: &str, transaction_info: bool) -> Self::RpcResult;
     /// getBlockByNumber: Get block by number
@@ -544,13 +490,9 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn send_raw_transaction(
-        &mut self,
-        transaction_option: TransactionOptions,
-        blake2b: bool,
-    ) -> Self::RpcResult {
+    fn send_raw_transaction(&mut self, transaction_option: TransactionOptions) -> Self::RpcResult {
         let tx = self.generate_transaction(transaction_option)?;
-        let byte_code = self.generate_sign_transaction(&tx, blake2b)?;
+        let byte_code = self.generate_sign_transaction(&tx)?;
         Ok(self.send_signed_transaction(&byte_code)?)
     }
 
@@ -872,34 +814,22 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 /// Store data or contract ABI to chain
 pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Store data to chain, data can be get back by `getTransaction` rpc call
-    fn store_data(&mut self, content: &str, quota: Option<u64>, blake2b: bool) -> Self::RpcResult;
+    fn store_data(&mut self, content: &str, quota: Option<u64>) -> Self::RpcResult;
 
     /// Store contract ABI to chain, ABI can be get back by `getAbi` rpc call
-    fn store_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult;
+    fn store_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Self::RpcResult;
 }
 
 impl StoreExt for Client {
-    fn store_data(&mut self, content: &str, quota: Option<u64>, blake2b: bool) -> Self::RpcResult {
+    fn store_data(&mut self, content: &str, quota: Option<u64>) -> Self::RpcResult {
         let tx_options = TransactionOptions::new()
             .set_code(content)
             .set_address(STORE_ADDRESS)
             .set_quota(quota);
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 
-    fn store_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
+    fn store_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Self::RpcResult {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -907,38 +837,21 @@ impl StoreExt for Client {
             .set_code(&data)
             .set_address(ABI_ADDRESS)
             .set_quota(quota);
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 }
 
 /// Amend(Update) ABI/contract code/H256KV
 pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Amend contract code
-    fn amend_code(
-        &mut self,
-        address: &str,
-        content: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult;
+    fn amend_code(&mut self, address: &str, content: &str, quota: Option<u64>) -> Self::RpcResult;
 
     /// Amend contract ABI
-    fn amend_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult;
+    fn amend_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Self::RpcResult;
 
     /// Amend H256KV
-    fn amend_h256kv(
-        &mut self,
-        address: &str,
-        h256_kv: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult;
+    fn amend_h256kv(&mut self, address: &str, h256_kv: &str, quota: Option<u64>)
+        -> Self::RpcResult;
 
     /// Amend get H256KV
     fn amend_get_h256kv(
@@ -946,7 +859,6 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
         address: &str,
         h256_key: &str,
         quota: Option<u64>,
-        blake2b: bool,
     ) -> Self::RpcResult;
 
     /// Amend account balance
@@ -955,18 +867,11 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
         address: &str,
         balance: U256,
         quota: Option<u64>,
-        blake2b: bool,
     ) -> Self::RpcResult;
 }
 
 impl AmendExt for Client {
-    fn amend_code(
-        &mut self,
-        address: &str,
-        content: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
+    fn amend_code(&mut self, address: &str, content: &str, quota: Option<u64>) -> Self::RpcResult {
         let address = remove_0x(address);
         let content = remove_0x(content);
         let data = format!("0x{}{}", address, content);
@@ -975,16 +880,10 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_CODE)).unwrap()));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 
-    fn amend_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
+    fn amend_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Self::RpcResult {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -993,7 +892,7 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_ABI)).unwrap()));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 
     fn amend_h256kv(
@@ -1001,7 +900,6 @@ impl AmendExt for Client {
         address: &str,
         h256_kv: &str,
         quota: Option<u64>,
-        blake2b: bool,
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let data = format!("0x{}{}", address, h256_kv);
@@ -1010,7 +908,7 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_KV_H256)).unwrap()));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 
     fn amend_get_h256kv(
@@ -1018,7 +916,6 @@ impl AmendExt for Client {
         address: &str,
         h256_key: &str,
         quota: Option<u64>,
-        blake2b: bool,
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let h256_key = remove_0x(h256_key);
@@ -1028,7 +925,7 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_GET_KV_H256)).unwrap()));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 
     fn amend_balance(
@@ -1036,7 +933,6 @@ impl AmendExt for Client {
         address: &str,
         balance: U256,
         quota: Option<u64>,
-        blake2b: bool,
     ) -> Self::RpcResult {
         let address = remove_0x(address);
         let data = format!("0x{}{:0>64}", address, balance.lower_hex());
@@ -1045,25 +941,19 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_BALANCE)).unwrap()));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 }
 
 /// Account transfer, only applies to charge mode
 pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
     /// Account transfer, only applies to charge mode
-    fn transfer(
-        &mut self,
-        value: U256,
-        address: &str,
-        quota: Option<u64>,
-        blake2b: bool,
-    ) -> Self::RpcResult {
+    fn transfer(&mut self, value: U256, address: &str, quota: Option<u64>) -> Self::RpcResult {
         let tx_options = TransactionOptions::new()
             .set_address(address)
             .set_quota(quota)
             .set_value(Some(value));
-        self.send_raw_transaction(tx_options, blake2b)
+        self.send_raw_transaction(tx_options)
     }
 }
 
