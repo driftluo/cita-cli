@@ -3,24 +3,21 @@ pub mod blockchain;
 pub use self::blockchain::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 use client::remove_0x;
 use crypto::PubKey;
-#[cfg(feature = "blake2b_hash")]
-use crypto::{blake2b_sign, Blake2bKeyPair, Blake2bPrivKey};
-use crypto::{
-    pubkey_to_address, sha3_sign, CreateKey, Hashable, Sha3KeyPair, Sha3PrivKey, Signature,
-};
+use crypto::{pubkey_to_address, sign, Encryption, Hashable, KeyPair, PrivateKey, Signature};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
 use serde_json::Value;
+use types::H256;
 
 use error::ToolError;
 use std::str::FromStr;
 
 impl UnverifiedTransaction {
     /// UnverifiedTransaction as JSON Value
-    pub fn to_json(&self, blake2b: bool) -> Result<Value, String> {
+    pub fn to_json(&self, encryption: Encryption) -> Result<Value, String> {
         let tx = self.transaction.get_ref();
-        let pub_key = self.public_key(blake2b)?;
+        let pub_key = self.public_key(encryption)?;
         Ok(json!({
             "transaction": {
                 "to": tx.to,
@@ -40,9 +37,9 @@ impl UnverifiedTransaction {
     }
 
     /// Get the transaction public key
-    pub fn public_key(&self, blake2b: bool) -> Result<PubKey, String> {
+    pub fn public_key(&self, encryption: Encryption) -> Result<PubKey, String> {
         let bytes: Vec<u8> = self.get_transaction().write_to_bytes().unwrap();
-        let hash = bytes.crypt_hash(blake2b);
+        let hash = bytes.crypt_hash(encryption);
         let signature = self.get_signature();
         let sig = Signature::from(signature);
 
@@ -64,57 +61,46 @@ impl FromStr for UnverifiedTransaction {
 }
 
 impl Transaction {
-    /// Signs the transaction by PrivKey, Sha3
-    pub fn sha3_sign(&self, sk: Sha3PrivKey) -> SignedTransaction {
-        let keypair = Sha3KeyPair::from_privkey(sk).unwrap();
-        let pubkey = keypair.pubkey();
-        let unverified_tx = self.sha3_build_unverified(sk);
+    /// Sign data
+    pub fn sign(&self, sk: PrivateKey) -> SignedTransaction {
+        let key_pair = KeyPair::from_privkey(sk);
+        let pubkey = key_pair.pubkey();
+
+        let unverified_tx = self.build_unverified(sk);
 
         // Build SignedTransaction
         let mut signed_tx = SignedTransaction::new();
         signed_tx.set_signer(pubkey.to_vec());
         let bytes: Vec<u8> = (&unverified_tx).write_to_bytes().unwrap();
-        signed_tx.set_tx_hash(bytes.crypt_hash(false).to_vec());
+
+        let hash = match sk {
+            PrivateKey::Secp256k1(_) => bytes.crypt_hash(Encryption::Secp256k1),
+            #[cfg(feature = "ed25519")]
+            PrivateKey::Ed25519(_) => bytes.crypt_hash(Encryption::Ed25519),
+            PrivateKey::Sm2(_) => bytes.crypt_hash(Encryption::Sm2),
+            PrivateKey::Null => H256::default(),
+        };
+
+        signed_tx.set_tx_hash(hash.to_vec());
         signed_tx.set_transaction_with_sig(unverified_tx);
         signed_tx
     }
 
-    /// Build UnverifiedTransaction, Sha3
-    pub fn sha3_build_unverified(&self, sk: Sha3PrivKey) -> UnverifiedTransaction {
+    /// Build unverified transaction
+    pub fn build_unverified(&self, sk: PrivateKey) -> UnverifiedTransaction {
         let mut unverified_tx = UnverifiedTransaction::new();
         let bytes: Vec<u8> = self.write_to_bytes().unwrap();
-        let hash = bytes.crypt_hash(false);
+
+        let hash = match sk {
+            PrivateKey::Secp256k1(_) => bytes.crypt_hash(Encryption::Secp256k1),
+            #[cfg(feature = "ed25519")]
+            PrivateKey::Ed25519(_) => bytes.crypt_hash(Encryption::Ed25519),
+            PrivateKey::Sm2(_) => bytes.crypt_hash(Encryption::Sm2),
+            PrivateKey::Null => H256::default(),
+        };
+
         unverified_tx.set_transaction(self.clone());
-        let signature = sha3_sign(&sk, &hash).unwrap();
-        unverified_tx.set_signature(signature.to_vec());
-        unverified_tx.set_crypto(Crypto::SECP);
-        unverified_tx
-    }
-
-    /// Signs the transaction by PrivKey, blake2b
-    #[cfg(feature = "blake2b_hash")]
-    pub fn blake2b_sign(self, sk: Blake2bPrivKey) -> SignedTransaction {
-        let keypair = Blake2bKeyPair::from_privkey(sk).unwrap();
-        let pubkey = keypair.pubkey();
-        let unverified_tx = self.blake2b_build_unverified(sk);
-
-        // Build SignedTransaction
-        let mut signed_tx = SignedTransaction::new();
-        signed_tx.set_signer(pubkey.to_vec());
-        let bytes: Vec<u8> = (&unverified_tx).write_to_bytes().unwrap();
-        signed_tx.set_tx_hash(bytes.crypt_hash(true).to_vec());
-        signed_tx.set_transaction_with_sig(unverified_tx);
-        signed_tx
-    }
-
-    /// Build UnverifiedTransaction, blake2b
-    #[cfg(feature = "blake2b_hash")]
-    pub fn blake2b_build_unverified(&self, sk: Blake2bPrivKey) -> UnverifiedTransaction {
-        let mut unverified_tx = UnverifiedTransaction::new();
-        let bytes: Vec<u8> = self.write_to_bytes().unwrap();
-        let hash = bytes.crypt_hash(true);
-        unverified_tx.set_transaction(self.clone());
-        let signature = blake2b_sign(&sk, &hash).unwrap();
+        let signature = sign(&sk, &hash);
         unverified_tx.set_signature(signature.to_vec());
         unverified_tx.set_crypto(Crypto::SECP);
         unverified_tx

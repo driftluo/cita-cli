@@ -1,4 +1,6 @@
-use crypto::{pubkey_to_address, CreateKey, Error, Message, PubKey, Sha3PrivKey, Sha3PubKey};
+use crypto::{
+    pubkey_to_address, CreateKey, Error, Message, PubKey, Secp256k1PrivKey, Secp256k1PubKey,
+};
 use hex::encode;
 use rand::thread_rng;
 use secp256k1::{
@@ -15,14 +17,14 @@ lazy_static! {
 
 const SIGNATURE_BYTES_LEN: usize = 65;
 
-/// Sha3 key pair
+/// Secp256k1 key pair
 #[derive(Default)]
-pub struct Sha3KeyPair {
-    privkey: Sha3PrivKey,
-    pubkey: Sha3PubKey,
+pub struct Secp256k1KeyPair {
+    privkey: Secp256k1PrivKey,
+    pubkey: Secp256k1PubKey,
 }
 
-impl fmt::Display for Sha3KeyPair {
+impl fmt::Display for Secp256k1KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         writeln!(f, "privkey:  {}", encode(self.privkey.0.to_vec()))?;
         writeln!(f, "pubkey:  {}", encode(self.pubkey.0.to_vec()))?;
@@ -30,9 +32,9 @@ impl fmt::Display for Sha3KeyPair {
     }
 }
 
-impl CreateKey for Sha3KeyPair {
-    type PrivKey = Sha3PrivKey;
-    type PubKey = Sha3PubKey;
+impl CreateKey for Secp256k1KeyPair {
+    type PrivKey = Secp256k1PrivKey;
+    type PubKey = Secp256k1PubKey;
     type Error = Error;
 
     /// Create a pair from secret key
@@ -42,10 +44,10 @@ impl CreateKey for Sha3KeyPair {
         let pubkey = key::PublicKey::from_secret_key(context, &s)?;
         let serialized = pubkey.serialize_vec(context, false);
 
-        let mut pubkey = Sha3PubKey::default();
+        let mut pubkey = Secp256k1PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
 
-        let keypair = Sha3KeyPair { privkey, pubkey };
+        let keypair = Secp256k1KeyPair { privkey, pubkey };
 
         Ok(keypair)
     }
@@ -54,11 +56,11 @@ impl CreateKey for Sha3KeyPair {
         let context = &SECP256K1;
         let (s, p) = context.generate_keypair(&mut thread_rng()).unwrap();
         let serialized = p.serialize_vec(context, false);
-        let mut privkey = Sha3PrivKey::default();
+        let mut privkey = Secp256k1PrivKey::default();
         privkey.0.copy_from_slice(&s[0..32]);
-        let mut pubkey = Sha3PubKey::default();
+        let mut pubkey = Secp256k1PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
-        Sha3KeyPair { privkey, pubkey }
+        Secp256k1KeyPair { privkey, pubkey }
     }
 
     fn privkey(&self) -> &Self::PrivKey {
@@ -70,14 +72,14 @@ impl CreateKey for Sha3KeyPair {
     }
 
     fn address(&self) -> Address {
-        pubkey_to_address(&PubKey::Sha3(self.pubkey))
+        pubkey_to_address(&PubKey::Secp256k1(self.pubkey))
     }
 }
 
 /// Signature
-pub struct Sh3Signature(pub [u8; 65]);
+pub struct Secp256k1Signature(pub [u8; 65]);
 
-impl Sh3Signature {
+impl Secp256k1Signature {
     /// Get a slice into the 'r' portion of the data.
     pub fn r(&self) -> &[u8] {
         &self.0[0..32]
@@ -94,12 +96,12 @@ impl Sh3Signature {
     }
 
     /// Create a signature object from the sig.
-    pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Sh3Signature {
+    pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Secp256k1Signature {
         let mut sig = [0u8; 65];
         sig[0..32].copy_from_slice(&r.0);
         sig[32..64].copy_from_slice(&s.0);
         sig[64] = v;
-        Sh3Signature(sig)
+        Secp256k1Signature(sig)
     }
 
     /// Check if this is a "low" signature.
@@ -120,7 +122,7 @@ impl Sh3Signature {
     }
 
     /// Recover public key
-    pub fn recover(&self, message: &Message) -> Result<Sha3PubKey, Error> {
+    pub fn recover(&self, message: &Message) -> Result<Secp256k1PubKey, Error> {
         let context = &SECP256K1;
         let rsig = RecoverableSignature::from_compact(
             context,
@@ -130,14 +132,17 @@ impl Sh3Signature {
         let public = context.recover(&SecpMessage::from_slice(&message.0[..])?, &rsig)?;
         let serialized = public.serialize_vec(context, false);
 
-        let mut pubkey = Sha3PubKey::default();
+        let mut pubkey = Secp256k1PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
         Ok(pubkey)
     }
 }
 
-/// Sign data with Sha3
-pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Sh3Signature, Error> {
+/// Sign data with secp256k1
+pub fn secp256k1_sign(
+    privkey: &Secp256k1PrivKey,
+    message: &Message,
+) -> Result<Secp256k1Signature, Error> {
     let context = &SECP256K1;
     // no way to create from raw byte array.
     let sec: &SecretKey = unsafe { &*(privkey as *const H256 as *const SecretKey) };
@@ -148,10 +153,10 @@ pub fn sha3_sign(privkey: &Sha3PrivKey, message: &Message) -> Result<Sh3Signatur
     // no need to check if s is low, it always is
     data_arr[0..64].copy_from_slice(&data[0..64]);
     data_arr[64] = rec_id.to_i32() as u8;
-    Ok(Sh3Signature(data_arr))
+    Ok(Secp256k1Signature(data_arr))
 }
 
-impl Deref for Sh3Signature {
+impl Deref for Secp256k1Signature {
     type Target = [u8; 65];
 
     fn deref(&self) -> &Self::Target {
@@ -159,21 +164,21 @@ impl Deref for Sh3Signature {
     }
 }
 
-impl DerefMut for Sh3Signature {
+impl DerefMut for Secp256k1Signature {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl PartialEq for Sh3Signature {
+impl PartialEq for Secp256k1Signature {
     fn eq(&self, rhs: &Self) -> bool {
         self.0[..] == rhs.0[..]
     }
 }
 
-impl Eq for Sh3Signature {}
+impl Eq for Secp256k1Signature {}
 
-impl fmt::Debug for Sh3Signature {
+impl fmt::Debug for Secp256k1Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.debug_struct("Signature")
             .field("r", &encode(self.0[0..32].to_vec()))
@@ -183,24 +188,24 @@ impl fmt::Debug for Sh3Signature {
     }
 }
 
-impl fmt::Display for Sh3Signature {
+impl fmt::Display for Secp256k1Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", encode(self.to_vec()))
     }
 }
 
-impl Default for Sh3Signature {
+impl Default for Secp256k1Signature {
     fn default() -> Self {
-        Sh3Signature([0; 65])
+        Secp256k1Signature([0; 65])
     }
 }
 
-impl<'a> From<&'a [u8]> for Sh3Signature {
-    fn from(slice: &'a [u8]) -> Sh3Signature {
+impl<'a> From<&'a [u8]> for Secp256k1Signature {
+    fn from(slice: &'a [u8]) -> Secp256k1Signature {
         assert_eq!(slice.len(), SIGNATURE_BYTES_LEN);
         let mut bytes = [0u8; 65];
         bytes.copy_from_slice(&slice[..]);
-        Sh3Signature(bytes)
+        Secp256k1Signature(bytes)
     }
 }
 
@@ -210,9 +215,9 @@ mod tests {
 
     #[test]
     fn test_recover() {
-        let keypair = Sha3KeyPair::gen_keypair();
+        let keypair = Secp256k1KeyPair::gen_keypair();
         let msg = Message::default();
-        let sig = sha3_sign(keypair.privkey(), &msg).unwrap();
+        let sig = secp256k1_sign(keypair.privkey(), &msg).unwrap();
         assert_eq!(keypair.pubkey(), &sig.recover(&msg).unwrap());
     }
 }

@@ -7,6 +7,7 @@ use std::io::{Read, Write};
 use std::iter;
 use std::ops::Deref;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use ansi_term::Colour::{Green, Red, Yellow, RGB};
@@ -24,10 +25,10 @@ use regex::{Captures, Regex};
 use serde_json;
 use shell_words;
 
-use cita_tool::JsonRpcResponse;
+use cita_tool::{Encryption, JsonRpcResponse};
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
-    key_processor, parse_privkey, rpc_processor, search_processor, store_processor,
+    encryption, key_processor, privkey_validator, rpc_processor, search_processor, store_processor,
     transfer_processor, tx_processor,
 };
 use printer::{OutputFormat, Printable, Printer};
@@ -81,9 +82,13 @@ pub fn start(url: &str) -> io::Result<()> {
         if let Some(value) = configs["url"].as_str() {
             config.set_url(value.to_string());
         }
+        if let Some(value) = configs["encryption"].as_str() {
+            let encryption = Encryption::from_str(value).unwrap_or(Encryption::Secp256k1);
+            config.set_encryption(encryption)
+        }
+
         config.set_debug(configs["debug"].as_bool().unwrap_or(false));
         config.set_color(configs["color"].as_bool().unwrap_or(true));
-        config.set_blake2b(configs["blake2b"].as_bool().unwrap_or(false));
         config.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
         config.set_completion_style(configs["completion_style"].as_bool().unwrap_or(true));
         config.set_edit_style(configs["edit_style"].as_bool().unwrap_or(true));
@@ -226,30 +231,15 @@ fn handle_commands(
                     config.switch_completion_style();
                 }
 
-                #[cfg(feature = "blake2b_hash")]
-                {
-                    if m.is_present("algorithm") {
-                        config.switch_encryption();
-                    }
-                }
-                #[cfg(not(feature = "blake2b_hash"))]
-                {
-                    if m.is_present("algorithm") {
-                        println!(
-                            "[{}]",
-                            Red.paint(
-                                "The current version does not support the blake2b algorithm. \
-                                 Open 'blak2b' feature and recompile cita-cli, please."
-                            )
-                        );
-                    }
-                }
+                let encryption = encryption(m, &config);
+                config.set_encryption(encryption);
+
                 config.print();
                 let mut file = fs::File::create(config_file.as_path())
                     .map_err(|err| format!("open config error: {:?}", err))?;
                 let content = serde_json::to_string_pretty(&json!({
                     "url": config.get_url().clone(),
-                    "blake2b": config.blake2b(),
+                    "encryption": config.encryption().to_string(),
                     "color": config.color(),
                     "debug": config.debug(),
                     "json_format": config.json_format(),
@@ -486,7 +476,7 @@ impl<'a, 'b> Helper for CitaCompleter<'a, 'b> {}
 
 pub struct GlobalConfig {
     url: String,
-    blake2b: bool,
+    encryption: Encryption,
     color: bool,
     debug: bool,
     json_format: bool,
@@ -500,7 +490,7 @@ impl GlobalConfig {
     pub fn new(url: String) -> Self {
         GlobalConfig {
             url,
-            blake2b: false,
+            encryption: Encryption::Secp256k1,
             color: true,
             debug: false,
             json_format: true,
@@ -557,11 +547,6 @@ impl GlobalConfig {
         &self.url
     }
 
-    #[cfg(feature = "blake2b_hash")]
-    fn switch_encryption(&mut self) {
-        self.blake2b = !self.blake2b;
-    }
-
     fn switch_color(&mut self) {
         self.color = !self.color;
     }
@@ -582,8 +567,8 @@ impl GlobalConfig {
         self.edit_style = !self.edit_style;
     }
 
-    pub fn set_blake2b(&mut self, value: bool) {
-        self.blake2b = value;
+    pub fn set_encryption(&mut self, encryption: Encryption) {
+        self.encryption = encryption;
     }
 
     pub fn set_color(&mut self, value: bool) {
@@ -606,8 +591,8 @@ impl GlobalConfig {
         self.edit_style = value;
     }
 
-    pub fn blake2b(&self) -> bool {
-        self.blake2b
+    pub fn encryption(&self) -> Encryption {
+        self.encryption
     }
 
     pub fn color(&self) -> bool {
@@ -632,7 +617,7 @@ impl GlobalConfig {
 
     fn print(&self) {
         let path = self.path.to_string_lossy();
-        let encryption = if self.blake2b { "ed25519" } else { "secp256k1" };
+        let encryption = self.encryption.to_string();
         let color = self.color.to_string();
         let debug = self.debug.to_string();
         let json = self.json_format.to_string();
@@ -648,7 +633,7 @@ impl GlobalConfig {
             ("color", color.as_str()),
             ("debug", debug.as_str()),
             ("json", json.as_str()),
-            ("encryption", encryption),
+            ("encryption", encryption.as_str()),
             ("completion_style", completion_style),
             ("edit_style", edit_style),
         ];
@@ -680,7 +665,7 @@ fn remove_private(line: &str) -> String {
             shell_words::split(line)
                 .unwrap()
                 .into_iter()
-                .filter(|key| parse_privkey(key).is_err())
+                .filter(|key| privkey_validator(key).is_err())
                 .collect::<Vec<String>>(),
         )
     } else {

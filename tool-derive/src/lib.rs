@@ -119,7 +119,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         values: &[&str],
                         quota: Option<u64>,
                         to_addr: Option<Address>,
-                        blake2b: bool,
                     ) -> Self::RpcResult {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         let tx_options = TransactionOptions::new()
@@ -128,7 +127,6 @@ pub fn contract(input: TokenStream) -> TokenStream {
                             .set_quota(quota);
                         self.client.send_raw_transaction(
                             tx_options,
-                            blake2b,
                         )
                     }
 

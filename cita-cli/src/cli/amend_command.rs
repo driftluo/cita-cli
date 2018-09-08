@@ -3,7 +3,10 @@ use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::remove_0x;
 
-use cli::{blake2b, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64};
+use cli::{
+    encryption, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64,
+    privkey_validator,
+};
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
@@ -25,7 +28,7 @@ pub fn amend_command() -> App<'static, 'static> {
             .long("admin-private-key")
             .takes_value(true)
             .required(true)
-            .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
+            .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
             .help("The private key of super admin"),
         Arg::with_name("quota")
             .long("quota")
@@ -163,21 +166,19 @@ pub fn amend_processor(
 
     let result = match sub_matches.subcommand() {
         ("code", Some(m)) => {
-            let blake2b = blake2b(m, config);
-            // TODO: this really should be fixed, private key must required
+            let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let address = m.value_of("address").unwrap();
             let content = m.value_of("content").unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_code(address, content, quota, blake2b)
+            client.amend_code(address, content, quota)
         }
         ("abi", Some(m)) => {
-            let blake2b = blake2b(m, config);
-            // TODO: this really should be fixed, private key must required
+            let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let content = match m.value_of("content") {
                 Some(content) => content.to_owned(),
@@ -192,13 +193,12 @@ pub fn amend_processor(
             };
             let address = m.value_of("address").unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_abi(address, content, quota, blake2b)
+            client.amend_abi(address, content, quota)
         }
         ("kv-h256", Some(m)) => {
-            let blake2b = blake2b(m, config);
-            // TODO: this really should be fixed, private key must required
+            let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let address = m.value_of("address").unwrap();
             let h256_kv = m
@@ -208,22 +208,22 @@ pub fn amend_processor(
                 .collect::<Vec<&str>>()
                 .join("");
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_h256kv(address, &h256_kv, quota, blake2b)
+            client.amend_h256kv(address, &h256_kv, quota)
         }
         ("get-h256", Some(m)) => {
-            let blake2b = blake2b(m, config);
+            let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let address = m.value_of("address").unwrap();
             let h256_key = m.value_of("key").unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_get_h256kv(address, h256_key, quota, blake2b)
+            client.amend_get_h256kv(address, h256_key, quota)
         }
         ("balance", Some(m)) => {
-            let blake2b = blake2b(m, config);
+            let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let address = m.value_of("address").unwrap();
             let balance = m
@@ -231,7 +231,7 @@ pub fn amend_processor(
                 .map(|value| parse_u256(value).unwrap())
                 .unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_balance(address, balance, quota, blake2b)
+            client.amend_balance(address, balance, quota)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

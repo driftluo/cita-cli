@@ -13,7 +13,8 @@ use cita_tool::client::system_contract::{
 };
 
 use cli::{
-    blake2b, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+    encryption, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
+    privkey_validator,
 };
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
@@ -94,13 +95,13 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("private-key")
         .takes_value(true)
         .required(true)
-        .validator(|private_key| parse_privkey(private_key.as_ref()).map(|_| ()))
+        .validator(|private_key| privkey_validator(private_key.as_ref()).map(|_| ()))
         .help("Private key");
     let admin_private = Arg::with_name("admin-private")
         .long("admin-private")
         .takes_value(true)
         .required(true)
-        .validator(|private_key| parse_privkey(private_key.as_ref()).map(|_| ()))
+        .validator(|private_key| privkey_validator(private_key.as_ref()).map(|_| ()))
         .help("Private key must be admin");
 
     let role_address_arg = address_arg.clone().help("Role address");
@@ -761,24 +762,33 @@ pub fn contract_processor(
                 client.node_status(address, m.value_of("height"))
             }
             ("deleteNode", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.downgrade_consensus_node(address, quota, blake2b)
+                client.downgrade_consensus_node(address, quota)
             }
             ("approveNode", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let mut client = NodeManageClient::create(Some(client));
-                client.approve_node(address, quota, blake2b)
+                client.approve_node(address, quota)
             }
             ("setStake", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let stake = m
@@ -786,7 +796,7 @@ pub fn contract_processor(
                     .map(|stake| parse_u64(stake).unwrap().to_string())
                     .unwrap();
                 let mut client = NodeManageClient::create(Some(client));
-                client.set_stake(address, &stake, quota, blake2b)
+                client.set_stake(address, &stake, quota)
             }
             ("stakePermillage", Some(m)) => {
                 let address = m.value_of("address").unwrap();
@@ -813,31 +823,35 @@ pub fn contract_processor(
                 QuotaManageClient::create(Some(client)).get_aql(address, m.value_of("height"))
             }
             ("setBQL", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                QuotaManageClient::create(Some(client)).set_bql(quota_limit, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_bql(quota_limit, quota)
             }
             ("setDefaultAQL", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                QuotaManageClient::create(Some(client)).set_default_aql(quota_limit, quota, blake2b)
+                QuotaManageClient::create(Some(client)).set_default_aql(quota_limit, quota)
             }
             ("setAQL", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                QuotaManageClient::create(Some(client)).set_aql(
-                    address,
-                    quota_limit,
-                    quota,
-                    blake2b,
-                )
+                QuotaManageClient::create(Some(client)).set_aql(address, quota_limit, quota)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -882,53 +896,68 @@ pub fn contract_processor(
         },
         ("GroupManagement", Some(m)) => match m.subcommand() {
             ("newGroup", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let name = m.value_of("name").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = GroupManageClient::create(Some(client));
-                client.new_group(origin, name, accounts, quota, blake2b)
+                client.new_group(origin, name, accounts, quota)
             }
             ("deleteGroup", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_group(origin, target, quota, blake2b)
+                client.delete_group(origin, target, quota)
             }
             ("updateGroupName", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let name = m.value_of("name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = GroupManageClient::create(Some(client));
-                client.update_group_name(origin, target, name, quota, blake2b)
+                client.update_group_name(origin, target, name, quota)
             }
             ("addAccounts", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = GroupManageClient::create(Some(client));
-                client.add_accounts(origin, target, accounts, quota, blake2b)
+                client.add_accounts(origin, target, accounts, quota)
             }
             ("deleteAccounts", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
                 let accounts = m.value_of("accounts").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = GroupManageClient::create(Some(client));
-                client.delete_accounts(origin, target, accounts, quota, blake2b)
+                client.delete_accounts(origin, target, accounts, quota)
             }
             ("checkScope", Some(m)) => {
                 let origin = m.value_of("origin").unwrap();
@@ -973,39 +1002,51 @@ pub fn contract_processor(
         },
         ("RoleManagement", Some(m)) => match m.subcommand() {
             ("newRole", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let name = m.value_of("name").unwrap();
                 let permissions = m.value_of("permissions").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::new_role(&mut client, name, permissions, quota, blake2b)
+                RoleManagementExt::new_role(&mut client, name, permissions, quota)
             }
             ("deleteRole", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::set_role(&mut client, account, role, quota, blake2b)
+                RoleManagementExt::set_role(&mut client, account, role, quota)
             }
             ("cancelRole", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
                 let role = m.value_of("role").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::cancel_role(&mut client, account, role, quota, blake2b)
+                RoleManagementExt::cancel_role(&mut client, account, role, quota)
             }
             ("clearRole", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = RoleManageClient::create(Some(client));
-                RoleManagementExt::clear_role(&mut client, account, quota, blake2b)
+                RoleManagementExt::clear_role(&mut client, account, quota)
             }
             ("queryRoles", Some(m)) => {
                 let account = m.value_of("account").unwrap();
@@ -1093,12 +1134,15 @@ pub fn contract_processor(
         },
         ("PermissionManagement", Some(m)) => match m.subcommand() {
             ("newPermission", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let name = m.value_of("name").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::new_permission(
                     &mut client,
@@ -1106,39 +1150,46 @@ pub fn contract_processor(
                     contracts,
                     function_hashes,
                     quota,
-                    blake2b,
                 )
             }
             ("deletePermission", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
-                PermissionManagementExt::delete_permission(&mut client, permission, quota, blake2b)
+                PermissionManagementExt::delete_permission(&mut client, permission, quota)
             }
             ("updatePermissionName", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let name = m.value_of("name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::update_permission_name(
                     &mut client,
                     permission,
                     name,
                     quota,
-                    blake2b,
                 )
             }
             ("addResources", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::add_resources(
                     &mut client,
@@ -1146,16 +1197,18 @@ pub fn contract_processor(
                     contracts,
                     function_hashes,
                     quota,
-                    blake2b,
                 )
             }
             ("deleteResources", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let contracts = m.value_of("contracts").unwrap();
                 let function_hashes = m.value_of("function-hashes").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::delete_resources(
                     &mut client,
@@ -1163,76 +1216,81 @@ pub fn contract_processor(
                     contracts,
                     function_hashes,
                     quota,
-                    blake2b,
                 )
             }
             ("setAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
-                PermissionManagementExt::set_authorization(
-                    &mut client,
-                    account,
-                    permission,
-                    quota,
-                    blake2b,
-                )
+                PermissionManagementExt::set_authorization(&mut client, account, permission, quota)
             }
             ("setAuthorizations", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permissions = m.value_of("permissions").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::set_authorizations(
                     &mut client,
                     account,
                     permissions,
                     quota,
-                    blake2b,
                 )
             }
             ("cancelAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permission = m.value_of("permission").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::cancel_authorization(
                     &mut client,
                     account,
                     permission,
                     quota,
-                    blake2b,
                 )
             }
             ("cancelAuthorizations", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let permissions = m.value_of("permissions").unwrap();
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
                 PermissionManagementExt::cancel_authorizations(
                     &mut client,
                     account,
                     permissions,
                     quota,
-                    blake2b,
                 )
             }
             ("clearAuthorization", Some(m)) => {
-                let blake2b = blake2b(m, config);
+                let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let mut client = PermissionManageClient::create(Some(client));
-                PermissionManagementExt::clear_authorization(&mut client, account, quota, blake2b)
+                PermissionManagementExt::clear_authorization(&mut client, account, quota)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1243,21 +1301,27 @@ pub fn contract_processor(
                 AdminClient::create(Some(client)).is_admin(address, m.value_of("height"))
             }
             ("update", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let address = m.value_of("address").unwrap();
-                AdminClient::create(Some(client)).add_admin(address, quota, blake2b)
+                AdminClient::create(Some(client)).add_admin(address, quota)
             }
             _ => return Err(m.usage().to_owned()),
         },
         ("BatchTx", Some(m)) => match m.subcommand() {
             ("multiTxs", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("private-key").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let txs = m.values_of("tx-code").map(|value| value.collect()).unwrap();
-                BatchTxClient::create(Some(client)).multi_transactions(txs, quota, blake2b)
+                BatchTxClient::create(Some(client)).multi_transactions(txs, quota)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1287,28 +1351,37 @@ pub fn contract_processor(
                 SysConfigExt::get_quota_check(&client, m.value_of("height"))
             }
             ("setChainName", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let name = m.value_of("chain-name").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                SysConfigExt::set_chain_name(&mut client, name, quota, blake2b)
+                SysConfigExt::set_chain_name(&mut client, name, quota)
             }
             ("setOperator", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let operator = m.value_of("operator").unwrap();
-                SysConfigExt::set_operator(&mut client, operator, quota, blake2b)
+                SysConfigExt::set_operator(&mut client, operator, quota)
             }
             ("setWebsite", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let mut client: SysConfigClient = SysConfigExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let website = m.value_of("website").unwrap();
-                SysConfigExt::set_website(&mut client, website, quota, blake2b)
+                SysConfigExt::set_website(&mut client, website, quota)
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1318,15 +1391,18 @@ pub fn contract_processor(
                 EmergencyBrakeExt::state(&client, m.value_of("height"))
             }
             ("setState", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let mut client: EmergencyBrakeClient = EmergencyBrakeExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let state = m
                     .value_of("state")
                     .map(|state| state.parse::<bool>().unwrap())
                     .unwrap();
-                EmergencyBrakeExt::set_state(&mut client, state, quota, blake2b)
+                EmergencyBrakeExt::set_state(&mut client, state, quota)
             }
             _ => return Err(sub_matches.usage().to_owned()),
         },
@@ -1336,15 +1412,18 @@ pub fn contract_processor(
                 PriceManagerExt::price(&client, m.value_of("height"))
             }
             ("setQuotaPrice", Some(m)) => {
-                let blake2b = blake2b(m, config);
-                client.set_private_key(&parse_privkey(m.value_of("admin-private").unwrap())?);
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
                 let mut client: PriceManagerClient = PriceManagerExt::create(Some(client));
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let price = m
                     .value_of("price")
                     .map(|price| parse_u256(price).unwrap())
                     .unwrap();
-                PriceManagerExt::set_price(&mut client, price, quota, blake2b)
+                PriceManagerExt::set_price(&mut client, price, quota)
             }
             _ => return Err(sub_matches.usage().to_owned()),
         },

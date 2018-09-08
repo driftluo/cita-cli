@@ -1,10 +1,12 @@
-#[cfg(feature = "blake2b_hash")]
+#[cfg(feature = "ed25519")]
 use blake2b::blake2b;
+use crypto::Encryption;
+use libsm::sm3;
 use std::{fmt, marker};
 use tiny_keccak;
 use types::{Address, H256};
 
-#[cfg(feature = "blake2b_hash")]
+#[cfg(feature = "ed25519")]
 const BLAKE2BKEY: &str = "CryptapeCryptape";
 
 /// Create secret Key
@@ -34,13 +36,15 @@ where
 /// Hashable for some type
 pub trait Hashable {
     /// Calculate crypt HASH of this object.
-    fn crypt_hash(&self, blake2b: bool) -> H256 {
+    fn crypt_hash(&self, encryption: Encryption) -> H256 {
         let mut result = [0u8; 32];
-        if blake2b {
-            #[cfg(feature = "blake2b_hash")]
-            self.blake2b_crypt_hash_into(&mut result);
-        } else {
-            self.sha3_crypt_hash_into(&mut result);
+        match encryption {
+            Encryption::Secp256k1 => self.sha3_crypt_hash_into(&mut result),
+            Encryption::Ed25519 => {
+                #[cfg(feature = "ed25519")]
+                self.blake2b_crypt_hash_into(&mut result);
+            }
+            Encryption::Sm2 => self.sm3_crypt_hash_into(&mut result),
         }
         H256(result)
     }
@@ -49,8 +53,11 @@ pub trait Hashable {
     fn sha3_crypt_hash_into(&self, dest: &mut [u8]);
 
     /// Calculate crypt HASH of this object and place result into dest, use blake2b
-    #[cfg(feature = "blake2b_hash")]
+    #[cfg(feature = "ed25519")]
     fn blake2b_crypt_hash_into(&self, dest: &mut [u8]);
+
+    /// Calculate crypt HASH of this object and place result into dest, use sm3
+    fn sm3_crypt_hash_into(&self, dest: &mut [u8]);
 }
 
 impl<T> Hashable for T
@@ -62,7 +69,7 @@ where
         tiny_keccak::Keccak::keccak256(input, dest);
     }
 
-    #[cfg(feature = "blake2b_hash")]
+    #[cfg(feature = "ed25519")]
     fn blake2b_crypt_hash_into(&self, dest: &mut [u8]) {
         let input: &[u8] = self.as_ref();
 
@@ -77,6 +84,11 @@ where
             );
         }
     }
+
+    fn sm3_crypt_hash_into(&self, dest: &mut [u8]) {
+        let input: &[u8] = self.as_ref();
+        dest.copy_from_slice(sm3::hash::Sm3Hash::new(input).get_hash().as_ref());
+    }
 }
 
 /// Error of create secret key
@@ -90,6 +102,8 @@ pub enum Error {
     InvalidSignature,
     /// Invalid message
     InvalidMessage,
+    /// Recover error
+    RecoverError,
     /// Io error
     Io(::std::io::Error),
 }
@@ -101,6 +115,7 @@ impl fmt::Display for Error {
             Error::InvalidPubKey => "Invalid public".into(),
             Error::InvalidSignature => "Invalid EC signature".into(),
             Error::InvalidMessage => "Invalid AES message".into(),
+            Error::RecoverError => "Recover Error".into(),
             Error::Io(ref err) => format!("I/O error: {}", err),
         };
         f.write_fmt(format_args!("Crypto error ({})", msg))

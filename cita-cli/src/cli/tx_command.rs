@@ -3,7 +3,10 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::Client;
 use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
-use cli::{blake2b, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u64};
+use cli::{
+    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u64,
+    privkey_validator,
+};
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 use std::str::FromStr;
@@ -92,7 +95,7 @@ pub fn tx_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("private-key")
                         .long("private-key")
-                        .validator(|private| parse_privkey(private.as_str()).map(|_| ()))
+                        .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
                         .takes_value(true)
                         .required(true)
                         .help("Transfer Account Private Key"),
@@ -129,9 +132,6 @@ pub fn tx_processor(
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
                 client.set_chain_id(chain_id);
             }
-            if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
-            }
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
@@ -160,18 +160,18 @@ pub fn tx_processor(
             client.send_signed_transaction(byte_code)
         }
         ("sendTransaction", Some(m)) => {
-            let blake2b = blake2b(sub_matches, config);
+            let encryption = encryption(sub_matches, config);
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let byte_code = m.value_of("byte-code").unwrap();
-            client.send_transaction(byte_code, blake2b)
+            client.send_transaction(byte_code)
         }
         ("decode-unverifiedTransaction", Some(m)) => {
-            let blake2b = blake2b(sub_matches, config);
+            let encryption = encryption(sub_matches, config);
             let content = m.value_of("content").unwrap();
             let tx = UnverifiedTransaction::from_str(&content).map_err(|err| format!("{}", err))?;
-            printer.println(&tx.to_json(blake2b)?, is_color);
+            printer.println(&tx.to_json(encryption)?, is_color);
             return Ok(());
         }
         _ => {

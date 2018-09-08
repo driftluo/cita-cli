@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use clap::{App, ArgMatches};
 
-use cita_tool::{remove_0x, Address, H256, PrivateKey, U256};
+use cita_tool::{remove_0x, Address, Encryption, H256, H512, PrivateKey, U256};
 
 use interactive::GlobalConfig;
 
@@ -30,9 +30,56 @@ pub fn parse_u64(height: &str) -> Result<u64, String> {
 }
 
 /// Attempt to resolve the private key
-pub fn parse_privkey(hash: &str) -> Result<PrivateKey, String> {
+pub fn parse_privkey(hash: &str, encryption: Encryption) -> Result<PrivateKey, String> {
     is_hex(hash)?;
-    Ok(PrivateKey::from_str(remove_0x(hash))?)
+    Ok(PrivateKey::from_str(remove_0x(hash), encryption)?)
+}
+
+#[cfg(feature = "ed25519")]
+pub fn privkey_validator(hash: &str) -> Result<(), String> {
+    is_hex(hash)?;
+    if hash.len() > 66 {
+        h512_validator(hash)
+    } else {
+        h256_validator(hash)
+    }
+}
+
+#[cfg(not(feature = "ed25519"))]
+pub fn privkey_validator(hash: &str) -> Result<(), String> {
+    if hash.len() > 66 {
+        Err(
+            "The current version does not support 512-byte private keys, \
+             should build with feature blake2b_hash"
+                .to_string(),
+        )
+    } else {
+        h256_validator(hash)
+    }
+}
+
+#[cfg(feature = "ed25519")]
+pub fn pubkey_validator(hash: &str) -> Result<(), String> {
+    is_hex(hash)?;
+    if hash.len() < 66 {
+        h256_validator(hash)
+    } else {
+        h512_validator(hash)
+    }
+}
+
+#[cfg(not(feature = "ed25519"))]
+pub fn pubkey_validator(hash: &str) -> Result<(), String> {
+    is_hex(hash)?;
+    if hash.len() < 66 {
+        Err(
+            "The current version does not support 512-byte private keys, \
+             should build with feature blake2b_hash"
+                .to_string(),
+        )
+    } else {
+        h512_validator(hash)
+    }
 }
 
 pub fn is_hex(hex: &str) -> Result<(), String> {
@@ -70,7 +117,14 @@ pub fn h256_validator(value: &str) -> Result<(), String> {
     is_hex(value)?;
     H256::from_str(remove_0x(value))
         .map(|_| ())
-        .map_err(|_| "Invalid H256".to_string())
+        .map_err(|err| format!("{}", err))
+}
+
+pub fn h512_validator(value: &str) -> Result<(), String> {
+    is_hex(value)?;
+    H512::from_str(remove_0x(value))
+        .map(|_| ())
+        .map_err(|err| format!("{}", err))
 }
 
 pub fn parse_address(value: &str) -> Result<(), String> {
@@ -80,13 +134,15 @@ pub fn parse_address(value: &str) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-#[cfg(feature = "blake2b_hash")]
-pub fn blake2b(m: &ArgMatches, config: &GlobalConfig) -> bool {
-    m.is_present("blake2b") || config.blake2b()
+pub fn parse_encryption(value: &str) -> Result<Encryption, String> {
+    Encryption::from_str(value)
 }
-#[cfg(not(feature = "blake2b_hash"))]
-pub fn blake2b(_m: &ArgMatches, _config: &GlobalConfig) -> bool {
-    false
+
+pub fn encryption(m: &ArgMatches, config: &GlobalConfig) -> Encryption {
+    match m.value_of("algorithm") {
+        Some(v) => parse_encryption(v).unwrap(),
+        None => config.encryption(),
+    }
 }
 
 /// Search command tree

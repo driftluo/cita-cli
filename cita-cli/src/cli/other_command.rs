@@ -3,7 +3,10 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
-use cli::{blake2b, get_url, parse_address, parse_privkey, parse_u256, parse_u64, search_app};
+use cli::{
+    encryption, get_url, parse_address, parse_privkey, parse_u256, parse_u64, privkey_validator,
+    search_app,
+};
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
@@ -59,7 +62,7 @@ pub fn transfer_command() -> App<'static, 'static> {
         .arg(
             Arg::with_name("private-key")
                 .long("private-key")
-                .validator(|private| parse_privkey(private.as_str()).map(|_| ()))
+                .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer Account Private Key"),
@@ -94,9 +97,10 @@ pub fn transfer_processor(
         .set_debug(debug)
         .set_uri(get_url(sub_matches, config));
 
-    let blake2b = blake2b(sub_matches, config);
+    let encryption = encryption(sub_matches, config);
     client.set_private_key(&parse_privkey(
         sub_matches.value_of("private-key").unwrap(),
+        encryption,
     )?);
     let address = sub_matches.value_of("address").unwrap();
     let quota = sub_matches
@@ -105,7 +109,7 @@ pub fn transfer_processor(
     let value = parse_u256(sub_matches.value_of("value").unwrap()).unwrap();
     let is_color = !sub_matches.is_present("no-color") && config.color();
     let response = client
-        .transfer(value, address, quota, blake2b)
+        .transfer(value, address, quota)
         .map_err(|err| format!("{}", err))?;
     printer.println(&response, is_color);
     set_output(&response, config);

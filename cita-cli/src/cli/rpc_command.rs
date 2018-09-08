@@ -4,8 +4,8 @@ use cita_tool::client::basic::{Client, ClientExt};
 use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction};
 
 use cli::{
-    blake2b, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
-    parse_u256, parse_u64,
+    encryption, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
+    parse_u256, parse_u64, privkey_validator,
 };
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
@@ -61,7 +61,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("private-key")
                         .takes_value(true)
                         .required(true)
-                        .validator(|privkey| parse_privkey(privkey.as_ref()).map(|_| ()))
+                        .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
                         .help("The private key of transaction"),
                 )
                 .arg(
@@ -437,13 +437,13 @@ pub fn rpc_processor(
         ("peerCount", _) => client.get_peer_count(),
         ("blockNumber", _) => client.get_block_number(),
         ("sendRawTransaction", Some(m)) => {
-            let blake2b = blake2b(m, config);
+            let encryption = encryption(m, config);
 
             if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
                 client.set_chain_id(chain_id);
             }
             if let Some(private_key) = m.value_of("private-key") {
-                client.set_private_key(&parse_privkey(private_key)?);
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
             }
             let code = m.value_of("code").unwrap();
             let address = m.value_of("address").unwrap();
@@ -456,7 +456,7 @@ pub fn rpc_processor(
                 .set_current_height(current_height)
                 .set_quota(quota)
                 .set_value(value);
-            client.send_raw_transaction(tx_options, blake2b)
+            client.send_raw_transaction(tx_options)
         }
         ("getBlockByHash", Some(m)) => {
             let hash = m.value_of("hash").unwrap();
@@ -504,7 +504,7 @@ pub fn rpc_processor(
             m.value_of("to"),
         ),
         ("getTransaction", Some(m)) => {
-            let blake2b = blake2b(m, config);
+            let encryption = encryption(m, config);
             let hash = m.value_of("hash").unwrap();
             let result = client.get_transaction(hash);
             if debug {
@@ -514,7 +514,7 @@ pub fn rpc_processor(
                             let tx = UnverifiedTransaction::from_str(&content).unwrap();
                             printer
                                 .println(&"---- [UnverifiedTransaction] ----".to_owned(), is_color);
-                            printer.println(&tx.to_json(blake2b)?, is_color);
+                            printer.println(&tx.to_json(encryption)?, is_color);
                             printer.println(
                                 &"---- [UnverifiedTransaction] ----\n".to_owned(),
                                 is_color,
