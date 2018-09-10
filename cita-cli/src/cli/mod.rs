@@ -9,8 +9,8 @@ mod tx_command;
 mod util;
 
 pub(crate) use self::util::{
-    encryption, get_url, h256_validator, is_hex, parse_address, parse_encryption, parse_height,
-    parse_privkey, parse_u256, parse_u64, privkey_validator, pubkey_validator, search_app,
+    encryption, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
+    parse_u256, parse_u64, privkey_validator, pubkey_validator, search_app,
 };
 
 pub use self::abi_command::{abi_command, abi_processor};
@@ -56,7 +56,6 @@ pub fn build_cli() -> App<'static, 'static> {
                 .global(true)
                 .takes_value(true)
                 .possible_values(&["secp256k1", "ed25519", "sm2"])
-                .validator(|v| parse_encryption(v.as_ref()).map(|_| ()))
                 .help("Select the encryption algorithm you want, the default is secp256k1"),
         )
         .arg(
@@ -101,7 +100,6 @@ pub fn build_interactive() -> App<'static, 'static> {
                         .long("algorithm")
                         .takes_value(true)
                         .possible_values(&["secp256k1", "ed25519", "sm2"])
-                        .validator(|v| parse_encryption(v.as_ref()).map(|_| ()))
                         .help("Select the encryption algorithm you want, the default is secp256k1"),
                 )
                 .arg(
