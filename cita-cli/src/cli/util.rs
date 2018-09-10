@@ -129,18 +129,17 @@ pub fn h512_validator(value: &str) -> Result<(), String> {
 
 pub fn parse_address(value: &str) -> Result<(), String> {
     is_hex(value)?;
+    if remove_0x(value).is_empty() {
+        return Ok(());
+    }
     Address::from_str(remove_0x(value))
         .map(|_| ())
         .map_err(|err| err.to_string())
 }
 
-pub fn parse_encryption(value: &str) -> Result<Encryption, String> {
-    Encryption::from_str(value)
-}
-
 pub fn encryption(m: &ArgMatches, config: &GlobalConfig) -> Encryption {
     match m.value_of("algorithm") {
-        Some(v) => parse_encryption(v).unwrap(),
+        Some(v) => Encryption::from_str(v).unwrap(),
         None => config.encryption(),
     }
 }
