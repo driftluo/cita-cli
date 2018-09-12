@@ -978,3 +978,32 @@ pub trait PriceManagerExt: ContractCall {
         self.contract_send_tx("setQuotaPrice", &value, quota, None)
     }
 }
+
+/// Version manager contract
+#[derive(ContractExt)]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff020011")]
+#[contract(path = "../../contract_abi/VersionManager.abi")]
+#[contract(name = "VersionManagerExt")]
+pub struct VersionManagerClient {
+    client: Client,
+    address: Address,
+    contract: Contract,
+}
+
+/// Version manager contract
+pub trait VersionManagerExt: ContractCall {
+    /// Create a ContractClient
+    fn create(client: Option<Client>) -> Self;
+
+    /// Get version
+    fn get_version(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getVersion", &[], None, height)
+    }
+
+    /// Set version
+    fn set_version(&mut self, version: u32, quota: Option<u64>) -> Self::RpcResult {
+        let version = version.to_string();
+        let value = [version.as_str()];
+        self.contract_send_tx("setVersion", &value, quota, None)
+    }
+}
