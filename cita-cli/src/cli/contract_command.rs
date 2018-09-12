@@ -5,11 +5,12 @@ use cita_tool::client::system_contract::{
     AdminClient, AdminExt, AuthorizationClient, BatchTxClient, EmergencyBrakeClient, GroupClient,
     GroupManageClient, NodeManageClient, PermissionClient, PermissionManageClient,
     PriceManagerClient, QuotaManageClient, RoleClient, RoleManageClient, SysConfigClient,
+    VersionManagerClient,
 };
 use cita_tool::client::system_contract::{
     AuthorizationExt, BatchTxExt, EmergencyBrakeExt, GroupExt, GroupManagementExt,
     NodeManagementExt, PermissionExt, PermissionManagementExt, PriceManagerExt, QuotaManagementExt,
-    RoleExt, RoleManagementExt, SysConfigExt,
+    RoleExt, RoleManagementExt, SysConfigExt, VersionManagerExt,
 };
 
 use cli::{
@@ -732,6 +733,28 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(admin_private.clone())
                 )
         )
+        .subcommand(
+            SubCommand::with_name("VersionManager")
+                .subcommand(
+                    SubCommand::with_name("getVersion").arg(height_arg.clone())
+                )
+                .subcommand(
+                    SubCommand::with_name("setVersion")
+                        .arg(
+                            Arg::with_name("version")
+                                .long("version")
+                                .takes_value(true)
+                                .required(true)
+                                .validator(|version| version.as_str().parse::<u32>()
+                                    .map(|_| ())
+                                    .map_err(|e| e.to_string())
+                                )
+                                .help("Version value")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(admin_private.clone())
+                )
+        )
 }
 
 /// System contract processor
@@ -1424,6 +1447,27 @@ pub fn contract_processor(
                     .map(|price| parse_u256(price).unwrap())
                     .unwrap();
                 PriceManagerExt::set_price(&mut client, price, quota)
+            }
+            _ => return Err(sub_matches.usage().to_owned()),
+        },
+        ("VersionManager", Some(m)) => match m.subcommand() {
+            ("getVersion", Some(m)) => {
+                let client: VersionManagerClient = VersionManagerExt::create(Some(client));
+                VersionManagerExt::get_version(&client, m.value_of("height"))
+            }
+            ("setVersion", Some(m)) => {
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
+                let mut client: VersionManagerClient = VersionManagerExt::create(Some(client));
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let version = m
+                    .value_of("version")
+                    .map(|version| version.parse::<u32>().unwrap())
+                    .unwrap();
+                VersionManagerExt::set_version(&mut client, version, quota)
             }
             _ => return Err(sub_matches.usage().to_owned()),
         },

@@ -241,7 +241,8 @@ impl Client {
         let data = decode(remove_0x(transaction_options.code())).map_err(ToolError::Decode)?;
         let current_height = transaction_options
             .current_height()
-            .unwrap_or(self.get_current_height()?);
+            .ok_or_else(|| ToolError::Customize("No height input".to_string()))
+            .or_else(|_| self.get_current_height())?;
 
         let mut tx = Transaction::new();
         tx.set_data(data);
@@ -249,7 +250,7 @@ impl Client {
         tx.set_to(remove_0x(transaction_options.address()).to_string());
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
-        tx.set_quota(transaction_options.quota().unwrap_or(10_000_000));
+        tx.set_quota(transaction_options.quota().unwrap_or_else(|| 10_000_000));
         let value = transaction_options
             .value()
             .map(|value| value.lower_hex())
