@@ -84,7 +84,6 @@ pub fn contract_command() -> App<'static, 'static> {
     let contracts_address_arg = Arg::with_name("contracts")
         .long("contracts")
         .takes_value(true)
-        .validator(|address| parse_address(address.as_str()))
         .required(true)
         .help("Contract address list");
     let function_hashes_arg = Arg::with_name("function-hashes")
