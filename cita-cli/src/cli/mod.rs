@@ -113,6 +113,10 @@ pub fn build_interactive() -> App<'static, 'static> {
                     Arg::with_name("edit_style")
                         .long("edit_style")
                         .help("Switching edit style"),
+                ).arg(
+                    Arg::with_name("save_private")
+                        .long("save_private")
+                        .help("Switching whether save private key"),
                 ),
         ).subcommand(search_command())
         .subcommand(SubCommand::with_name("info").about("Display global variables"))

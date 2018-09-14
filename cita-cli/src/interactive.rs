@@ -92,6 +92,7 @@ pub fn start(url: &str) -> io::Result<()> {
         config.set_json_format(configs["json_format"].as_bool().unwrap_or(true));
         config.set_completion_style(configs["completion_style"].as_bool().unwrap_or(true));
         config.set_edit_style(configs["edit_style"].as_bool().unwrap_or(true));
+        config.set_save_private(configs["save_private"].as_bool().unwrap_or(false));
     }
 
     let mut parser = build_interactive();
@@ -172,7 +173,11 @@ fn start_rustyline(
                         printer.eprintln(&err.to_string(), true);
                     }
                 }
-                rl.add_history_entry(remove_private(line.as_ref()));
+                if config.save_private() {
+                    rl.add_history_entry(line.as_ref());
+                } else {
+                    rl.add_history_entry(remove_private(line.as_ref()));
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -234,6 +239,10 @@ fn handle_commands(
                     config.switch_completion_style();
                 }
 
+                if m.is_present("save_private") {
+                    config.switch_save_private();
+                }
+
                 let encryption = encryption(m, &config);
                 config.set_encryption(encryption);
 
@@ -248,6 +257,7 @@ fn handle_commands(
                     "json_format": config.json_format(),
                     "completion_style": config.completion_style(),
                     "edit_style": config.edit_style(),
+                    "save_private": config.save_private(),
                 })).unwrap();
                 file.write_all(content.as_bytes())
                     .map_err(|err| format!("save config error: {:?}", err))?;
@@ -474,6 +484,7 @@ pub struct GlobalConfig {
     encryption: Encryption,
     color: bool,
     debug: bool,
+    save_private: bool,
     json_format: bool,
     path: PathBuf,
     completion_style: bool,
@@ -488,6 +499,7 @@ impl GlobalConfig {
             encryption: Encryption::Secp256k1,
             color: true,
             debug: false,
+            save_private: false,
             json_format: true,
             path: env::current_dir().unwrap(),
             completion_style: true,
@@ -561,6 +573,10 @@ impl GlobalConfig {
         self.edit_style = !self.edit_style;
     }
 
+    fn switch_save_private(&mut self) {
+        self.save_private = !self.save_private;
+    }
+
     pub fn set_encryption(&mut self, encryption: Encryption) {
         self.encryption = encryption;
     }
@@ -583,6 +599,10 @@ impl GlobalConfig {
 
     fn set_edit_style(&mut self, value: bool) {
         self.edit_style = value;
+    }
+
+    fn set_save_private(&mut self, value: bool) {
+        self.save_private = value;
     }
 
     pub fn encryption(&self) -> Encryption {
@@ -609,6 +629,10 @@ impl GlobalConfig {
         self.edit_style
     }
 
+    fn save_private(&self) -> bool {
+        self.save_private
+    }
+
     fn print(&self) {
         let path = self.path.to_string_lossy();
         let encryption = self.encryption.to_string();
@@ -621,6 +645,7 @@ impl GlobalConfig {
             "Circular"
         };
         let edit_style = if self.edit_style { "Emacs" } else { "Vi" };
+        let save_private = self.save_private.to_string();
         let values = [
             ("url", self.url.as_str()),
             ("pwd", path.deref()),
@@ -630,6 +655,7 @@ impl GlobalConfig {
             ("encryption", encryption.as_str()),
             ("completion_style", completion_style),
             ("edit_style", edit_style),
+            ("save_private", save_private.as_str()),
         ];
 
         let max_width = values

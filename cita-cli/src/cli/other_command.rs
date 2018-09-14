@@ -74,10 +74,10 @@ pub fn transfer_command() -> App<'static, 'static> {
         ).arg(
             Arg::with_name("quota")
                 .long("quota")
-                .default_value("1000")
+                .default_value("30000")
                 .validator(|quota| parse_u64(quota.as_str()).map(|_| ()))
                 .takes_value(true)
-                .help("Transaction quota costs, default 1000"),
+                .help("Transaction quota costs, default 30000"),
         )
 }
 
