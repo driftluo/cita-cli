@@ -22,8 +22,7 @@ pub fn amend_command() -> App<'static, 'static> {
             .validator(|chain_id| match chain_id.parse::<u32>() {
                 Ok(_) => Ok(()),
                 Err(err) => Err(format!("{:?}", err)),
-            })
-            .help("The chain_id of transaction"),
+            }).help("The chain_id of transaction"),
         Arg::with_name("admin-private-key")
             .long("admin-private-key")
             .takes_value(true)
@@ -48,17 +47,14 @@ pub fn amend_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The contract address of the code"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("content")
                         .long("content")
                         .takes_value(true)
                         .required(true)
                         .help("The contract code to amend"),
-                )
-                .args(&common_args),
-        )
-        .subcommand(
+                ).args(&common_args),
+        ).subcommand(
             SubCommand::with_name("abi")
                 .about("Amend contract ABI data")
                 .arg(
@@ -68,24 +64,20 @@ pub fn amend_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The contract address of the ABI"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("content")
                         .long("content")
                         .required(true)
                         .takes_value(true)
                         .help("The content of ABI data to amend (json)"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("path")
                         .long("path")
                         .takes_value(true)
                         .help("The path of ABI json file to amend (.json)"),
-                )
-                .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
+                ).group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
                 .args(&common_args),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("kv-h256")
                 .about("Amend H256 Key,Value pair")
                 .arg(
@@ -95,8 +87,7 @@ pub fn amend_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("kv")
                         .long("kv")
                         .required(true)
@@ -105,10 +96,8 @@ pub fn amend_command() -> App<'static, 'static> {
                         .number_of_values(2)
                         .validator(|kv| h256_validator(kv.as_str()))
                         .help("The key value pair"),
-                )
-                .args(&common_args),
-        )
-        .subcommand(
+                ).args(&common_args),
+        ).subcommand(
             SubCommand::with_name("get-h256")
                 .about("Get H256 Value, only write to log")
                 .arg(
@@ -118,18 +107,15 @@ pub fn amend_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("key")
                         .long("key")
                         .required(true)
                         .takes_value(true)
                         .validator(|key| h256_validator(key.as_str()))
                         .help("The key of pair"),
-                )
-                .args(&common_args),
-        )
-        .subcommand(
+                ).args(&common_args),
+        ).subcommand(
             SubCommand::with_name("balance")
                 .about("Amend account balance")
                 .arg(
@@ -139,16 +125,14 @@ pub fn amend_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The account address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("balance")
                         .long("balance")
                         .required(true)
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("Account balance"),
-                )
-                .args(&common_args),
+                ).args(&common_args),
         )
 }
 

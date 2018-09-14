@@ -212,8 +212,7 @@ impl Client {
                     "id",
                     ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
                 )
-            })
-            .for_each(|param| {
+            }).for_each(|param| {
                 let req: Request<Body> = Request::builder()
                     .uri(self.url.clone())
                     .method("POST")
@@ -269,7 +268,7 @@ impl Client {
                 tx.build_unverified(*self.private_key().ok_or_else(|| ToolError::Customize(
                     "The provided private key do not match the algorithm".to_string(),
                 ))?).write_to_bytes()
-                    .map_err(ToolError::Proto)?
+                .map_err(ToolError::Proto)?
             )
         ))
     }
@@ -284,16 +283,15 @@ impl Client {
                         .map_err(ToolError::Decode)?
                         .as_slice()
                 ).map_err(ToolError::Proto)?
-                    .write_to_bytes()
-                    .map_err(ToolError::Proto)?
+                .write_to_bytes()
+                .map_err(ToolError::Proto)?
             )
         );
         let params = JsonRpcParams::new()
             .insert(
                 "method",
                 ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(byte_code)]),
             );
@@ -312,8 +310,7 @@ impl Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(byte_code)]),
             );
@@ -366,8 +363,7 @@ impl Client {
                 serde_json::from_slice::<JsonRpcResponse>(&response)
                     .map_err(ToolError::SerdeJson)
                     .unwrap()
-            })
-            .collect::<Vec<JsonRpcResponse>>())
+            }).collect::<Vec<JsonRpcResponse>>())
     }
 
     fn debug_request<'a, T: Iterator<Item = &'a JsonRpcParams>>(params: T) {
@@ -502,8 +498,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_BY_HASH)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(hash)),
@@ -518,8 +513,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_BY_NUMBER)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(height)),
@@ -534,8 +528,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_RECEIPT)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
             );
@@ -630,8 +623,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_COUNT)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(address)),
@@ -728,8 +720,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(UNINSTALL_FILTER)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
@@ -742,8 +733,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_FILTER_CHANGES)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
@@ -766,8 +756,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_PROOF)),
-            )
-            .insert(
+            ).insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
             );
@@ -779,8 +768,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
-            )
-            .insert("method", ParamsValue::String(String::from(GET_META_DATA)));
+            ).insert("method", ParamsValue::String(String::from(GET_META_DATA)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
@@ -789,8 +777,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
-            )
-            .insert(
+            ).insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_HEADER)),
             );
@@ -806,8 +793,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                     ParamsValue::String(String::from(key)),
                     ParamsValue::String(String::from(height)),
                 ]),
-            )
-            .insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
+            ).insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 }

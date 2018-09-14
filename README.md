@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/cryptape/cita-cli.svg?branch=master)](https://travis-ci.org/cryptape/cita-cli)
 
-A easy-to-use [CITA](https://github.com/cryptape/cita) command line tool.
+An easy-to-use [CITA](https://github.com/cryptape/cita) command line tool.
 
 Just like the relationship between redis-cli and redis.
 

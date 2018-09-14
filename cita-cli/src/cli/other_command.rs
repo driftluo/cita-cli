@@ -39,8 +39,7 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
         .filter(|cmd| {
             let cmd_lower = cmd.to_lowercase();
             keywords.iter().all(|keyword| cmd_lower.contains(keyword))
-        })
-        .collect::<BTreeSet<String>>()
+        }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
         .join("\n");
@@ -58,24 +57,21 @@ pub fn transfer_command() -> App<'static, 'static> {
                 .validator(|address| parse_address(address.as_str()))
                 .required(true)
                 .help("Transfer to address"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("private-key")
                 .long("private-key")
                 .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer Account Private Key"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("value")
                 .long("value")
                 .validator(|value| parse_u256(value.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer amount"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("quota")
                 .long("quota")
                 .default_value("1000")

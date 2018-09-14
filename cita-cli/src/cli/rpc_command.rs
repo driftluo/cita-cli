@@ -27,8 +27,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .required(true)
                         .validator(|code| is_hex(code.as_str()))
                         .help("Binary content of the transaction"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("address")
                         .long("address")
                         .default_value("0x")
@@ -38,48 +37,41 @@ pub fn rpc_command() -> App<'static, 'static> {
                             "The address of the invoking contract, default is empty to \
                              create contract",
                         ),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
                         .validator(|height| parse_u64(height.as_ref()).map(|_| ()))
                         .help("Current chain height, default query to the chain"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("chain-id")
                         .long("chain-id")
                         .takes_value(true)
                         .validator(|chain_id| match chain_id.parse::<u32>() {
                             Ok(_) => Ok(()),
                             Err(err) => Err(format!("{:?}", err)),
-                        })
-                        .help("The chain_id of transaction"),
-                )
-                .arg(
+                        }).help("The chain_id of transaction"),
+                ).arg(
                     Arg::with_name("private-key")
                         .long("private-key")
                         .takes_value(true)
                         .required(true)
                         .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
                         .help("The private key of transaction"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("quota")
                         .long("quota")
                         .takes_value(true)
                         .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
                         .help("Transaction quota costs, default 10_000_000"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("value")
                         .long("value")
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getBlockByHash")
                 .about("Get block by hash")
                 .arg(
@@ -88,14 +80,12 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .required(true)
                         .takes_value(true)
                         .help("The hash of the block"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("with-txs")
                         .long("with-txs")
                         .help("Get transactions detail of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getBlockByNumber")
                 .about("Get block by number")
                 .arg(
@@ -105,14 +95,12 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("with-txs")
                         .long("with-txs")
                         .help("Get transactions detail of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getCode")
                 .about("Get the code of a contract")
                 .arg(
@@ -122,8 +110,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the code"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
@@ -131,8 +118,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getAbi")
                 .about("Get the ABI of a contract")
                 .arg(
@@ -142,8 +128,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the abi data"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
@@ -151,8 +136,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getBalance")
                 .about("Get the balance of a contract (TODO: return U256)")
                 .arg(
@@ -162,8 +146,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The address of the balance"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
@@ -171,8 +154,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getTransactionReceipt")
                 .about("Get transaction receipt")
                 .arg(
@@ -182,8 +164,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The hash of specific transaction"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("call")
                 .about("Call a contract function (readonly, will not save state change)")
                 .arg(
@@ -192,22 +173,19 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("From address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("to")
                         .long("to")
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .required(true)
                         .help("To address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("data")
                         .long("data")
                         .takes_value(true)
                         .help("The data"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
@@ -215,8 +193,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .default_value("latest")
                         .help("The block number"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getTransactionProof")
                 .about("Get proof of a transaction")
                 .arg(
@@ -226,8 +203,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The hash of the transaction"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getLogs")
                 .about("Get logs")
                 .arg(
@@ -240,31 +216,27 @@ pub fn rpc_command() -> App<'static, 'static> {
                             "Array of 32 Bytes DATA topics. Topics are order-dependent. \
                              Each topic can also be an array of DATA with 'or' options.",
                         ),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("address")
                         .long("address")
                         .takes_value(true)
                         .multiple(true)
                         .validator(|address| parse_address(address.as_str()))
                         .help("List of contract address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("from")
                         .long("from")
                         .takes_value(true)
                         .validator(|from| is_hex(from.as_ref()))
                         .help("Block height hex string, default is latest"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("to")
                         .long("to")
                         .takes_value(true)
                         .validator(|to| is_hex(to.as_ref()))
                         .help("Block height hex string, default is latest"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getMetaData")
                 .about("Get metadata of current chain")
                 .arg(
@@ -275,8 +247,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The height or tag"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getTransaction")
                 .about("Get transaction by hash")
                 .arg(
@@ -286,8 +257,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The hash of the transaction"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getTransactionCount")
                 .about("Get transaction count of an account")
                 .arg(
@@ -297,8 +267,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The hash of the account"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .default_value("latest")
@@ -306,8 +275,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The height of chain, hex string or tag 'latest'"),
                 ),
-        )
-        .subcommand(SubCommand::with_name("newBlockFilter").about("Create a block filter"))
+        ).subcommand(SubCommand::with_name("newBlockFilter").about("Create a block filter"))
         .subcommand(
             SubCommand::with_name("uninstallFilter")
                 .about("Uninstall a filter by its id")
@@ -319,8 +287,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|id| is_hex(id.as_ref()))
                         .help("The filter id."),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getFilterChanges")
                 .about("Get filter changes")
                 .arg(
@@ -331,8 +298,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|id| is_hex(id.as_ref()))
                         .help("The filter id."),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getFilterLogs")
                 .about("Get filter logs")
                 .arg(
@@ -343,8 +309,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|id| is_hex(id.as_ref()))
                         .help("The filter id."),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("newFilter")
                 .about("Creates a filter object")
                 .arg(
@@ -354,31 +319,27 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .multiple(true)
                         .help("Contract Address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("topic")
                         .long("topic")
                         .validator(|address| is_hex(address.as_ref()))
                         .takes_value(true)
                         .multiple(true)
                         .help("Topic"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("from")
                         .long("from")
                         .validator(|from| parse_height(from.as_ref()))
                         .takes_value(true)
                         .help("Starting block height"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("to")
                         .long("to")
                         .validator(|from| parse_height(from.as_ref()))
                         .takes_value(true)
                         .help("Starting block height"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getBlockHeader")
                 .about("Get block headers based on block height")
                 .arg(
@@ -389,8 +350,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The number of the block"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("getStateProof")
                 .about("Get the proof of the variable at the specified height")
                 .arg(
@@ -400,16 +360,14 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("address")
                         .long("address")
                         .required(true)
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("Contract Address"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("key")
                         .long("key")
                         .required(true)

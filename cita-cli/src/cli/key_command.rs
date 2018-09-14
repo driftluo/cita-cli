@@ -21,8 +21,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
                     .help("The private key of transaction"),
             ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("pub-to-address").arg(
                 Arg::with_name("pubkey")
                     .long("pubkey")

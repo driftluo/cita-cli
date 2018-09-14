@@ -68,7 +68,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
             Some(syn::Ident::new("address", proc_macro2::Span::call_site())),
             Some(syn::Ident::new("contract", proc_macro2::Span::call_site())),
         ].into_iter()
-            .collect::<HashSet<Option<syn::Ident>>>();
+        .collect::<HashSet<Option<syn::Ident>>>();
 
         if let syn::Fields::Named(ref x) = data.fields {
             if x.named.len() < 3 {

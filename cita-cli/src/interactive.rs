@@ -201,7 +201,10 @@ fn handle_commands(
     env_regex: &Regex,
     config_file: &PathBuf,
 ) -> Result<bool, String> {
-    let args = shell_words::split(replace_cmd(&env_regex, line, &config).as_str()).unwrap();
+    let args = match shell_words::split(replace_cmd(&env_regex, line, &config).as_str()) {
+        Ok(args) => args,
+        Err(e) => return Err(e.to_string()),
+    };
 
     match parser.get_matches_from_safe_borrow(args) {
         Ok(matches) => match matches.subcommand() {
@@ -309,16 +312,15 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                     short.map(|s| format!("-{}", s)),
                     long.map(|s| format!("--{}", s)),
                 ].into_iter()
-                    .filter_map(|s| s)
-                    .map(|s| {
-                        let display = if required {
-                            format!("{}(*)", s)
-                        } else {
-                            s.clone()
-                        };
-                        (display, s)
-                    })
-                    .collect::<Vec<(String, String)>>();
+                .filter_map(|s| s)
+                .map(|s| {
+                    let display = if required {
+                        format!("{}(*)", s)
+                    } else {
+                        s.clone()
+                    };
+                    (display, s)
+                }).collect::<Vec<(String, String)>>();
 
                 if !multiple && names.iter().any(|(_, s)| args_set.contains(&s)) {
                     vec![]
@@ -340,27 +342,24 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
                                 .iter()
                                 .map(|(alias, _)| (alias.to_string(), alias.to_string()))
                                 .collect::<Vec<(String, String)>>()
-                        })
-                        .unwrap_or_else(|| vec![]),
-                ].concat()
-            })
-            .chain(app.p.flags().map(|a| {
+                        }).unwrap_or_else(|| vec![]),
+                ]
+                    .concat()
+            }).chain(app.p.flags().map(|a| {
                 switched_completions(
                     a.s.short,
                     a.s.long,
                     a.b.is_set(clap::ArgSettings::Multiple),
                     a.b.is_set(clap::ArgSettings::Required),
                 )
-            }))
-            .chain(app.p.opts().map(|a| {
+            })).chain(app.p.opts().map(|a| {
                 switched_completions(
                     a.s.short,
                     a.s.long,
                     a.b.is_set(clap::ArgSettings::Multiple),
                     a.b.is_set(clap::ArgSettings::Required),
                 )
-            }))
-            .collect::<Vec<Vec<(String, String)>>>()
+            })).collect::<Vec<Vec<(String, String)>>>()
             .concat()
     }
 
@@ -370,14 +369,13 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
     ) -> Option<Arc<clap::App<'a, 'b>>> {
         if let Some(name) = prefix_names.next() {
             for inner_app in &(app.p.subcommands) {
-                if inner_app.p.meta.name == name
-                    || inner_app
-                        .p
-                        .meta
-                        .aliases
-                        .as_ref()
-                        .map(|aliases| aliases.iter().any(|&(alias, _)| alias == name))
-                        .unwrap_or(false)
+                if inner_app.p.meta.name == name || inner_app
+                    .p
+                    .meta
+                    .aliases
+                    .as_ref()
+                    .map(|aliases| aliases.iter().any(|&(alias, _)| alias == name))
+                    .unwrap_or(false)
                 {
                     return if prefix_names.peek().is_none() {
                         Some(Arc::new(inner_app.to_owned()))
@@ -410,12 +408,10 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                 .into_iter()
                 .filter(|(_, replacement)| {
                     word.is_empty() || replacement.to_lowercase().contains(&word_lower)
-                })
-                .map(|(display, replacement)| Pair {
+                }).map(|(display, replacement)| Pair {
                     display,
                     replacement,
-                })
-                .collect::<Vec<_>>()
+                }).collect::<Vec<_>>()
         });
         Ok((start, pairs.unwrap_or_else(Vec::new)))
     }
@@ -441,8 +437,7 @@ impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {
                 } else {
                     param.to_string()
                 }
-            })
-            .collect::<Vec<String>>()
+            }).collect::<Vec<String>>()
             .join("\n");
         Owned(candidate_with_color)
     }
@@ -524,8 +519,7 @@ impl GlobalConfig {
                                 },
                                 None => Err(()),
                             },
-                        )
-                        .unwrap_or_default(),
+                        ).unwrap_or_default(),
                     None => None,
                 };
                 KV::Value(value)
@@ -642,7 +636,8 @@ impl GlobalConfig {
             .iter()
             .map(|(name, _)| name.len())
             .max()
-            .unwrap_or(20) + 2;
+            .unwrap_or(20)
+            + 2;
         let output = values
             .iter()
             .map(|(name, value)| {
@@ -652,8 +647,7 @@ impl GlobalConfig {
                     Yellow.paint(*value),
                     width = max_width
                 )
-            })
-            .collect::<Vec<String>>()
+            }).collect::<Vec<String>>()
             .join("\n");
         println!("{}", output);
     }
@@ -682,12 +676,10 @@ fn replace_cmd(regex: &Regex, line: &str, config: &GlobalConfig) -> String {
                     serde_json::Value::String(s) => s.to_owned(),
                     serde_json::Value::Number(n) => n.to_string(),
                     _ => String::new(),
-                })
-                .next()
+                }).next()
                 .unwrap_or_default(),
             None => String::new(),
-        })
-        .into_owned()
+        }).into_owned()
 }
 
 pub fn set_output(response: &JsonRpcResponse, config: &mut GlobalConfig) {
