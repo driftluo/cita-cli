@@ -25,8 +25,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .required(true)
                         .validator(|code| is_hex(code.as_str()))
                         .help("Binary content of the transaction"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("address")
                         .long("address")
                         .default_value("0x")
@@ -36,40 +35,34 @@ pub fn tx_command() -> App<'static, 'static> {
                             "The address of the invoking contract, default is empty to \
                              create contract",
                         ),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("height")
                         .long("height")
                         .takes_value(true)
                         .validator(|height| parse_u64(height.as_ref()).map(|_| ()))
                         .help("Current chain height, default query to the chain"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("chain-id")
                         .long("chain-id")
                         .takes_value(true)
                         .validator(|chain_id| match chain_id.parse::<u32>() {
                             Ok(_) => Ok(()),
                             Err(err) => Err(format!("{:?}", err)),
-                        })
-                        .help("The chain_id of transaction"),
-                )
-                .arg(
+                        }).help("The chain_id of transaction"),
+                ).arg(
                     Arg::with_name("quota")
                         .long("quota")
                         .takes_value(true)
                         .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
                         .help("Transaction quota costs, default is 1_000_000"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("value")
                         .long("value")
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("sendSignedTransaction")
                 .about("Send signed transaction")
                 .arg(
@@ -80,8 +73,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .required(true)
                         .help("Signed transaction binary data"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("sendTransaction")
                 .about("Send unsigned transaction")
                 .arg(
@@ -91,8 +83,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .validator(|code| is_hex(code.as_str()))
                         .required(true)
                         .help("Unsigned transaction binary data"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("private-key")
                         .long("private-key")
                         .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
@@ -100,8 +91,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .required(true)
                         .help("Transfer Account Private Key"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("decode-unverifiedTransaction")
                 .about("Decode unverifiedTransaction")
                 .arg(

@@ -24,8 +24,7 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                     let x = if value.starts_with('-') {
                         let x = (!U256::from_dec_str(&value[1..])
                             .map_err(|_| "Can't parse into u256")?
-                            + U256::from(1))
-                            .lower_hex();
+                            + U256::from(1)).lower_hex();
                         format!("{:f>64}", x)
                     } else {
                         let x = U256::from_dec_str(value)
@@ -40,8 +39,7 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
             } else {
                 StrictTokenizer::tokenize(param, value)
             }
-        })
-        .collect::<Result<_, _>>()
+        }).collect::<Result<_, _>>()
         .map_err(|e| ToolError::Abi(format!("{}", e)))
 }
 
@@ -129,8 +127,7 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
             } else {
                 format!("{{\"{}\": \"{}\"}}", ty, to)
             }
-        })
-        .collect::<Vec<String>>();
+        }).collect::<Vec<String>>();
 
     Ok(result)
 }
@@ -162,8 +159,7 @@ pub fn decode_input(
             } else {
                 format!("{{\"{}\": \"{}\"}}", ty, to)
             }
-        })
-        .collect::<Vec<String>>();
+        }).collect::<Vec<String>>();
 
     Ok(result)
 }

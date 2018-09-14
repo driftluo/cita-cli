@@ -31,30 +31,25 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .required(true)
                                 .conflicts_with("file")
                                 .help("ABI json string"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("file")
                                 .long("file")
                                 .takes_value(true)
                                 .help("ABI json file path"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("name")
                                 .long("name")
                                 .takes_value(true)
                                 .required(true)
                                 .help("Function name"),
-                        )
-                        .arg(param_arg.clone().number_of_values(1).value_name("value"))
+                        ).arg(param_arg.clone().number_of_values(1).value_name("value"))
                         .arg(no_lenient_flag.clone()),
-                )
-                .subcommand(
+                ).subcommand(
                     SubCommand::with_name("params")
                         .arg(param_arg.clone().value_names(&["type", "value"]))
                         .arg(no_lenient_flag),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("decode")
                 .subcommand(
                     SubCommand::with_name("params")
@@ -64,15 +59,13 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .multiple(true)
                                 .help("Decode types"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("data")
                                 .long("data")
                                 .takes_value(true)
                                 .help("Decode data"),
                         ),
-                )
-                .subcommand(
+                ).subcommand(
                     SubCommand::with_name("function")
                         .arg(
                             Arg::with_name("abi")
@@ -81,29 +74,25 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .required(true)
                                 .conflicts_with("file")
                                 .help("ABI json string"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("file")
                                 .long("file")
                                 .takes_value(true)
                                 .help("ABI json file path"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("name")
                                 .long("name")
                                 .takes_value(true)
                                 .required(true)
                                 .help("Function name"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("data")
                                 .long("data")
                                 .required(true)
                                 .takes_value(true)
                                 .help("Decode data"),
                         ),
-                )
-                .subcommand(
+                ).subcommand(
                     SubCommand::with_name("log")
                         .arg(
                             Arg::with_name("abi")
@@ -112,21 +101,18 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .required(true)
                                 .conflicts_with("file")
                                 .help("ABI json string"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("file")
                                 .long("file")
                                 .takes_value(true)
                                 .help("ABI json file path"),
-                        )
-                        .arg(
+                        ).arg(
                             Arg::with_name("event")
                                 .long("event")
                                 .takes_value(true)
                                 .required(true)
                                 .help("Event name"),
-                        )
-                        .arg(param_arg.clone().number_of_values(1).value_name("topic"))
+                        ).arg(param_arg.clone().number_of_values(1).value_name("topic"))
                         .arg(
                             Arg::with_name("data")
                                 .long("data")
