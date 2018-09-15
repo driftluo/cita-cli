@@ -50,7 +50,10 @@ pub fn contract_encode_input(
     values: &[String],
     lenient: bool,
 ) -> Result<String, ToolError> {
-    let function = contract.function(function).unwrap().clone();
+    let function = contract
+        .function(function)
+        .map_err(|e| ToolError::Abi(e.to_string()))?
+        .clone();
     let params: Vec<_> = function
         .inputs
         .iter()
@@ -61,9 +64,39 @@ pub fn contract_encode_input(
     let tokens = parse_tokens(&params, lenient)?;
     let result = function
         .encode_input(&tokens)
-        .map_err(|e| ToolError::Abi(format!("{}", e)))?;
+        .map_err(|e| ToolError::Abi(e.to_string()))?;
 
     Ok(hex_encode(result))
+}
+
+/// According to the contract, encode the constructor and parameter values
+pub fn constructor_encode_input(
+    contract: &Contract,
+    code: &str,
+    values: &[String],
+    lenient: bool,
+) -> Result<String, ToolError> {
+    match contract.constructor {
+        Some(ref constructor) => {
+            let params: Vec<_> = constructor
+                .inputs
+                .iter()
+                .map(|param| param.kind.clone())
+                .zip(values.iter().map(|v| v as &str))
+                .collect();
+            let tokens = parse_tokens(&params, lenient)?;
+            Ok(format!(
+                "{}{}",
+                code,
+                hex_encode(
+                    constructor
+                        .encode_input(Vec::new(), &tokens)
+                        .map_err(|e| ToolError::Abi(e.to_string()))?,
+                )
+            ))
+        }
+        None => Err(ToolError::Abi("No constructor on abi".to_string())),
+    }
 }
 
 /// According to the given abi file, encode the function and parameter values
@@ -73,10 +106,15 @@ pub fn encode_input(
     function: &str,
     values: &[String],
     lenient: bool,
+    constructor: bool,
 ) -> Result<String, ToolError> {
     let contract =
         Contract::load(get_abi(path, abi)?).map_err(|e| ToolError::Abi(format!("{}", e)))?;
-    contract_encode_input(&contract, function, values, lenient)
+    if constructor {
+        constructor_encode_input(&contract, function, values, lenient)
+    } else {
+        contract_encode_input(&contract, function, values, lenient)
+    }
 }
 
 /// According to type, encode the value of the parameter
