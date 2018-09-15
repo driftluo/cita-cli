@@ -17,6 +17,16 @@ pub fn abi_command() -> App<'static, 'static> {
     let no_lenient_flag = Arg::with_name("no-lenient")
         .long("no-lenient")
         .help("Don't allow short representation of input params");
+    let abi_arg = Arg::with_name("abi")
+        .long("abi")
+        .takes_value(true)
+        .required(true)
+        .conflicts_with("file")
+        .help("ABI json string");
+    let file_arg = Arg::with_name("file")
+        .long("file")
+        .takes_value(true)
+        .help("ABI json file path");
 
     App::new("ethabi")
         .about("ABI operation, encode parameter, generate code based on abi and parameters")
@@ -24,19 +34,9 @@ pub fn abi_command() -> App<'static, 'static> {
             SubCommand::with_name("encode")
                 .subcommand(
                     SubCommand::with_name("function")
+                        .arg(abi_arg.clone())
+                        .arg(file_arg.clone())
                         .arg(
-                            Arg::with_name("abi")
-                                .long("abi")
-                                .takes_value(true)
-                                .required(true)
-                                .conflicts_with("file")
-                                .help("ABI json string"),
-                        ).arg(
-                            Arg::with_name("file")
-                                .long("file")
-                                .takes_value(true)
-                                .help("ABI json file path"),
-                        ).arg(
                             Arg::with_name("name")
                                 .long("name")
                                 .takes_value(true)
@@ -47,7 +47,19 @@ pub fn abi_command() -> App<'static, 'static> {
                 ).subcommand(
                     SubCommand::with_name("params")
                         .arg(param_arg.clone().value_names(&["type", "value"]))
-                        .arg(no_lenient_flag),
+                        .arg(no_lenient_flag.clone()),
+                ).subcommand(
+                    SubCommand::with_name("constructor")
+                        .arg(abi_arg.clone())
+                        .arg(file_arg.clone())
+                        .arg(
+                            Arg::with_name("code")
+                                .long("code")
+                                .takes_value(true)
+                                .default_value("")
+                                .help("Contract bin code"),
+                        ).arg(no_lenient_flag)
+                        .arg(param_arg.clone().number_of_values(1).value_name("value")),
                 ),
         ).subcommand(
             SubCommand::with_name("decode")
@@ -67,19 +79,9 @@ pub fn abi_command() -> App<'static, 'static> {
                         ),
                 ).subcommand(
                     SubCommand::with_name("function")
+                        .arg(abi_arg.clone())
+                        .arg(file_arg.clone())
                         .arg(
-                            Arg::with_name("abi")
-                                .long("abi")
-                                .takes_value(true)
-                                .required(true)
-                                .conflicts_with("file")
-                                .help("ABI json string"),
-                        ).arg(
-                            Arg::with_name("file")
-                                .long("file")
-                                .takes_value(true)
-                                .help("ABI json file path"),
-                        ).arg(
                             Arg::with_name("name")
                                 .long("name")
                                 .takes_value(true)
@@ -94,19 +96,9 @@ pub fn abi_command() -> App<'static, 'static> {
                         ),
                 ).subcommand(
                     SubCommand::with_name("log")
+                        .arg(abi_arg.clone())
+                        .arg(file_arg.clone())
                         .arg(
-                            Arg::with_name("abi")
-                                .long("abi")
-                                .takes_value(true)
-                                .required(true)
-                                .conflicts_with("file")
-                                .help("ABI json string"),
-                        ).arg(
-                            Arg::with_name("file")
-                                .long("file")
-                                .takes_value(true)
-                                .help("ABI json file path"),
-                        ).arg(
                             Arg::with_name("event")
                                 .long("event")
                                 .takes_value(true)
@@ -142,7 +134,7 @@ pub fn abi_processor(
                     None => Vec::new(),
                     Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
                 };
-                let output = encode_input(file, abi, name, &values, lenient)
+                let output = encode_input(file, abi, name, &values, lenient, false)
                     .map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), is_color);
             }
@@ -160,6 +152,19 @@ pub fn abi_processor(
                 }
                 let output =
                     encode_params(&types, &values, lenient).map_err(|err| format!("{}", err))?;
+                printer.println(&Value::String(output), is_color);
+            }
+            ("constructor", Some(m)) => {
+                let file = m.value_of("file");
+                let abi = m.value_of("abi");
+                let code = m.value_of("code").unwrap();
+                let lenient = !m.is_present("no-lenient");
+                let values: Vec<String> = match m.values_of("param") {
+                    None => Vec::new(),
+                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                };
+                let output = encode_input(file, abi, code, &values, lenient, true)
+                    .map_err(|err| format!("{}", err))?;
                 printer.println(&Value::String(output), is_color);
             }
             _ => {

@@ -7,7 +7,6 @@ MESSAGE=$(git log --format=%B -n 1 HEAD |awk -F "[" '{print $2}' |awk -F "]" '{p
 if [ "$MESSAGE"x = "skip clippy"x ]; then
     echo "skip clippy"
 else
-    rustup install nightly
-    rustup component add clippy-preview --toolchain=nightly
-    cargo +nightly clippy
+    rustup component add clippy-preview
+    cargo clippy
 fi

@@ -12,16 +12,6 @@ Just like the relationship between redis-cli and redis.
 
 [cita-tool](./cita-tool): a crate to support cita-cli, of course, can also be used for secondary development, which contains all the methods needed.
 
-## Todo
-
-- [x] Send transaction, support sha3hash and blake2b
-- [x] Support interactive command line
-- [x] Support system contract
-- [ ] Init cita
-- [ ] Kill cita process
-- [ ] Start cita process
-- [ ] Monitoring status
-
 ## Usage
 
 ### Screencast
@@ -35,6 +25,7 @@ if you want the latest version, compile the source code like follow, default sup
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
+$ rustup update stable
 $ cd cita-cli/cita-cli
 $ cargo install
 ```
