@@ -24,6 +24,34 @@ pub fn search_command() -> App<'static, 'static> {
     )
 }
 
+/// Trans a string to a vector
+pub fn string_to_vec(a: String) -> Vec<char> {
+    let mut v = Vec::new();
+    for i in a.chars() {
+        v.push(i);
+    }
+    v
+}
+
+/// judge if y in x
+pub fn string_include(x: String, y: String) -> bool {
+    let len_a = x.len();
+    let len_pat = y.len();
+    let p = string_to_vec(x);
+    let q = string_to_vec(y);
+
+    for i in 0..len_pat {
+        let mut j = 0;
+        while j < len_a && p[j] != q[i] {
+            j += 1;
+        }
+        if j == len_a {
+            return false;
+        }
+    }
+    true
+}
+
 /// Processor search command
 pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
     let keywords = sub_matches
@@ -38,7 +66,11 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
         .map(|cmd| cmd.join(" "))
         .filter(|cmd| {
             let cmd_lower = cmd.to_lowercase();
-            keywords.iter().all(|keyword| cmd_lower.contains(keyword))
+            keywords.iter().all(|keyword| {
+                let pattern = keyword.to_owned();
+                let a = cmd_lower.to_owned();
+                string_include(a, pattern)
+            })
         }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
