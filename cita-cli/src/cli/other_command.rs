@@ -183,3 +183,38 @@ pub fn benchmark_processor(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    fn string_include(x: &str, y: &str) -> bool {
+        let len_a = x.len();
+        let len_pat = y.len();
+        let p: Vec<char> = x.chars().collect();
+        let q: Vec<char> = y.chars().collect();
+
+        for i in 0..len_pat {
+            let mut j = 0;
+            while j < len_a && p[j] != q[i] {
+                j += 1;
+            }
+            if j == len_a {
+                return false;
+            }
+        }
+        true
+    }
+    #[test]
+    fn test_string_include() {
+        assert_eq!(string_include("abcdef", "ace"), true);
+        assert_eq!(string_include("abcdef", "acc"), true);
+        assert_eq!(string_include("abcdef", "ack"), false);
+        assert_eq!(string_include("ads fety", "af"), true);
+        assert_eq!(string_include("ads fety", "ta"), true);
+        assert_eq!(string_include("ads fety", "sa"), true);
+        assert_eq!(string_include("ads fety", "yf"), true);
+        assert_eq!(string_include("ads fety", "fy"), true);
+        assert_eq!(string_include("ads fety", "a-"), false);
+        assert_eq!(string_include("ads fety", "  "), true);
+        assert_eq!(string_include("ads fety", " f"), true);
+    }
+}
