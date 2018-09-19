@@ -25,7 +25,7 @@ pub fn search_command() -> App<'static, 'static> {
 }
 
 /// judge if y in x
-pub fn string_include(x: String, y: String) -> bool {
+pub fn string_include(x: &str, y: &str) -> bool {
     let len_a = x.len();
     let len_pat = y.len();
     let p: Vec<char> = x.chars().collect();
@@ -57,11 +57,9 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
         .map(|cmd| cmd.join(" "))
         .filter(|cmd| {
             let cmd_lower = cmd.to_lowercase();
-            keywords.iter().all(|keyword| {
-                let pattern = keyword.to_owned();
-                let a = cmd_lower.to_owned();
-                string_include(a, pattern)
-            })
+            keywords
+                .iter()
+                .all(|keyword| string_include(&cmd_lower, &keyword))
         }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
