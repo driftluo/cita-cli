@@ -24,21 +24,12 @@ pub fn search_command() -> App<'static, 'static> {
     )
 }
 
-/// Trans a string to a vector
-pub fn string_to_vec(a: String) -> Vec<char> {
-    let mut v = Vec::new();
-    for i in a.chars() {
-        v.push(i);
-    }
-    v
-}
-
 /// judge if y in x
 pub fn string_include(x: String, y: String) -> bool {
     let len_a = x.len();
     let len_pat = y.len();
-    let p = string_to_vec(x);
-    let q = string_to_vec(y);
+    let p: Vec<char> = x.chars().collect();
+    let q: Vec<char> = y.chars().collect();
 
     for i in 0..len_pat {
         let mut j = 0;
