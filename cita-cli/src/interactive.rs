@@ -29,7 +29,7 @@ use cita_tool::{Encryption, JsonRpcResponse};
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
     encryption, key_processor, privkey_validator, rpc_processor, search_processor, store_processor,
-    transfer_processor, tx_processor,
+    transfer_processor, tx_processor, string_include,
 };
 use printer::{OutputFormat, Printable, Printer};
 
@@ -417,7 +417,13 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
             Self::get_completions(&current_app, &args)
                 .into_iter()
                 .filter(|(_, replacement)| {
-                    word.is_empty() || replacement.to_lowercase().contains(&word_lower)
+                    word.is_empty() || {
+                        if replacement.to_lowercase().contains(&word_lower) == true {
+                            return replacement.to_lowercase().contains(&word_lower);
+                        } else {
+                            return string_include(&replacement.to_lowercase(), &word_lower);
+                        }
+                    }
                 }).map(|(display, replacement)| Pair {
                     display,
                     replacement,
