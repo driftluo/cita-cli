@@ -27,9 +27,9 @@ use std::rc::Rc;
 use dotenv::dotenv;
 
 use cli::{
-    abi_processor, amend_processor, benchmark_processor, build_cli, contract_processor,
-    key_processor, rpc_processor, search_processor, store_processor, transfer_processor,
-    tx_processor,
+    abi_processor, amend_processor, benchmark_processor, build_cli, completion_processor,
+    contract_processor, key_processor, rpc_processor, search_processor, store_processor,
+    transfer_processor, tx_processor,
 };
 use interactive::GlobalConfig;
 use printer::Printer;
@@ -47,7 +47,7 @@ fn main() {
 
     let printer = Printer::default();
     let mut config = GlobalConfig::new(default_jsonrpc_url.to_string());
-    let parser = build_cli();
+    let mut parser = build_cli();
     let matches = parser.clone().get_matches();
 
     if let Err(err) = match matches.subcommand() {
@@ -64,6 +64,10 @@ fn main() {
         }
         ("tx", Some(m)) => tx_processor(m, &printer, &mut config),
         ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
+        ("completions", Some(m)) => {
+            completion_processor(&mut parser, m);
+            Ok(())
+        }
         _ => {
             if let Err(err) = interactive::start(&default_jsonrpc_url) {
                 eprintln!("Something error: kind {:?}, message {}", err.kind(), err)
