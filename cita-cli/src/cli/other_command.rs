@@ -68,16 +68,17 @@ pub fn string_include(x: &str, y: &str) -> bool {
     let p: Vec<char> = x.chars().collect();
     let q: Vec<char> = y.chars().collect();
 
-    for i in 0..len_pat {
-        let mut j = 0;
-        while j < len_a && p[j] != q[i] {
-            j += 1;
-        }
-        if j == len_a {
-            return false;
+    let mut sum = 0;
+
+    for i in 0..len_a {
+        if p[i] == q[sum] {
+            sum += 1;
+            if sum == len_pat {
+                return true;
+            }
         }
     }
-    true
+    false
 }
 
 /// Processor search command
