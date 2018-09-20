@@ -127,6 +127,8 @@ cita> exit
 
 #### Command line mode
 
+> Tips: Add `source <(cita-cli completions bash)` to your `.bashrc` to provide command completion.
+
 - Get chain height
 ```bash
 $ cita-cli rpc blockNumber --url http://121.196.200.225:1337
