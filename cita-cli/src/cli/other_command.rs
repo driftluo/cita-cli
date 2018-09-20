@@ -11,6 +11,7 @@ use interactive::{set_output, GlobalConfig};
 use printer::Printer;
 
 use std::collections::BTreeSet;
+use std::io;
 use std::time::SystemTime;
 
 /// Search command tree
@@ -161,4 +162,21 @@ pub fn benchmark_processor(
     }
 
     Ok(())
+}
+
+// Generate completion scripts
+pub fn completion_command() -> App<'static, 'static> {
+    App::new("completions")
+        .about("Generates completion scripts for your shell")
+        .arg(
+            Arg::with_name("shell")
+                .required(true)
+                .possible_values(&["bash", "fish", "zsh"])
+                .help("The shell to generate the script for"),
+        )
+}
+
+pub fn completion_processor(app: &mut App, sub_matches: &ArgMatches) {
+    let shell = sub_matches.value_of("shell").unwrap();
+    app.gen_completions_to("cita-cli", shell.parse().unwrap(), &mut io::stdout());
 }
