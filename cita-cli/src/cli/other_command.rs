@@ -96,9 +96,9 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
             let cmd_lower = cmd.to_lowercase();
             keywords.iter().all(|keyword| {
                 if cmd_lower.contains(keyword) {
-                    return cmd_lower.contains(keyword);
+                    cmd_lower.contains(keyword)
                 } else {
-                    return fuzzy_match(&keyword, &cmd_lower);
+                    fuzzy_match(&keyword, &cmd_lower)
                 }
             })
         }).collect::<BTreeSet<String>>()

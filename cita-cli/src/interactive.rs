@@ -418,10 +418,10 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                 .into_iter()
                 .filter(|(_, replacement)| {
                     word.is_empty() || {
-                        if replacement.to_lowercase().contains(&word_lower) == true {
-                            return replacement.to_lowercase().contains(&word_lower);
+                        if replacement.to_lowercase().contains(&word_lower) {
+                            replacement.to_lowercase().contains(&word_lower)
                         } else {
-                            return string_include(&replacement.to_lowercase(), &word_lower);
+                            string_include(&replacement.to_lowercase(), &word_lower)
                         }
                     }
                 }).map(|(display, replacement)| Pair {
