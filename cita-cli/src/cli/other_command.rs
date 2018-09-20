@@ -24,6 +24,43 @@ pub fn search_command() -> App<'static, 'static> {
     )
 }
 
+/// x is pattern string
+pub fn fuzzy_match(x: &str, y: &str) -> bool {
+    let len_pat = x.len();
+    let len_a = y.len();
+    let str_pat: Vec<char> = x.chars().collect();
+    let str_a: Vec<char> = y.chars().collect();
+    let m = vec![0; len_a];
+    let mut matrix = vec![m; len_pat];
+
+    for j in 0..len_a {
+        if str_pat[0] == str_a[j] {
+            matrix[0][j] = j + 1;
+        }
+    }
+
+    for i in 1..len_pat {
+        for j in 1..len_a {
+            if str_pat[i] == ' ' {
+                if matrix[i - 1][j - 1] == 0 {
+                    matrix[i][j] = matrix[i][j - 1];
+                } else {
+                    matrix[i][j] = matrix[i - 1][j - 1] + 1;
+                }
+            } else if str_pat[i] == str_a[j] && matrix[i - 1][j - 1] != 0 {
+                matrix[i][j] = matrix[i - 1][j - 1] + 1;
+            }
+        }
+    }
+
+    for j in 0..len_a {
+        if matrix[len_pat - 1][j] != 0 {
+            return true;
+        }
+    }
+    false
+}
+
 /// judge if y in x
 pub fn string_include(x: &str, y: &str) -> bool {
     let len_a = x.len();
@@ -59,7 +96,13 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
             let cmd_lower = cmd.to_lowercase();
             keywords
                 .iter()
-                .all(|keyword| string_include(&cmd_lower, &keyword))
+                .all(|keyword| {
+                    if cmd_lower.contains(keyword) {
+                        return cmd_lower.contains(keyword)
+                    } else {
+                        return fuzzy_match(&keyword, &cmd_lower)
+                    }
+                })
         }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
