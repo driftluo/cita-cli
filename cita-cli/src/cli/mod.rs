@@ -18,8 +18,8 @@ pub use self::amend_command::{amend_command, amend_processor};
 pub use self::contract_command::{contract_command, contract_processor};
 pub use self::key_command::{key_command, key_processor};
 pub use self::other_command::{
-    benchmark_command, benchmark_processor, search_command, search_processor, transfer_command,
-    transfer_processor, string_include,
+    benchmark_command, benchmark_processor, search_command, search_processor, string_include,
+    transfer_command, transfer_processor,
 };
 pub use self::rpc_command::{rpc_command, rpc_processor};
 pub use self::store_command::{store_command, store_processor};

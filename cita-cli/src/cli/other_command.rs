@@ -94,15 +94,13 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
         .map(|cmd| cmd.join(" "))
         .filter(|cmd| {
             let cmd_lower = cmd.to_lowercase();
-            keywords
-                .iter()
-                .all(|keyword| {
-                    if cmd_lower.contains(keyword) {
-                        return cmd_lower.contains(keyword)
-                    } else {
-                        return fuzzy_match(&keyword, &cmd_lower)
-                    }
-                })
+            keywords.iter().all(|keyword| {
+                if cmd_lower.contains(keyword) {
+                    return cmd_lower.contains(keyword);
+                } else {
+                    return fuzzy_match(&keyword, &cmd_lower);
+                }
+            })
         }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()

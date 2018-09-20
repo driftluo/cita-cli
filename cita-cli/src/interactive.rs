@@ -29,7 +29,7 @@ use cita_tool::{Encryption, JsonRpcResponse};
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
     encryption, key_processor, privkey_validator, rpc_processor, search_processor, store_processor,
-    transfer_processor, tx_processor, string_include,
+    string_include, transfer_processor, tx_processor,
 };
 use printer::{OutputFormat, Printable, Printer};
 
