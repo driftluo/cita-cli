@@ -415,15 +415,16 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                 self.clap_app.clone(),
                 args.iter().map(|s| s.as_str()).peekable(),
             ).map(|current_app| {
-                Self::get_completions(&current_app, &args).into_iter()
-                .map(|(display, replacement)| Pair {
-                    display,
-                    replacement,
-                }).collect::<Vec<_>>()
+                Self::get_completions(&current_app, &args)
+                    .into_iter()
+                    .map(|(display, replacement)| Pair {
+                        display,
+                        replacement,
+                    }).collect::<Vec<_>>()
             });
             return Ok((start, pairs.unwrap_or_else(Vec::new)));
         } else {
-           let pairs = Self::find_subcommand(
+            let pairs = Self::find_subcommand(
                 self.clap_app.clone(),
                 args.iter().map(|s| s.as_str()).peekable(),
             ).map(|current_app| {
@@ -442,15 +443,21 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                     }).collect::<Vec<_>>()
             });
 
-            if pairs.map(|fuzzy_pattern| fuzzy_pattern.iter().any(|ref mut x| x.replacement.to_lowercase().contains(&word_lower))).unwrap() {
+            if pairs
+                .map(|fuzzy_pattern| {
+                    fuzzy_pattern
+                        .iter()
+                        .any(|ref mut x| x.replacement.to_lowercase().contains(&word_lower))
+                }).unwrap()
+            {
                 let pairs = Self::find_subcommand(
                     self.clap_app.clone(),
                     args.iter().map(|s| s.as_str()).peekable(),
                 ).map(|current_app| {
                     Self::get_completions(&current_app, &args)
                         .into_iter()
-                        .filter(|(_, replacement)| replacement.to_lowercase().contains(&word_lower)).
-                            map(|(display, replacement)| Pair {
+                        .filter(|(_, replacement)| replacement.to_lowercase().contains(&word_lower))
+                        .map(|(display, replacement)| Pair {
                             display,
                             replacement,
                         }).collect::<Vec<_>>()
