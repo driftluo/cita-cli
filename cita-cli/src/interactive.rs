@@ -432,11 +432,6 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                     .into_iter()
                     .filter(|(_, replacement)| {
                         string_include(&replacement.to_lowercase(), &word_lower)
-                        // if replacement.to_lowercase().contains(&word_lower) {
-                        //     replacement.to_lowercase().contains(&word_lower)
-                        // } else {
-                        //     string_include(&replacement.to_lowercase(), &word_lower)
-                        // }
                     }).map(|(display, replacement)| Pair {
                         display,
                         replacement,
