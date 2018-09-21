@@ -233,15 +233,15 @@ mod test {
     #[test]
     fn test_string_include() {
         assert_eq!(string_include("abcdef", "ace"), true);
-        assert_eq!(string_include("abcdef", "acc"), true);
+        assert_eq!(string_include("abcdef", "acc"), false);
         assert_eq!(string_include("abcdef", "ack"), false);
         assert_eq!(string_include("ads fety", "af"), true);
-        assert_eq!(string_include("ads fety", "ta"), true);
-        assert_eq!(string_include("ads fety", "sa"), true);
-        assert_eq!(string_include("ads fety", "yf"), true);
+        assert_eq!(string_include("ads fety", "ta"), false);
+        assert_eq!(string_include("ads fety", "sa"), false);
+        assert_eq!(string_include("ads fety", "yf"), false);
         assert_eq!(string_include("ads fety", "fy"), true);
         assert_eq!(string_include("ads fety", "a-"), false);
-        assert_eq!(string_include("ads fety", "  "), true);
+        assert_eq!(string_include("ads fety", "  "), false);
         assert_eq!(string_include("ads fety", " f"), true);
     }
 }
