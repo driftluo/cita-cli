@@ -409,27 +409,70 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
     fn complete(&self, line: &str, pos: usize) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let (start, word) = extract_word(line, pos, ESCAPE_CHAR, &DEFAULT_BREAK_CHARS);
         let args = shell_words::split(&line[..pos]).unwrap();
-        let pairs = Self::find_subcommand(
-            self.clap_app.clone(),
-            args.iter().map(|s| s.as_str()).peekable(),
-        ).map(|current_app| {
-            let word_lower = word.to_lowercase();
-            Self::get_completions(&current_app, &args)
-                .into_iter()
-                .filter(|(_, replacement)| {
-                    word.is_empty() || {
-                        if replacement.to_lowercase().contains(&word_lower) {
-                            replacement.to_lowercase().contains(&word_lower)
-                        } else {
-                            string_include(&replacement.to_lowercase(), &word_lower)
-                        }
-                    }
-                }).map(|(display, replacement)| Pair {
+        let word_lower = word.to_lowercase();
+        if word_lower.is_empty() {
+            let pairs = Self::find_subcommand(
+                self.clap_app.clone(),
+                args.iter().map(|s| s.as_str()).peekable(),
+            ).map(|current_app| {
+                Self::get_completions(&current_app, &args).into_iter()
+                .map(|(display, replacement)| Pair {
                     display,
                     replacement,
                 }).collect::<Vec<_>>()
-        });
-        Ok((start, pairs.unwrap_or_else(Vec::new)))
+            });
+            return Ok((start, pairs.unwrap_or_else(Vec::new)));
+        } else {
+           let pairs = Self::find_subcommand(
+                self.clap_app.clone(),
+                args.iter().map(|s| s.as_str()).peekable(),
+            ).map(|current_app| {
+                Self::get_completions(&current_app, &args)
+                    .into_iter()
+                    .filter(|(_, replacement)| {
+                        string_include(&replacement.to_lowercase(), &word_lower)
+                        // if replacement.to_lowercase().contains(&word_lower) {
+                        //     replacement.to_lowercase().contains(&word_lower)
+                        // } else {
+                        //     string_include(&replacement.to_lowercase(), &word_lower)
+                        // }
+                    }).map(|(display, replacement)| Pair {
+                        display,
+                        replacement,
+                    }).collect::<Vec<_>>()
+            });
+
+            if pairs.map(|fuzzy_pattern| fuzzy_pattern.iter().any(|ref mut x| x.replacement.to_lowercase().contains(&word_lower))).unwrap() {
+                let pairs = Self::find_subcommand(
+                    self.clap_app.clone(),
+                    args.iter().map(|s| s.as_str()).peekable(),
+                ).map(|current_app| {
+                    Self::get_completions(&current_app, &args)
+                        .into_iter()
+                        .filter(|(_, replacement)| replacement.to_lowercase().contains(&word_lower)).
+                            map(|(display, replacement)| Pair {
+                            display,
+                            replacement,
+                        }).collect::<Vec<_>>()
+                });
+                return Ok((start, pairs.unwrap_or_else(Vec::new)));
+            } else {
+                let pairs = Self::find_subcommand(
+                    self.clap_app.clone(),
+                    args.iter().map(|s| s.as_str()).peekable(),
+                ).map(|current_app| {
+                    Self::get_completions(&current_app, &args)
+                        .into_iter()
+                        .filter(|(_, replacement)| {
+                            string_include(&replacement.to_lowercase(), &word_lower)
+                        }).map(|(display, replacement)| Pair {
+                            display,
+                            replacement,
+                        }).collect::<Vec<_>>()
+                });
+                return Ok((start, pairs.unwrap_or_else(Vec::new)));
+            }
+        }
     }
 }
 
