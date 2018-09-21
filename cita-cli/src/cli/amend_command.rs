@@ -126,8 +126,8 @@ pub fn amend_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .help("The account address"),
                 ).arg(
-                    Arg::with_name("balance")
-                        .long("balance")
+                    Arg::with_name("value")
+                        .long("value")
                         .required(true)
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
@@ -211,7 +211,7 @@ pub fn amend_processor(
             }
             let address = m.value_of("address").unwrap();
             let balance = m
-                .value_of("balance")
+                .value_of("value")
                 .map(|value| parse_u256(value).unwrap())
                 .unwrap();
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
