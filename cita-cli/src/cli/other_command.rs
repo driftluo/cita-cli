@@ -24,6 +24,63 @@ pub fn search_command() -> App<'static, 'static> {
     )
 }
 
+/// x is pattern string
+pub fn fuzzy_match(x: &str, y: &str) -> bool {
+    let len_pat = x.len();
+    let len_a = y.len();
+    let str_pat: Vec<char> = x.chars().collect();
+    let str_a: Vec<char> = y.chars().collect();
+    let m = vec![0; len_a];
+    let mut matrix = vec![m; len_pat];
+
+    for j in 0..len_a {
+        if str_pat[0] == str_a[j] {
+            matrix[0][j] = j + 1;
+        }
+    }
+
+    for i in 1..len_pat {
+        for j in 1..len_a {
+            if str_pat[i] == ' ' {
+                if matrix[i - 1][j - 1] == 0 {
+                    matrix[i][j] = matrix[i][j - 1];
+                } else {
+                    matrix[i][j] = matrix[i - 1][j - 1] + 1;
+                }
+            } else if str_pat[i] == str_a[j] && matrix[i - 1][j - 1] != 0 {
+                matrix[i][j] = matrix[i - 1][j - 1] + 1;
+            }
+        }
+    }
+
+    for j in 0..len_a {
+        if matrix[len_pat - 1][j] != 0 {
+            return true;
+        }
+    }
+    false
+}
+
+/// judge if y in x
+pub fn string_include(x: &str, y: &str) -> bool {
+    let len_a = x.len();
+    let len_pat = y.len();
+    let p: Vec<char> = x.chars().collect();
+    let q: Vec<char> = y.chars().collect();
+
+    let mut sum = 0;
+
+    for i in 0..len_a {
+        if p[i] == q[sum] {
+            sum += 1;
+            if sum == len_pat {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Processor search command
 pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
     let keywords = sub_matches
@@ -38,7 +95,13 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
         .map(|cmd| cmd.join(" "))
         .filter(|cmd| {
             let cmd_lower = cmd.to_lowercase();
-            keywords.iter().all(|keyword| cmd_lower.contains(keyword))
+            keywords.iter().all(|keyword| {
+                if cmd_lower.contains(keyword) {
+                    cmd_lower.contains(keyword)
+                } else {
+                    fuzzy_match(&keyword, &cmd_lower)
+                }
+            })
         }).collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
@@ -161,4 +224,24 @@ pub fn benchmark_processor(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::string_include;
+
+    #[test]
+    fn test_string_include() {
+        assert_eq!(string_include("abcdef", "ace"), true);
+        assert_eq!(string_include("abcdef", "acc"), false);
+        assert_eq!(string_include("abcdef", "ack"), false);
+        assert_eq!(string_include("ads fety", "af"), true);
+        assert_eq!(string_include("ads fety", "ta"), false);
+        assert_eq!(string_include("ads fety", "sa"), false);
+        assert_eq!(string_include("ads fety", "yf"), false);
+        assert_eq!(string_include("ads fety", "fy"), true);
+        assert_eq!(string_include("ads fety", "a-"), false);
+        assert_eq!(string_include("ads fety", "  "), false);
+        assert_eq!(string_include("ads fety", " f"), true);
+    }
 }

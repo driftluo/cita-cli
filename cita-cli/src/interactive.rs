@@ -29,7 +29,7 @@ use cita_tool::{Encryption, JsonRpcResponse};
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
     encryption, key_processor, privkey_validator, rpc_processor, search_processor, store_processor,
-    transfer_processor, tx_processor,
+    string_include, transfer_processor, tx_processor,
 };
 use printer::{OutputFormat, Printable, Printer};
 
@@ -409,21 +409,57 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
     fn complete(&self, line: &str, pos: usize) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let (start, word) = extract_word(line, pos, ESCAPE_CHAR, &DEFAULT_BREAK_CHARS);
         let args = shell_words::split(&line[..pos]).unwrap();
-        let pairs = Self::find_subcommand(
+        let word_lower = word.to_lowercase();
+        let tmp_pair = Self::find_subcommand(
             self.clap_app.clone(),
             args.iter().map(|s| s.as_str()).peekable(),
-        ).map(|current_app| {
-            let word_lower = word.to_lowercase();
-            Self::get_completions(&current_app, &args)
+        ).map(|current_app| Self::get_completions(&current_app, &args))
+        .unwrap_or_default();
+
+        if word_lower.is_empty() {
+            let pairs = tmp_pair
+                .clone()
                 .into_iter()
-                .filter(|(_, replacement)| {
-                    word.is_empty() || replacement.to_lowercase().contains(&word_lower)
-                }).map(|(display, replacement)| Pair {
+                .map(|(display, replacement)| Pair {
                     display,
                     replacement,
-                }).collect::<Vec<_>>()
-        });
-        Ok((start, pairs.unwrap_or_else(Vec::new)))
+                }).collect::<Vec<_>>();
+            return Ok((start, pairs));
+        } else {
+            let pairs = tmp_pair
+                .clone()
+                .into_iter()
+                .filter(|(_, replacement)| string_include(&replacement.to_lowercase(), &word_lower))
+                .map(|(display, replacement)| Pair {
+                    display,
+                    replacement,
+                }).collect::<Vec<_>>();
+
+            if pairs
+                .iter()
+                .any(|ref mut x| x.replacement.to_lowercase().contains(&word_lower))
+            {
+                let pairs = tmp_pair
+                    .clone()
+                    .into_iter()
+                    .filter(|(_, replacement)| replacement.to_lowercase().contains(&word_lower))
+                    .map(|(display, replacement)| Pair {
+                        display,
+                        replacement,
+                    }).collect::<Vec<_>>();
+                return Ok((start, pairs));
+            } else {
+                let pairs = tmp_pair
+                    .into_iter()
+                    .filter(|(_, replacement)| {
+                        string_include(&replacement.to_lowercase(), &word_lower)
+                    }).map(|(display, replacement)| Pair {
+                        display,
+                        replacement,
+                    }).collect::<Vec<_>>();
+                return Ok((start, pairs));
+            }
+        }
     }
 }
 
