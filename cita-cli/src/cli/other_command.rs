@@ -34,21 +34,21 @@ pub fn fuzzy_match(x: &str, y: &str) -> bool {
     let m = vec![0; len_a];
     let mut matrix = vec![m; len_pat];
 
-    for j in 0..len_a {
-        if str_pat[0] == str_a[j] {
+    for (j, item) in str_a.iter().enumerate() {
+        if &str_pat[0] == item {
             matrix[0][j] = j + 1;
         }
     }
 
     for i in 1..len_pat {
-        for j in 1..len_a {
+        for (j, item) in str_a.iter().enumerate().skip(1) {
             if str_pat[i] == ' ' {
                 if matrix[i - 1][j - 1] == 0 {
                     matrix[i][j] = matrix[i][j - 1];
                 } else {
                     matrix[i][j] = matrix[i - 1][j - 1] + 1;
                 }
-            } else if str_pat[i] == str_a[j] && matrix[i - 1][j - 1] != 0 {
+            } else if &str_pat[i] == item && matrix[i - 1][j - 1] != 0 {
                 matrix[i][j] = matrix[i - 1][j - 1] + 1;
             }
         }
@@ -64,15 +64,14 @@ pub fn fuzzy_match(x: &str, y: &str) -> bool {
 
 /// judge if y in x
 pub fn string_include(x: &str, y: &str) -> bool {
-    let len_a = x.len();
     let len_pat = y.len();
     let p: Vec<char> = x.chars().collect();
     let q: Vec<char> = y.chars().collect();
 
     let mut sum = 0;
 
-    for i in 0..len_a {
-        if p[i] == q[sum] {
+    for item in p {
+        if item == q[sum] {
             sum += 1;
             if sum == len_pat {
                 return true;

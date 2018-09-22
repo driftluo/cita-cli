@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate ansi_term;
 extern crate atty;
 extern crate cita_tool;
@@ -26,6 +28,8 @@ use std::rc::Rc;
 
 use dotenv::dotenv;
 
+include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
+
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_cli, completion_processor,
     contract_processor, key_processor, rpc_processor, search_processor, store_processor,
@@ -39,6 +43,7 @@ const DEFAULT_JSONRPC_URL: &str = "http://127.0.0.1:1337";
 
 fn main() {
     dotenv().ok();
+    let version = format!("{}+{}", crate_version!(), get_commit_id());
 
     let mut env_map: HashMap<String, String> = HashMap::from_iter(env::vars());
     let default_jsonrpc_url = env_map
@@ -47,7 +52,7 @@ fn main() {
 
     let printer = Printer::default();
     let mut config = GlobalConfig::new(default_jsonrpc_url.to_string());
-    let mut parser = build_cli();
+    let mut parser = build_cli(version.as_str());
     let matches = parser.clone().get_matches();
 
     if let Err(err) = match matches.subcommand() {

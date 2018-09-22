@@ -2,9 +2,10 @@
 name = "cita-cli"
 version = "0.18.0"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
-dotenv = "^0.11.0"
+dotenv = "^0.13.0"
 clap = "^2.31.2"
 ansi_term = "^0.11.0"
 colored = "^1.6.0"
@@ -12,11 +13,14 @@ atty = "^0.2.10"
 serde = "^1.0.66"
 serde_json = "^1.0.17"
 shell-words = "^0.1.0"
-rustyline = {version = "^2.0.0", git = "https://github.com/kkawakam/rustyline.git"}
+rustyline = "^2.1.0"
 cita-tool = { path = "../cita-tool" }
 dirs = "^1.0.3"
 regex = "^1.0.4"
 ## lazy_static = "^1.0"
+
+[build-dependencies]
+git2 = "^0.7.5"
 
 [features]
 default = []

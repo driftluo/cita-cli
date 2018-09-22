@@ -424,7 +424,7 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                     display,
                     replacement,
                 }).collect::<Vec<_>>();
-            return Ok((start, pairs));
+            Ok((start, pairs))
         } else {
             let pairs = tmp_pair
                 .clone()
@@ -447,7 +447,7 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                         display,
                         replacement,
                     }).collect::<Vec<_>>();
-                return Ok((start, pairs));
+                Ok((start, pairs))
             } else {
                 let pairs = tmp_pair
                     .into_iter()
@@ -457,7 +457,7 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
                         display,
                         replacement,
                     }).collect::<Vec<_>>();
-                return Ok((start, pairs));
+                Ok((start, pairs))
             }
         }
     }
