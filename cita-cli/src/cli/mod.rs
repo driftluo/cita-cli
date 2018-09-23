@@ -29,7 +29,7 @@ use cita_tool::parse_url;
 use clap::{App, AppSettings, Arg, SubCommand};
 
 /// Generate cli
-pub fn build_cli() -> App<'static, 'static> {
+pub fn build_cli(version: &str) -> App {
     let arg_url = Arg::with_name("url")
         .long("url")
         .takes_value(true)
@@ -37,7 +37,7 @@ pub fn build_cli() -> App<'static, 'static> {
         .global(true)
         .help("JSONRPC server URL (dotenv: JSONRPC_URL)");
     App::new("cita-cli")
-        .version(crate_version!())
+        .version(version)
         .global_setting(AppSettings::ColoredHelp)
         .global_setting(AppSettings::DeriveDisplayOrder)
         .subcommand(rpc_command().arg(arg_url.clone()))
