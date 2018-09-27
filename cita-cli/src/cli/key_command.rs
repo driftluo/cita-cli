@@ -1,9 +1,9 @@
 use ansi_term::Colour::Yellow;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{pubkey_to_address, remove_0x, KeyPair, PubKey};
+use cita_tool::{decode, pubkey_to_address, remove_0x, Hashable, KeyPair, LowerHex, PubKey};
 
-use cli::{encryption, privkey_validator, pubkey_validator};
+use cli::{encryption, is_hex, privkey_validator, pubkey_validator};
 use interactive::GlobalConfig;
 use printer::Printer;
 
@@ -29,6 +29,18 @@ pub fn key_command() -> App<'static, 'static> {
                     .required(true)
                     .validator(|pubkey| pubkey_validator(remove_0x(&pubkey)).map(|_| ()))
                     .help("Pubkey"),
+            ),
+        ).subcommand(
+            SubCommand::with_name("hash").arg(
+                Arg::with_name("content")
+                    .long("content")
+                    .takes_value(true)
+                    .required(true)
+                    .validator(|content| is_hex(content.as_str()))
+                    .help(
+                        "Hash the content and output,\
+                         Secp256k1 means keccak256/Ed25529 means blake2b/Sm2 meams Sm3",
+                    ),
             ),
         )
 }
@@ -65,6 +77,12 @@ pub fn key_processor(
             } else {
                 printer.println(&format!("{} 0x{:#x}", "[address]:", address), false);
             }
+        }
+        ("hash", Some(m)) => {
+            let encryption = encryption(m, config);
+            let content =
+                decode(remove_0x(m.value_of("content").unwrap())).map_err(|err| err.to_string())?;
+            printer.println(&content.crypt_hash(encryption).lower_hex(), printer.color());
         }
         _ => {
             return Err(sub_matches.usage().to_owned());

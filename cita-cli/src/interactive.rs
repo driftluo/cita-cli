@@ -61,7 +61,6 @@ static ESCAPE_CHAR: Option<char> = None;
 
 /// Interactive command line
 pub fn start(url: &str) -> io::Result<()> {
-    let env_regex = Regex::new(ENV_PATTERN).unwrap();
     let mut config = GlobalConfig::new(url.to_string());
 
     let mut cita_cli_dir = dirs::home_dir().unwrap();
@@ -95,9 +94,6 @@ pub fn start(url: &str) -> io::Result<()> {
         config.set_save_private(configs["save_private"].as_bool().unwrap_or(false));
     }
 
-    let mut parser = build_interactive();
-    let colored_prompt = Red.bold().paint("cita> ").to_string();
-
     let mut printer = Printer::default();
     if !config.json_format() {
         printer.switch_format();
@@ -105,26 +101,19 @@ pub fn start(url: &str) -> io::Result<()> {
     println!("{}", Red.bold().paint(ASCII_WORD));
     config.print();
 
-    start_rustyline(
-        &mut parser,
-        &mut config,
-        &mut printer,
-        &env_regex,
-        colored_prompt.as_str(),
-        &config_file,
-        history_file,
-    )
+    start_rustyline(&mut config, &mut printer, &config_file, history_file)
 }
 
 fn start_rustyline(
-    parser: &mut clap::App<'static, 'static>,
     config: &mut GlobalConfig,
     printer: &mut Printer,
-    env_regex: &Regex,
-    colored_prompt: &str,
     config_file: &PathBuf,
     history_file: &str,
 ) -> io::Result<()> {
+    let env_regex = Regex::new(ENV_PATTERN).unwrap();
+    let parser = build_interactive();
+    let colored_prompt = Red.bold().paint("cita> ").to_string();
+
     let rl_mode = |rl: &mut Editor<CitaCompleter>, config: &GlobalConfig| {
         if config.completion_style() {
             rl.set_completion_type(CompletionType::List)
@@ -155,14 +144,14 @@ fn start_rustyline(
 
     loop {
         rl_mode(&mut rl, &config);
-        match rl.readline(colored_prompt) {
+        match rl.readline(&colored_prompt) {
             Ok(line) => {
                 match handle_commands(
                     line.as_str(),
                     config,
                     printer,
-                    parser,
-                    env_regex,
+                    &parser,
+                    &env_regex,
                     config_file,
                 ) {
                     Ok(true) => {
@@ -202,7 +191,7 @@ fn handle_commands(
     line: &str,
     config: &mut GlobalConfig,
     printer: &mut Printer,
-    parser: &mut clap::App<'static, 'static>,
+    parser: &clap::App<'static, 'static>,
     env_regex: &Regex,
     config_file: &PathBuf,
 ) -> Result<bool, String> {
@@ -211,7 +200,7 @@ fn handle_commands(
         Err(e) => return Err(e.to_string()),
     };
 
-    match parser.get_matches_from_safe_borrow(args) {
+    match parser.clone().get_matches_from_safe(args) {
         Ok(matches) => match matches.subcommand() {
             ("switch", Some(m)) => {
                 m.value_of("host").and_then(|host| {
