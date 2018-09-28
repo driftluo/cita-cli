@@ -257,7 +257,11 @@ impl Client {
             .unwrap_or_else(|| U256::zero().lower_hex());
         tx.set_value(decode(format!("{:0>64}", value)).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id()?);
-        tx.set_version(transaction_options.version().unwrap_or_else(|| 0));
+        tx.set_version(
+            transaction_options
+                .version()
+                .unwrap_or_else(|| self.get_version().unwrap_or_else(|_| 0)),
+        );
         Ok(tx)
     }
 
@@ -348,6 +352,22 @@ impl Client {
             Err(ToolError::Customize(
                 "Corresponding address does not respond".to_string(),
             ))
+        }
+    }
+
+    /// Get version
+    pub fn get_version(&self) -> Result<u32, ToolError> {
+        if let Some(ResponseValue::Singe(ParamsValue::String(version))) = self
+            .call(
+                None,
+                "0xffffffffffffffffffffffffffffffffff020011",
+                Some("0x0d8e6e2c"),
+                "latest",
+            )?.result()
+        {
+            Ok(u32::from_str_radix(remove_0x(&version), 16).map_err(ToolError::Parse)?)
+        } else {
+            Ok(0)
         }
     }
 

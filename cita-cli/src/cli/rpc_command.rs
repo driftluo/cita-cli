@@ -439,12 +439,16 @@ pub fn rpc_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let value = m.value_of("value").map(|value| parse_u256(value).unwrap());
+            let version = m
+                .value_of("version")
+                .map(|version| parse_u32(version).unwrap());
             let tx_options = TransactionOptions::new()
                 .set_code(code)
                 .set_address(address)
                 .set_current_height(current_height)
                 .set_quota(quota)
-                .set_value(value);
+                .set_value(value)
+                .set_version(version);
             client.send_raw_transaction(tx_options)
         }
         ("getBlockByHash", Some(m)) => {
@@ -544,7 +548,7 @@ pub fn rpc_processor(
             let height = m.value_of("height").unwrap();
             let address = m.value_of("address").unwrap();
             let key = m.value_of("key").unwrap();
-            client.get_state_proof(address, key, height)
+            client.get_storage_at(address, key, height)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
