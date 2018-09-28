@@ -29,6 +29,17 @@ pub fn parse_u64(height: &str) -> Result<u64, String> {
     }
 }
 
+/// the hexadecimal or numeric type string resolves to u32
+pub fn parse_u32(value: &str) -> Result<u32, String> {
+    match is_hex(value) {
+        Ok(()) => Ok(u32::from_str_radix(remove_0x(value), 16).map_err(|err| format!("{}", err))?),
+        _ => match value.parse::<u32>() {
+            Ok(number) => Ok(number),
+            Err(e) => Err(format!("{:?}", e)),
+        },
+    }
+}
+
 /// Attempt to resolve the private key
 pub fn parse_privkey(hash: &str, encryption: Encryption) -> Result<PrivateKey, String> {
     is_hex(hash)?;
@@ -95,7 +106,7 @@ pub fn is_hex(hex: &str) -> Result<(), String> {
 
 pub fn parse_height(height: &str) -> Result<(), String> {
     match height {
-        "latest" | "earliest" => Ok(()),
+        "latest" | "earliest" | "pending" => Ok(()),
         _ => match parse_u64(height) {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("{:?}", e)),

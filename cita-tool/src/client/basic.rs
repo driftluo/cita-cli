@@ -48,6 +48,7 @@ const GET_FILTER_LOGS: &str = "getFilterLogs";
 
 const GET_BLOCK_HEADER: &str = "getBlockHeader";
 const GET_STATE_PROOF: &str = "getStateProof";
+const GET_STORAGE_AT: &str = "getStorageAt";
 
 /// Store action target address
 pub const STORE_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffff010000";
@@ -256,6 +257,11 @@ impl Client {
             .unwrap_or_else(|| U256::zero().lower_hex());
         tx.set_value(decode(format!("{:0>64}", value)).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id()?);
+        tx.set_version(
+            transaction_options
+                .version()
+                .unwrap_or_else(|| self.get_version().unwrap_or_else(|_| 0)),
+        );
         Ok(tx)
     }
 
@@ -346,6 +352,22 @@ impl Client {
             Err(ToolError::Customize(
                 "Corresponding address does not respond".to_string(),
             ))
+        }
+    }
+
+    /// Get version
+    pub fn get_version(&self) -> Result<u32, ToolError> {
+        if let Some(ResponseValue::Singe(ParamsValue::String(version))) = self
+            .call(
+                None,
+                "0xffffffffffffffffffffffffffffffffff020011",
+                Some("0x0d8e6e2c"),
+                "latest",
+            )?.result()
+        {
+            Ok(u32::from_str_radix(remove_0x(&version), 16).map_err(ToolError::Parse)?)
+        } else {
+            Ok(0)
         }
     }
 
@@ -470,6 +492,8 @@ where
     fn get_block_header(&self, height: &str) -> Self::RpcResult;
     /// getStateProof: Get the proof of the variable at the specified height
     fn get_state_proof(&self, address: &str, key: &str, height: &str) -> Self::RpcResult;
+    /// getStorageAt: Get the value of the key at the specified height
+    fn get_storage_at(&self, address: &str, key: &str, height: &str) -> Self::RpcResult;
 }
 
 impl ClientExt<JsonRpcResponse, ToolError> for Client {
@@ -796,6 +820,19 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             ).insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
+
+    fn get_storage_at(&self, address: &str, key: &str, height: &str) -> Self::RpcResult {
+        let params = JsonRpcParams::new()
+            .insert(
+                "params",
+                ParamsValue::List(vec![
+                    ParamsValue::String(String::from(address)),
+                    ParamsValue::String(String::from(key)),
+                    ParamsValue::String(String::from(height)),
+                ]),
+            ).insert("method", ParamsValue::String(String::from(GET_STORAGE_AT)));
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
 }
 
 /// Store data or contract ABI to chain
@@ -839,14 +876,6 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Amend H256KV
     fn amend_h256kv(&mut self, address: &str, h256_kv: &str, quota: Option<u64>)
         -> Self::RpcResult;
-
-    /// Amend get H256KV
-    fn amend_get_h256kv(
-        &mut self,
-        address: &str,
-        h256_key: &str,
-        quota: Option<u64>,
-    ) -> Self::RpcResult;
 
     /// Amend account balance
     fn amend_balance(
@@ -895,23 +924,6 @@ impl AmendExt for Client {
             .set_address(AMEND_ADDRESS)
             .set_quota(quota)
             .set_value(Some(U256::from_str(remove_0x(AMEND_KV_H256)).unwrap()));
-        self.send_raw_transaction(tx_options)
-    }
-
-    fn amend_get_h256kv(
-        &mut self,
-        address: &str,
-        h256_key: &str,
-        quota: Option<u64>,
-    ) -> Self::RpcResult {
-        let address = remove_0x(address);
-        let h256_key = remove_0x(h256_key);
-        let data = format!("0x{}{}", address, h256_key);
-        let tx_options = TransactionOptions::new()
-            .set_code(&data)
-            .set_address(AMEND_ADDRESS)
-            .set_quota(quota)
-            .set_value(Some(U256::from_str(remove_0x(AMEND_GET_KV_H256)).unwrap()));
         self.send_raw_transaction(tx_options)
     }
 

@@ -4,7 +4,7 @@ use cita_tool::client::basic::Client;
 use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
 use cli::{
-    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u64,
+    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u32, parse_u64,
     privkey_validator,
 };
 use interactive::{set_output, GlobalConfig};
@@ -61,6 +61,12 @@ pub fn tx_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
+                ).arg(
+                    Arg::with_name("version")
+                        .long("version")
+                        .takes_value(true)
+                        .validator(|version| parse_u32(version.as_str()).map(|_| ()))
+                        .help("The version of transaction, default is 0"),
                 ),
         ).subcommand(
             SubCommand::with_name("sendSignedTransaction")
@@ -127,12 +133,16 @@ pub fn tx_processor(
             let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             let value = m.value_of("value").map(|value| parse_u256(value).unwrap());
+            let version = m
+                .value_of("version")
+                .map(|version| parse_u32(version).unwrap());
             let tx_options = TransactionOptions::new()
                 .set_code(code)
                 .set_address(address)
                 .set_current_height(current_height)
                 .set_quota(quota)
-                .set_value(value);
+                .set_value(value)
+                .set_version(version);
             let tx = client
                 .generate_transaction(tx_options)
                 .map_err(|err| format!("{}", err))?;
