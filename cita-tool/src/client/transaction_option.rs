@@ -8,6 +8,7 @@ pub struct TransactionOptions<'a> {
     current_height: Option<u64>,
     quota: Option<u64>,
     value: Option<U256>,
+    version: Option<u32>,
 }
 
 impl<'a> TransactionOptions<'a> {
@@ -19,6 +20,7 @@ impl<'a> TransactionOptions<'a> {
             current_height: None,
             quota: None,
             value: None,
+            version: None,
         }
     }
 
@@ -80,6 +82,17 @@ impl<'a> TransactionOptions<'a> {
         self.value
     }
 
+    /// Set version.
+    pub fn set_version(mut self, version: Option<u32>) -> Self {
+        self.version = version;
+        self
+    }
+
+    /// Get version
+    pub fn version(&self) -> Option<u32> {
+        self.version
+    }
+
     /// Restore initialization status
     pub fn clear(&mut self) {
         self.value = None;
@@ -87,6 +100,7 @@ impl<'a> TransactionOptions<'a> {
         self.current_height = None;
         self.address = "0x";
         self.code = "0x";
+        self.version = None
     }
 }
 

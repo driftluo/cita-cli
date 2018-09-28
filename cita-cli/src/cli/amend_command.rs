@@ -78,7 +78,7 @@ pub fn amend_command() -> App<'static, 'static> {
                 ).group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
                 .args(&common_args),
         ).subcommand(
-            SubCommand::with_name("kv-h256")
+            SubCommand::with_name("set-h256")
                 .about("Amend H256 Key,Value pair")
                 .arg(
                     Arg::with_name("address")
@@ -96,24 +96,6 @@ pub fn amend_command() -> App<'static, 'static> {
                         .number_of_values(2)
                         .validator(|kv| h256_validator(kv.as_str()))
                         .help("The key value pair"),
-                ).args(&common_args),
-        ).subcommand(
-            SubCommand::with_name("get-h256")
-                .about("Get H256 Value, only write to log")
-                .arg(
-                    Arg::with_name("address")
-                        .long("address")
-                        .validator(|address| parse_address(address.as_str()))
-                        .required(true)
-                        .takes_value(true)
-                        .help("The account address"),
-                ).arg(
-                    Arg::with_name("key")
-                        .long("key")
-                        .required(true)
-                        .takes_value(true)
-                        .validator(|key| h256_validator(key.as_str()))
-                        .help("The key of pair"),
                 ).args(&common_args),
         ).subcommand(
             SubCommand::with_name("balance")
@@ -179,7 +161,7 @@ pub fn amend_processor(
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_abi(address, content, quota)
         }
-        ("kv-h256", Some(m)) => {
+        ("set-h256", Some(m)) => {
             let encryption = encryption(m, config);
             if let Some(private_key) = m.value_of("admin-private-key") {
                 client.set_private_key(&parse_privkey(private_key, encryption)?);
@@ -193,16 +175,6 @@ pub fn amend_processor(
                 .join("");
             let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
             client.amend_h256kv(address, &h256_kv, quota)
-        }
-        ("get-h256", Some(m)) => {
-            let encryption = encryption(m, config);
-            if let Some(private_key) = m.value_of("admin-private-key") {
-                client.set_private_key(&parse_privkey(private_key, encryption)?);
-            }
-            let address = m.value_of("address").unwrap();
-            let h256_key = m.value_of("key").unwrap();
-            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
-            client.amend_get_h256kv(address, h256_key, quota)
         }
         ("balance", Some(m)) => {
             let encryption = encryption(m, config);

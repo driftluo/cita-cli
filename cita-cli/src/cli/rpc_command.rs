@@ -5,7 +5,7 @@ use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransa
 
 use cli::{
     encryption, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
-    parse_u256, parse_u64, privkey_validator,
+    parse_u256, parse_u32, parse_u64, privkey_validator,
 };
 use interactive::{set_output, GlobalConfig};
 use printer::Printer;
@@ -70,6 +70,12 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .takes_value(true)
                         .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
                         .help("The value to send, default is 0"),
+                ).arg(
+                    Arg::with_name("version")
+                        .long("version")
+                        .takes_value(true)
+                        .validator(|version| parse_u32(version.as_str()).map(|_| ()))
+                        .help("The version of transaction, default is 0"),
                 ),
         ).subcommand(
             SubCommand::with_name("getBlockByHash")
@@ -375,6 +381,31 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .validator(|key| h256_validator(key.as_str()))
                         .help("The position of the variable"),
                 ),
+        ).subcommand(
+            SubCommand::with_name("getStorageAt")
+                .about("Get the value of the key at the specified height")
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .required(true)
+                        .validator(|s| parse_height(s.as_str()))
+                        .takes_value(true)
+                        .help("The number of the block"),
+                ).arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .required(true)
+                        .validator(|address| parse_address(address.as_str()))
+                        .takes_value(true)
+                        .help("Account Address"),
+                ).arg(
+                    Arg::with_name("key")
+                        .long("key")
+                        .required(true)
+                        .takes_value(true)
+                        .validator(|key| h256_validator(key.as_str()))
+                        .help("The position of the variable"),
+                ),
         )
 }
 
@@ -504,6 +535,12 @@ pub fn rpc_processor(
             client.get_block_header(height)
         }
         ("getStateProof", Some(m)) => {
+            let height = m.value_of("height").unwrap();
+            let address = m.value_of("address").unwrap();
+            let key = m.value_of("key").unwrap();
+            client.get_state_proof(address, key, height)
+        }
+        ("getStorageAt", Some(m)) => {
             let height = m.value_of("height").unwrap();
             let address = m.value_of("address").unwrap();
             let key = m.value_of("key").unwrap();

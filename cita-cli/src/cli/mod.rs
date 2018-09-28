@@ -10,7 +10,7 @@ mod util;
 
 pub(crate) use self::util::{
     encryption, get_url, h256_validator, is_hex, parse_address, parse_height, parse_privkey,
-    parse_u256, parse_u64, privkey_validator, pubkey_validator, search_app,
+    parse_u256, parse_u32, parse_u64, privkey_validator, pubkey_validator, search_app,
 };
 
 pub use self::abi_command::{abi_command, abi_processor};
