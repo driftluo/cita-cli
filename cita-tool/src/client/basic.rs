@@ -202,10 +202,9 @@ impl Client {
                     .request(req)
                     .and_then(|res| res.into_body().concat2())
                     .map_err(ToolError::Hyper)
-                    .map(|response| {
+                    .and_then(|response| {
                         serde_json::from_slice::<JsonRpcResponse>(&response)
                             .map_err(ToolError::SerdeJson)
-                            .unwrap()
                     }),
             );
             reqs.push(future);
@@ -241,10 +240,9 @@ impl Client {
                         .request(req)
                         .and_then(|res| res.into_body().concat2())
                         .map_err(ToolError::Hyper)
-                        .map(|response| {
+                        .and_then(|response| {
                             serde_json::from_slice::<JsonRpcResponse>(&response)
                                 .map_err(ToolError::SerdeJson)
-                                .unwrap()
                         }),
                 );
                 reqs.push(future);
