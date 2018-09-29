@@ -25,6 +25,7 @@ use regex::{Captures, Regex};
 use serde_json;
 use shell_words;
 
+use cita_tool::client::basic::Client;
 use cita_tool::{Encryption, JsonRpcResponse};
 use cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
@@ -60,7 +61,7 @@ static DEFAULT_BREAK_CHARS: [u8; 17] = [
 static ESCAPE_CHAR: Option<char> = None;
 
 /// Interactive command line
-pub fn start(url: &str) -> io::Result<()> {
+pub fn start(url: &str, client: &Client) -> io::Result<()> {
     let mut config = GlobalConfig::new(url.to_string());
 
     let mut cita_cli_dir = dirs::home_dir().unwrap();
@@ -101,7 +102,13 @@ pub fn start(url: &str) -> io::Result<()> {
     println!("{}", Red.bold().paint(ASCII_WORD));
     config.print();
 
-    start_rustyline(&mut config, &mut printer, &config_file, history_file)
+    start_rustyline(
+        &mut config,
+        &mut printer,
+        &config_file,
+        history_file,
+        &client,
+    )
 }
 
 fn start_rustyline(
@@ -109,6 +116,7 @@ fn start_rustyline(
     printer: &mut Printer,
     config_file: &PathBuf,
     history_file: &str,
+    client: &Client,
 ) -> io::Result<()> {
     let env_regex = Regex::new(ENV_PATTERN).unwrap();
     let parser = build_interactive();
@@ -153,6 +161,7 @@ fn start_rustyline(
                     &parser,
                     &env_regex,
                     config_file,
+                    &client,
                 ) {
                     Ok(true) => {
                         break;
@@ -194,6 +203,7 @@ fn handle_commands(
     parser: &clap::App<'static, 'static>,
     env_regex: &Regex,
     config_file: &PathBuf,
+    client: &Client,
 ) -> Result<bool, String> {
     let args = match shell_words::split(replace_cmd(&env_regex, line, &config).as_str()) {
         Ok(args) => args,
@@ -263,13 +273,13 @@ fn handle_commands(
                 printer.println(&config.get(key).clone(), config.color());
                 Ok(())
             }
-            ("rpc", Some(m)) => rpc_processor(m, &printer, config),
+            ("rpc", Some(m)) => rpc_processor(m, &printer, config, client.clone()),
             ("ethabi", Some(m)) => abi_processor(m, &printer, &config),
             ("key", Some(m)) => key_processor(m, &printer, &config),
-            ("scm", Some(m)) => contract_processor(m, &printer, config),
-            ("transfer", Some(m)) => transfer_processor(m, &printer, config),
-            ("store", Some(m)) => store_processor(m, &printer, config),
-            ("amend", Some(m)) => amend_processor(m, &printer, config),
+            ("scm", Some(m)) => contract_processor(m, &printer, config, client.clone()),
+            ("transfer", Some(m)) => transfer_processor(m, &printer, config, client.clone()),
+            ("store", Some(m)) => store_processor(m, &printer, config, client.clone()),
+            ("amend", Some(m)) => amend_processor(m, &printer, config, client.clone()),
             ("info", _) => {
                 config.print();
                 Ok(())
@@ -278,8 +288,8 @@ fn handle_commands(
                 search_processor(&parser, m);
                 Ok(())
             }
-            ("tx", Some(m)) => tx_processor(m, &printer, config),
-            ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
+            ("tx", Some(m)) => tx_processor(m, &printer, config, client.clone()),
+            ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config, client.clone()),
             ("exit", _) => {
                 return Ok(true);
             }
