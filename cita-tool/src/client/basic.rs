@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -6,13 +5,13 @@ use std::{str, u64};
 
 use super::super::LowerHex;
 use failure::Fail;
-use futures::{future::join_all, future::JoinAll, Future, Stream};
+use futures::{future::join_all, future::JoinAll, sync, Future, Stream};
 use hex::{decode, encode};
-use hyper::{self, Body, Client as HyperClient, Request, Uri};
+use hyper::{Body, Client as HyperClient, Request, Uri};
 use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
-use tokio::runtime::Runtime;
+use tokio;
 use types::U256;
 use uuid::Uuid;
 
@@ -69,11 +68,10 @@ pub const AMEND_GET_KV_H256: &str = "0x04";
 pub const AMEND_BALANCE: &str = "0x05";
 
 /// Jsonrpc client, Only to one chain
-#[derive(Debug)]
 pub struct Client {
     id: AtomicUsize,
     url: Uri,
-    run_time: RefCell<Runtime>,
+    sender: sync::mpsc::UnboundedSender<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
     chain_id: Option<u32>,
     private_key: Option<PrivateKey>,
     debug: bool,
@@ -81,16 +79,28 @@ pub struct Client {
 
 impl Client {
     /// Create a client for CITA
-    pub fn new() -> Result<Self, ToolError> {
-        let run_time = Runtime::new().map_err(ToolError::Stdio)?;
-        Ok(Client {
+    pub fn new() -> Self {
+        let (sender, receiver) = sync::mpsc::unbounded();
+
+        ::std::thread::spawn(move || {
+            let task = receiver
+                .map_err(|_| ::std::io::Error::new(::std::io::ErrorKind::Other, ""))
+                .for_each(|item| {
+                    tokio::spawn(item);
+                    Ok(())
+                }).map_err(|_| ());
+
+            tokio::run(task);
+        });
+
+        Client {
             id: AtomicUsize::new(0),
             url: "http://127.0.0.1:1337".parse().unwrap(),
-            run_time: RefCell::new(run_time),
+            sender,
             chain_id: None,
             private_key: None,
             debug: false,
-        })
+        }
     }
 
     /// Set url
@@ -170,7 +180,7 @@ impl Client {
         &self,
         urls: T,
         params: JsonRpcParams,
-    ) -> JoinAll<Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>>
+    ) -> JoinAll<Vec<Box<dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send>>>
     {
         self.id.fetch_add(1, Ordering::Relaxed);
         let params = params.insert(
@@ -186,12 +196,17 @@ impl Client {
                 .body(Body::from(serde_json::to_string(&params).unwrap()))
                 .unwrap();
             let future: Box<
-                dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send,
+                dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send,
             > = Box::new(
                 client
                     .request(req)
                     .and_then(|res| res.into_body().concat2())
-                    .map_err(ToolError::Hyper),
+                    .map_err(ToolError::Hyper)
+                    .map(|response| {
+                        serde_json::from_slice::<JsonRpcResponse>(&response)
+                            .map_err(ToolError::SerdeJson)
+                            .unwrap()
+                    }),
             );
             reqs.push(future);
         });
@@ -202,7 +217,7 @@ impl Client {
     fn make_requests_with_params_list<T: Iterator<Item = JsonRpcParams>>(
         &self,
         params: T,
-    ) -> JoinAll<Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>>
+    ) -> JoinAll<Vec<Box<dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send>>>
     {
         let client = HyperClient::new();
         let mut reqs = Vec::with_capacity(100);
@@ -220,12 +235,17 @@ impl Client {
                     .body(Body::from(serde_json::to_string(&param).unwrap()))
                     .unwrap();
                 let future: Box<
-                    dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send,
+                    dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send,
                 > = Box::new(
                     client
                         .request(req)
                         .and_then(|res| res.into_body().concat2())
-                        .map_err(ToolError::Hyper),
+                        .map_err(ToolError::Hyper)
+                        .map(|response| {
+                            serde_json::from_slice::<JsonRpcResponse>(&response)
+                                .map_err(ToolError::SerdeJson)
+                                .unwrap()
+                        }),
                 );
                 reqs.push(future);
             });
@@ -375,23 +395,43 @@ impl Client {
     fn run(
         &self,
         reqs: JoinAll<
-            Vec<Box<dyn Future<Item = hyper::Chunk, Error = ToolError> + 'static + Send>>,
+            Vec<Box<dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send>>,
         >,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
-        let responses = self.run_time.borrow_mut().block_on(reqs)?;
-        Ok(responses
-            .into_iter()
-            .map(|response| {
-                serde_json::from_slice::<JsonRpcResponse>(&response)
-                    .map_err(ToolError::SerdeJson)
-                    .unwrap()
-            }).collect::<Vec<JsonRpcResponse>>())
+        let (tx, rx) = sync::oneshot::channel::<Result<Vec<JsonRpcResponse>, ToolError>>();
+        let req = reqs
+            .then(move |res| tx.send(res))
+            .map(|_| ())
+            .map_err(|_| ());
+        self.sender
+            .unbounded_send(Box::new(req))
+            .map_err(|e| ToolError::Customize(e.to_string()))?;
+        rx.wait().map_err(|e| ToolError::Customize(e.to_string()))?
     }
 
     fn debug_request<'a, T: Iterator<Item = &'a JsonRpcParams>>(params: T) {
         params.for_each(|param| {
             println!("<--{}", param);
         });
+    }
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Client {
+            id: AtomicUsize::new(self.id.load(Ordering::Relaxed)),
+            url: self.url.clone(),
+            sender: self.sender.clone(),
+            chain_id: None,
+            private_key: self.private_key,
+            debug: self.debug,
+        }
+    }
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

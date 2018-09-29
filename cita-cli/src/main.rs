@@ -26,6 +26,7 @@ use std::iter::FromIterator;
 use std::process;
 use std::rc::Rc;
 
+use cita_tool::client::basic::Client;
 use dotenv::dotenv;
 
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
@@ -54,27 +55,28 @@ fn main() {
     let mut config = GlobalConfig::new(default_jsonrpc_url.to_string());
     let mut parser = build_cli(version.as_str());
     let matches = parser.clone().get_matches();
+    let client = Client::new();
 
     if let Err(err) = match matches.subcommand() {
-        ("rpc", Some(m)) => rpc_processor(m, &printer, &mut config),
+        ("rpc", Some(m)) => rpc_processor(m, &printer, &mut config, client.clone()),
         ("ethabi", Some(m)) => abi_processor(m, &printer, &config),
         ("key", Some(m)) => key_processor(m, &printer, &config),
-        ("scm", Some(m)) => contract_processor(m, &printer, &mut config),
-        ("transfer", Some(m)) => transfer_processor(m, &printer, &mut config),
-        ("store", Some(m)) => store_processor(m, &printer, &mut config),
-        ("amend", Some(m)) => amend_processor(m, &printer, &mut config),
+        ("scm", Some(m)) => contract_processor(m, &printer, &mut config, client.clone()),
+        ("transfer", Some(m)) => transfer_processor(m, &printer, &mut config, client.clone()),
+        ("store", Some(m)) => store_processor(m, &printer, &mut config, client.clone()),
+        ("amend", Some(m)) => amend_processor(m, &printer, &mut config, client.clone()),
         ("search", Some(m)) => {
             search_processor(&parser, m);
             Ok(())
         }
-        ("tx", Some(m)) => tx_processor(m, &printer, &mut config),
-        ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config),
+        ("tx", Some(m)) => tx_processor(m, &printer, &mut config, client.clone()),
+        ("benchmark", Some(m)) => benchmark_processor(m, &printer, &config, client.clone()),
         ("completions", Some(m)) => {
             completion_processor(&mut parser, m);
             Ok(())
         }
         _ => {
-            if let Err(err) = interactive::start(&default_jsonrpc_url) {
+            if let Err(err) = interactive::start(&default_jsonrpc_url, &client) {
                 eprintln!("Something error: kind {:?}, message {}", err.kind(), err)
             }
             Ok(())

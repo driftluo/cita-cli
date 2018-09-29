@@ -760,10 +760,10 @@ pub fn contract_processor(
     sub_matches: &ArgMatches,
     printer: &Printer,
     config: &mut GlobalConfig,
+    client: Client,
 ) -> Result<(), String> {
     let debug = sub_matches.is_present("debug") || config.debug();
-    let mut client = Client::new()
-        .map_err(|err| format!("{}", err))?
+    let mut client = client
         .set_debug(debug)
         .set_uri(get_url(sub_matches, config));
 
