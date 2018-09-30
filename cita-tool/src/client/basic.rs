@@ -271,9 +271,9 @@ impl Client {
         tx.set_quota(transaction_options.quota().unwrap_or_else(|| 10_000_000));
         let value = transaction_options
             .value()
-            .map(|value| value.lower_hex())
-            .unwrap_or_else(|| U256::zero().lower_hex());
-        tx.set_value(decode(format!("{:0>64}", value)).map_err(ToolError::Decode)?);
+            .map(|value| value.completed_lower_hex())
+            .unwrap_or_else(|| U256::zero().completed_lower_hex());
+        tx.set_value(decode(value).map_err(ToolError::Decode)?);
         tx.set_chain_id(self.get_chain_id()?);
         tx.set_version(
             transaction_options
@@ -972,7 +972,7 @@ impl AmendExt for Client {
         quota: Option<u64>,
     ) -> Self::RpcResult {
         let address = remove_0x(address);
-        let data = format!("0x{}{:0>64}", address, balance.lower_hex());
+        let data = format!("0x{}{}", address, balance.completed_lower_hex());
         let tx_options = TransactionOptions::new()
             .set_code(&data)
             .set_address(AMEND_ADDRESS)

@@ -814,10 +814,10 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let stake = m
                     .value_of("stake")
-                    .map(|stake| parse_u64(stake).unwrap().to_string())
+                    .map(|stake| parse_u256(stake).unwrap())
                     .unwrap();
                 let mut client = NodeManageClient::create(Some(client));
-                client.set_stake(address, &stake, quota)
+                client.set_stake(address, stake, quota)
             }
             ("stakePermillage", Some(m)) => {
                 let address = m.value_of("address").unwrap();
@@ -849,7 +849,7 @@ pub fn contract_processor(
                     m.value_of("admin-private").unwrap(),
                     encryption,
                 )?);
-                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
+                let quota_limit = parse_u256(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_bql(quota_limit, quota)
             }
@@ -859,7 +859,7 @@ pub fn contract_processor(
                     m.value_of("admin-private").unwrap(),
                     encryption,
                 )?);
-                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
+                let quota_limit = parse_u256(m.value_of("quota-limit").unwrap())?;
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_default_aql(quota_limit, quota)
             }
@@ -869,7 +869,7 @@ pub fn contract_processor(
                     m.value_of("admin-private").unwrap(),
                     encryption,
                 )?);
-                let quota_limit = parse_u64(m.value_of("quota-limit").unwrap())?;
+                let quota_limit = parse_u256(m.value_of("quota-limit").unwrap())?;
                 let address = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 QuotaManageClient::create(Some(client)).set_aql(address, quota_limit, quota)

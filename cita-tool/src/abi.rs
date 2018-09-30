@@ -15,22 +15,22 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
         .iter()
         .map(|&(ref param, value)| {
             if lenient {
-                if format!("{}", param) == "uint256" {
+                let type_name = format!("{}", param);
+                if type_name.starts_with("uint") && type_name.find(']').is_none() {
                     let y = U256::from_dec_str(value)
                         .map_err(|_| "Can't parse into u256")?
-                        .lower_hex();
-                    StrictTokenizer::tokenize(param, &format!("{:0>64}", y))
-                } else if format!("{}", param) == "int256" {
+                        .completed_lower_hex();
+                    StrictTokenizer::tokenize(param, &y)
+                } else if type_name.starts_with("int") && type_name.find(']').is_none() {
                     let x = if value.starts_with('-') {
                         let x = (!U256::from_dec_str(&value[1..])
                             .map_err(|_| "Can't parse into u256")?
                             + U256::from(1)).lower_hex();
                         format!("{:f>64}", x)
                     } else {
-                        let x = U256::from_dec_str(value)
+                        U256::from_dec_str(value)
                             .map_err(|_| "Can't parse into u256")?
-                            .lower_hex();
-                        format!("{:0>64}", x)
+                            .completed_lower_hex()
                     };
                     StrictTokenizer::tokenize(param, &x)
                 } else {
@@ -40,7 +40,7 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                 StrictTokenizer::tokenize(param, value)
             }
         }).collect::<Result<_, _>>()
-        .map_err(|e| ToolError::Abi(format!("{}", e)))
+        .map_err(|e| ToolError::Abi(e.to_string()))
 }
 
 /// According to the contract, encode the function and parameter values

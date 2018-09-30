@@ -715,8 +715,9 @@ pub trait NodeManagementExt: ContractCall {
     }
 
     /// Set node stake
-    fn set_stake(&mut self, address: &str, stake: &str, quota: Option<u64>) -> Self::RpcResult {
-        let values = [remove_0x(address), stake];
+    fn set_stake(&mut self, address: &str, stake: U256, quota: Option<u64>) -> Self::RpcResult {
+        let stake = stake.completed_lower_hex();
+        let values = [remove_0x(address), stake.as_str()];
         self.contract_send_tx("setStake", &values, quota, None)
     }
 
@@ -769,22 +770,22 @@ pub trait QuotaManagementExt: ContractCall {
     }
 
     /// Set block quota limit
-    fn set_bql(&mut self, quota_limit: u64, quota: Option<u64>) -> Self::RpcResult {
-        let quota_limit = format!("{}", quota_limit);
+    fn set_bql(&mut self, quota_limit: U256, quota: Option<u64>) -> Self::RpcResult {
+        let quota_limit = quota_limit.completed_lower_hex();
         let values = [quota_limit.as_str()];
         self.contract_send_tx("setBQL", &values, quota, None)
     }
 
     /// Set default account quota limit
-    fn set_default_aql(&mut self, quota_limit: u64, quota: Option<u64>) -> Self::RpcResult {
-        let quota_limit = format!("{}", quota_limit);
+    fn set_default_aql(&mut self, quota_limit: U256, quota: Option<u64>) -> Self::RpcResult {
+        let quota_limit = quota_limit.completed_lower_hex();
         let values = [quota_limit.as_str()];
         self.contract_send_tx("setDefaultAQL", &values, quota, None)
     }
 
     /// Set account quota upper limit of the specific account
-    fn set_aql(&mut self, address: &str, quota_limit: u64, quota: Option<u64>) -> Self::RpcResult {
-        let quota_limit = format!("{}", quota_limit);
+    fn set_aql(&mut self, address: &str, quota_limit: U256, quota: Option<u64>) -> Self::RpcResult {
+        let quota_limit = quota_limit.completed_lower_hex();
         let values = [remove_0x(address), quota_limit.as_str()];
         self.contract_send_tx("setAQL", &values, quota, None)
     }
@@ -973,7 +974,7 @@ pub trait PriceManagerExt: ContractCall {
 
     /// Set quota price
     fn set_price(&mut self, price: U256, quota: Option<u64>) -> Self::RpcResult {
-        let price = format!("{:0>64}", price.lower_hex());
+        let price = price.completed_lower_hex();
         let value = [price.as_str()];
         self.contract_send_tx("setQuotaPrice", &value, quota, None)
     }
