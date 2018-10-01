@@ -12,6 +12,8 @@ Just like the relationship between redis-cli and redis.
 
 [cita-tool](./cita-tool): a crate to support cita-cli, of course, can also be used for secondary development, which contains all the methods needed.
 
+> This project assumes that the user understands what the smart contract is.
+
 ## Usage
 
 ### Screencast

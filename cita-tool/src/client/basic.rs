@@ -62,8 +62,6 @@ pub const AMEND_ABI: &str = "0x01";
 pub const AMEND_CODE: &str = "0x02";
 /// amend the kv of db
 pub const AMEND_KV_H256: &str = "0x03";
-/// amend get the value of db
-pub const AMEND_GET_KV_H256: &str = "0x04";
 /// amend account balance
 pub const AMEND_BALANCE: &str = "0x05";
 
