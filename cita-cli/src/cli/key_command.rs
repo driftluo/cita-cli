@@ -13,7 +13,7 @@ pub fn key_command() -> App<'static, 'static> {
         .about("Some key operations, such as generating address, public key")
         .subcommand(SubCommand::with_name("create"))
         .subcommand(
-            SubCommand::with_name("from-private-key").arg(
+            SubCommand::with_name("from-private").arg(
                 Arg::with_name("private-key")
                     .long("private-key")
                     .takes_value(true)
@@ -58,7 +58,7 @@ pub fn key_processor(
             let is_color = !sub_matches.is_present("no-color") && config.color();
             printer.println(&key_pair, is_color);
         }
-        ("from-private-key", Some(m)) => {
+        ("from-private", Some(m)) => {
             let encryption = encryption(m, config);
             let private_key = m.value_of("private-key").unwrap();
             let key_pair = KeyPair::from_str(remove_0x(private_key), encryption)?;

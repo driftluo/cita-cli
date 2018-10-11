@@ -1463,7 +1463,7 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let version = m
                     .value_of("version")
-                    .map(|version| version.parse::<u32>().unwrap())
+                    .map(|version| parse_u256(version).unwrap())
                     .unwrap();
                 VersionManagerExt::set_version(&mut client, version, quota)
             }

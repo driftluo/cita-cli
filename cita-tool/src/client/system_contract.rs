@@ -1002,8 +1002,8 @@ pub trait VersionManagerExt: ContractCall {
     }
 
     /// Set version
-    fn set_version(&mut self, version: u32, quota: Option<u64>) -> Self::RpcResult {
-        let version = version.to_string();
+    fn set_version(&mut self, version: U256, quota: Option<u64>) -> Self::RpcResult {
+        let version = version.completed_lower_hex();
         let value = [version.as_str()];
         self.contract_send_tx("setVersion", &value, quota, None)
     }
