@@ -1,12 +1,12 @@
 use std::fs::File;
 use std::io::Read;
 
-use super::LowerHex;
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use ethabi::{decode, encode, Contract, Hash};
 use hex::{decode as hex_decode, encode as hex_encode};
 use types::U256;
+use LowerHex;
 
 use error::ToolError;
 

@@ -86,6 +86,26 @@ impl Ed25519Signature {
             Ok(Ed25519PubKey::from_slice(&pubkey))
         }
     }
+
+    /// Verify public key
+    pub fn verify_public(&self, pubkey: &Ed25519PubKey, message: &Message) -> Result<bool, Error> {
+        let sig = self.sig();
+        let pk = self.pk();
+        if pk != pubkey.as_ref() as &[u8] {
+            return Err(Error::InvalidPubKey);
+        }
+
+        let is_valid = verify_detached(
+            &EdSignature::from_slice(&sig).unwrap(),
+            message.as_ref(),
+            &EdPublicKey::from_slice(&pubkey).unwrap(),
+        );
+        if !is_valid {
+            Err(Error::InvalidSignature)
+        } else {
+            Ok(true)
+        }
+    }
 }
 
 impl PartialEq for Ed25519Signature {

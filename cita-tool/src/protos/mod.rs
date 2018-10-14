@@ -16,7 +16,10 @@ use std::str::FromStr;
 impl UnverifiedTransaction {
     /// UnverifiedTransaction as JSON Value
     pub fn to_json(&self, encryption: Encryption) -> Result<Value, String> {
-        let tx = self.transaction.get_ref();
+        let tx = match self.transaction.as_ref() {
+            Some(tx) => tx,
+            None => return Err("Bad Transaction".to_string()),
+        };
         let pub_key = self.public_key(encryption)?;
         Ok(json!({
             "transaction": {
@@ -30,6 +33,7 @@ impl UnverifiedTransaction {
                 "version": tx.version,
                 "pub_key": pub_key.to_string(),
                 "sender": pubkey_to_address(&pub_key),
+                "encrypted_hash": tx.write_to_bytes().map_err(|e| e.to_string())?.crypt_hash(encryption)
             },
             "signature": format!("0x{}", hex::encode(&self.signature)),
             "crypto": self.crypto.value(),
@@ -38,7 +42,10 @@ impl UnverifiedTransaction {
 
     /// Get the transaction public key
     pub fn public_key(&self, encryption: Encryption) -> Result<PubKey, String> {
-        let bytes: Vec<u8> = self.get_transaction().write_to_bytes().unwrap();
+        let bytes: Vec<u8> = self
+            .get_transaction()
+            .write_to_bytes()
+            .map_err(|e| e.to_string())?;
         let hash = bytes.crypt_hash(encryption);
         let signature = self.get_signature();
         let sig = Signature::from(signature);

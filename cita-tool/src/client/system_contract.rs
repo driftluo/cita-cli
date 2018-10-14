@@ -3,12 +3,12 @@ use client::{remove_0x, TransactionOptions};
 
 use std::str::{self, FromStr};
 
-use super::super::LowerHex;
 use abi::contract_encode_input;
 use error::ToolError;
 use ethabi::{Address, Contract};
 use rpctypes::JsonRpcResponse;
 use types::U256;
+use LowerHex;
 
 /// Group Client
 #[derive(ContractExt)]

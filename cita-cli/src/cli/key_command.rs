@@ -1,11 +1,14 @@
 use ansi_term::Colour::Yellow;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
-use cita_tool::{decode, pubkey_to_address, remove_0x, Hashable, KeyPair, LowerHex, PubKey};
+use cita_tool::{
+    decode, pubkey_to_address, remove_0x, Hashable, KeyPair, LowerHex, Message, PubKey, Signature,
+};
 
-use cli::{encryption, is_hex, privkey_validator, pubkey_validator};
+use cli::{encryption, h256_validator, is_hex, privkey_validator, pubkey_validator};
 use interactive::GlobalConfig;
 use printer::Printer;
+use std::str::FromStr;
 
 /// Key related commands
 pub fn key_command() -> App<'static, 'static> {
@@ -27,7 +30,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .long("pubkey")
                     .takes_value(true)
                     .required(true)
-                    .validator(|pubkey| pubkey_validator(remove_0x(&pubkey)).map(|_| ()))
+                    .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
                     .help("Pubkey"),
             ),
         ).subcommand(
@@ -39,9 +42,32 @@ pub fn key_command() -> App<'static, 'static> {
                     .validator(|content| is_hex(content.as_str()))
                     .help(
                         "Hash the content and output,\
-                         Secp256k1 means keccak256/Ed25529 means blake2b/Sm2 meams Sm3",
+                         Secp256k1 means keccak256/Ed25529 means blake2b/Sm2 means Sm3",
                     ),
             ),
+        ).subcommand(
+            SubCommand::with_name("verification")
+                .arg(
+                    Arg::with_name("pubkey")
+                        .long("pubkey")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
+                        .help("Pubkey"),
+                ).arg(
+                    Arg::with_name("message")
+                        .long("message")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|pubkey| h256_validator(&pubkey).map(|_| ()))
+                        .help("message"),
+                ).arg(
+                    Arg::with_name("signature")
+                        .long("signature")
+                        .takes_value(true)
+                        .required(true)
+                        .help("signature"),
+                ),
         )
 }
 
@@ -83,6 +109,16 @@ pub fn key_processor(
             let content =
                 decode(remove_0x(m.value_of("content").unwrap())).map_err(|err| err.to_string())?;
             printer.println(&content.crypt_hash(encryption).lower_hex(), printer.color());
+        }
+        ("verification", Some(m)) => {
+            let encryption = encryption(m, config);
+            let pubkey = PubKey::from_str(remove_0x(m.value_of("pubkey").unwrap()), encryption)?;
+            let message = Message::from_str(remove_0x(m.value_of("message").unwrap()))
+                .map_err(|err| err.to_string())?;
+            let sig = Signature::from(
+                &decode(remove_0x(m.value_of("signature").unwrap())).map_err(|e| e.to_string())?,
+            );
+            println!("{}", sig.verify_public(pubkey, &message)?);
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
