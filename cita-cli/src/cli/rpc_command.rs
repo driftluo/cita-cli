@@ -47,10 +47,8 @@ pub fn rpc_command() -> App<'static, 'static> {
                     Arg::with_name("chain-id")
                         .long("chain-id")
                         .takes_value(true)
-                        .validator(|chain_id| match chain_id.parse::<u32>() {
-                            Ok(_) => Ok(()),
-                            Err(err) => Err(format!("{:?}", err)),
-                        }).help("The chain_id of transaction"),
+                        .validator(|chain_id| parse_u256(chain_id.as_ref()).map(|_| ()))
+                        .help("The chain_id of transaction"),
                 ).arg(
                     Arg::with_name("private-key")
                         .long("private-key")
@@ -428,7 +426,7 @@ pub fn rpc_processor(
         ("sendRawTransaction", Some(m)) => {
             let encryption = encryption(m, config);
 
-            if let Some(chain_id) = m.value_of("chain-id").map(|s| s.parse::<u32>().unwrap()) {
+            if let Some(chain_id) = m.value_of("chain-id").map(|s| parse_u256(s).unwrap()) {
                 client.set_chain_id(chain_id);
             }
             if let Some(private_key) = m.value_of("private-key") {

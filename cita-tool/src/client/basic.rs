@@ -70,7 +70,7 @@ pub struct Client {
     id: AtomicUsize,
     url: Uri,
     sender: sync::mpsc::UnboundedSender<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
-    chain_id: Option<u32>,
+    chain_id: Option<U256>,
     private_key: Option<PrivateKey>,
     debug: bool,
 }
@@ -115,7 +115,7 @@ impl Client {
     }
 
     /// Set chain id
-    pub fn set_chain_id(&mut self, chain_id: u32) -> &mut Self {
+    pub fn set_chain_id(&mut self, chain_id: U256) -> &mut Self {
         self.chain_id = Some(chain_id);
         self
     }
@@ -262,8 +262,7 @@ impl Client {
 
         let mut tx = Transaction::new();
         tx.set_data(data);
-        // Create a contract if the target address is empty
-        tx.set_to(remove_0x(transaction_options.address()).to_string());
+
         tx.set_nonce(encode(Uuid::new_v4().as_bytes()));
         tx.set_valid_until_block(current_height + 88);
         tx.set_quota(transaction_options.quota().unwrap_or_else(|| 10_000_000));
@@ -272,12 +271,29 @@ impl Client {
             .map(|value| value.completed_lower_hex())
             .unwrap_or_else(|| U256::zero().completed_lower_hex());
         tx.set_value(decode(value).map_err(ToolError::Decode)?);
-        tx.set_chain_id(self.get_chain_id()?);
-        tx.set_version(
-            transaction_options
-                .version()
-                .unwrap_or_else(|| self.get_version().unwrap_or_else(|_| 0)),
-        );
+
+        let version = transaction_options
+            .version()
+            .unwrap_or_else(|| self.get_version().unwrap_or_else(|_| 0));
+
+        if version == 0 {
+            // Create a contract if the target address is empty
+            tx.set_to(remove_0x(transaction_options.address()).to_string());
+            tx.set_chain_id(self.get_chain_id()?);
+        } else if version == 1 {
+            // Create a contract if the target address is empty
+            tx.set_to_v1(
+                decode(remove_0x(transaction_options.address())).map_err(ToolError::Decode)?,
+            );
+            tx.set_chain_id_v1(
+                decode(self.get_chain_id_v1()?.completed_lower_hex()).map_err(ToolError::Decode)?,
+            );
+        } else {
+            return Err(ToolError::Customize("Invalid version".to_string()));
+        }
+
+        tx.set_version(version);
+
         Ok(tx)
     }
 
@@ -341,18 +357,43 @@ impl Client {
 
     /// Get chain id
     pub fn get_chain_id(&mut self) -> Result<u32, ToolError> {
-        if self.chain_id.is_some() {
-            Ok(self.chain_id.unwrap())
+        if self.chain_id.is_some() && self.check_chain_id() {
+            Ok(self.chain_id.unwrap().low_u32())
         } else if let Some(ResponseValue::Map(mut value)) = self.get_metadata("latest")?.result() {
             match value.remove("chainId").unwrap() {
                 ParamsValue::Int(chain_id) => {
-                    self.chain_id = Some(chain_id as u32);
+                    self.chain_id = Some(U256::from(chain_id));
                     return Ok(chain_id as u32);
                 }
                 _ => return Ok(0),
             }
         } else {
             Ok(0)
+        }
+    }
+
+    fn check_chain_id(&self) -> bool {
+        self.chain_id
+            .map(|id| id > U256::from(u32::max_value()))
+            .unwrap_or_default()
+    }
+
+    /// Get chain id v1
+    pub fn get_chain_id_v1(&mut self) -> Result<U256, ToolError> {
+        if self.chain_id.is_some() {
+            Ok(self.chain_id.unwrap())
+        } else if let Some(ResponseValue::Map(mut value)) = self.get_metadata("latest")?.result() {
+            match value.remove("chainIdV1") {
+                Some(ParamsValue::String(chain_id)) => {
+                    let chain_id = U256::from_str(&chain_id)
+                        .map_err(|e| ToolError::Customize(e.to_string()))?;
+                    self.chain_id = Some(chain_id);
+                    return Ok(chain_id);
+                }
+                _ => return Ok(U256::zero()),
+            }
+        } else {
+            Ok(U256::zero())
         }
     }
 

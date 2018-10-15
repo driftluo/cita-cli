@@ -878,6 +878,16 @@ pub trait SysConfigExt: ContractCall {
         self.contract_call("getChainOwner", &[], None, height)
     }
 
+    /// Check sender's create contract permission
+    fn get_create_permission_check(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getCreateContractPermissionCheck", &[], None, height)
+    }
+
+    /// Check sender's send transaction permission
+    fn get_send_permission_check(&self, height: Option<&str>) -> Self::RpcResult {
+        self.contract_call("getSendTxPermissionCheck", &[], None, height)
+    }
+
     /// Get delay block number
     fn get_delay_block_number(&self, height: Option<&str>) -> Self::RpcResult {
         self.contract_call("getDelayBlockNumber", &[], None, height)
