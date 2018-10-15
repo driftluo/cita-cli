@@ -4,8 +4,8 @@ use crypto::{
 use hex::encode;
 use rand::thread_rng;
 use secp256k1::{
-    key::{self, SecretKey},
-    Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
+    key::{self, PublicKey, SecretKey},
+    Error as SecpError, Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
 };
 use std::fmt;
 use std::ops::{Deref, DerefMut};
@@ -135,6 +135,34 @@ impl Secp256k1Signature {
         let mut pubkey = Secp256k1PubKey::default();
         pubkey.0.copy_from_slice(&serialized[1..65]);
         Ok(pubkey)
+    }
+
+    /// Verify public key
+    pub fn verify_public(
+        &self,
+        pubkey: &Secp256k1PubKey,
+        message: &Message,
+    ) -> Result<bool, Error> {
+        let context = &SECP256K1;
+        let rsig = RecoverableSignature::from_compact(
+            context,
+            &self.0[0..64],
+            RecoveryId::from_i32(i32::from(self.0[64]))?,
+        )?;
+        let sig = rsig.to_standard(context);
+
+        let pdata: [u8; 65] = {
+            let mut temp = [4u8; 65];
+            temp[1..65].copy_from_slice(pubkey);
+            temp
+        };
+
+        let publ = PublicKey::from_slice(context, &pdata)?;
+        match context.verify(&SecpMessage::from_slice(&message.0[..])?, &sig, &publ) {
+            Ok(_) => Ok(true),
+            Err(SecpError::IncorrectSignature) => Ok(false),
+            Err(x) => Err(Error::from(x)),
+        }
     }
 }
 

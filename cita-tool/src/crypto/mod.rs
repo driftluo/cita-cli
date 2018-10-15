@@ -13,8 +13,8 @@ pub use self::cita_ed25519::{ed25519_sign, Ed25519KeyPair, Ed25519Signature};
 pub use self::cita_secp256k1::{secp256k1_sign, Secp256k1KeyPair, Secp256k1Signature};
 pub use self::cita_sm2::{sm2_sign, Sm2KeyPair, Sm2Signature};
 pub use self::crypto_trait::{CreateKey, Error, Hashable};
-use super::LowerHex;
 use types::{Address, H256, H512};
+use LowerHex;
 
 /// Secp256k1 Private key
 pub type Secp256k1PrivKey = H256;
@@ -397,6 +397,23 @@ impl Signature {
                 .map(|pubkey| PubKey::from_str(&pubkey.lower_hex(), Encryption::Sm2).unwrap())
                 .map_err(|_| "Can't recover to public key".to_string())?),
             Signature::Null => Err("Mismatched encryption algorithm".to_string()),
+        }
+    }
+
+    /// Verify public key
+    pub fn verify_public(&self, pubkey: PubKey, message: &Message) -> Result<bool, String> {
+        match (self, pubkey) {
+            (Signature::Secp256k1(sig), PubKey::Secp256k1(pubkey)) => sig
+                .verify_public(&pubkey, &message)
+                .map_err(|e| e.to_string()),
+            #[cfg(feature = "ed25519")]
+            (Signature::Ed25519(sig), PubKey::Ed25519(pubkey)) => sig
+                .verify_public(&pubkey, &message)
+                .map_err(|e| e.to_string()),
+            (Signature::Sm2(sig), PubKey::Sm2(pubkey)) => sig
+                .verify_public(&pubkey, &message)
+                .map_err(|e| e.to_string()),
+            (_, _) => Ok(false),
         }
     }
 }

@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{str, u64};
 
-use super::super::LowerHex;
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, sync, Future, Stream};
 use hex::{decode, encode};
@@ -14,6 +13,7 @@ use serde_json;
 use tokio;
 use types::U256;
 use uuid::Uuid;
+use LowerHex;
 
 use abi::encode_params;
 use client::{remove_0x, TransactionOptions};
