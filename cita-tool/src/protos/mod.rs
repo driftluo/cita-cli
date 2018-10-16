@@ -24,12 +24,14 @@ impl UnverifiedTransaction {
         Ok(json!({
             "transaction": {
                 "to": tx.to,
+                "to_v1": tx.to_v1,
                 "nonce": tx.nonce,
                 "quota": tx.quota,
                 "valid_until_block": tx.valid_until_block,
                 "data": format!("0x{}", hex::encode(&tx.data)),
                 "value": tx.value,
                 "chain_id": tx.chain_id,
+                "chain_id_v1": tx.chain_id_v1,
                 "version": tx.version,
                 "pub_key": pub_key.to_string(),
                 "sender": pubkey_to_address(&pub_key),

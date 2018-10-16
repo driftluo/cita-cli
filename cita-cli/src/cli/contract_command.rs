@@ -692,6 +692,18 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(quota_arg.clone())
                         .arg(admin_private.clone())
                 )
+                .subcommand(
+                    SubCommand::with_name("getCreateContractPermissionCheck")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getSendTxPermissionCheck")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
         )
         .subcommand(
             SubCommand::with_name("EmergencyBrake")
@@ -1403,6 +1415,14 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let website = m.value_of("website").unwrap();
                 SysConfigExt::set_website(&mut client, website, quota)
+            }
+            ("getCreateContractPermissionCheck", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_create_permission_check(&client, m.value_of("height"))
+            }
+            ("getSendTxPermissionCheck", Some(m)) => {
+                let client: SysConfigClient = SysConfigExt::create(Some(client));
+                SysConfigExt::get_send_permission_check(&client, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
