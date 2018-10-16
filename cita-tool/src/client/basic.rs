@@ -372,10 +372,11 @@ impl Client {
         }
     }
 
+    #[inline]
     fn check_chain_id(&self) -> bool {
         self.chain_id
             .map(|id| id > U256::from(u32::max_value()))
-            .unwrap_or_default()
+            .unwrap_or(false)
     }
 
     /// Get chain id v1

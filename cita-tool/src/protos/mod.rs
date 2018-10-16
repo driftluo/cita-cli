@@ -31,7 +31,7 @@ impl UnverifiedTransaction {
                 "data": format!("0x{}", hex::encode(&tx.data)),
                 "value": tx.value,
                 "chain_id": tx.chain_id,
-                "chain_id": tx.chain_id_v1,
+                "chain_id_v1": tx.chain_id_v1,
                 "version": tx.version,
                 "pub_key": pub_key.to_string(),
                 "sender": pubkey_to_address(&pub_key),
