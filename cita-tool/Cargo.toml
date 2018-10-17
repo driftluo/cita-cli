@@ -1,6 +1,6 @@
 [package]
 name = "cita-tool"
-version = "0.18.0"
+version = "0.19.0"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 
 [dependencies]
@@ -24,7 +24,9 @@ uuid = { version = "0.6", features = ["serde", "v4"] }
 failure = "^0.1.1"
 ethabi = "^6.0"
 tool-derive = { path = "../tool-derive" }
+hyper-tls = { version = "^0.3", optional = true }
 
 [features]
 default = []
 ed25519 = ["blake2b", "sodiumoxide"]
+tls = ["hyper-tls"]

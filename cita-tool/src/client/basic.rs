@@ -6,7 +6,9 @@ use std::{str, u64};
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, sync, Future, Stream};
 use hex::{decode, encode};
-use hyper::{Body, Client as HyperClient, Request, Uri};
+use hyper::{client::HttpConnector, Body, Client as HyperClient, Request, Uri};
+#[cfg(feature = "tls")]
+use hyper_tls::HttpsConnector;
 use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
@@ -185,7 +187,8 @@ impl Client {
             "id",
             ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
         );
-        let client = HyperClient::new();
+
+        let client = create_client();
         let mut reqs = Vec::with_capacity(100);
         urls.for_each(|url| {
             let req: Request<Body> = Request::builder()
@@ -216,7 +219,7 @@ impl Client {
         params: T,
     ) -> JoinAll<Vec<Box<dyn Future<Item = JsonRpcResponse, Error = ToolError> + 'static + Send>>>
     {
-        let client = HyperClient::new();
+        let client = create_client();
         let mut reqs = Vec::with_capacity(100);
         params
             .map(|param| {
@@ -1035,3 +1038,14 @@ pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
 }
 
 impl Transfer for Client {}
+
+#[cfg(feature = "tls")]
+pub(crate) fn create_client() -> HyperClient<HttpsConnector<HttpConnector>> {
+    let https = HttpsConnector::new(4).unwrap();
+    HyperClient::builder().build::<_, Body>(https)
+}
+
+#[cfg(not(feature = "tls"))]
+pub(crate) fn create_client() -> HyperClient<HttpConnector> {
+    HyperClient::new()
+}

@@ -83,8 +83,8 @@ pub fn build_interactive() -> App<'static, 'static> {
             SubCommand::with_name("switch")
                 .about("Switch environment variables, such as url/algorithm")
                 .arg(
-                    Arg::with_name("host")
-                        .long("host")
+                    Arg::with_name("url")
+                        .long("url")
                         .validator(|url| parse_url(url.as_ref()).map(|_| ()))
                         .takes_value(true)
                         .help("Switch url"),

@@ -213,8 +213,8 @@ fn handle_commands(
     match parser.clone().get_matches_from_safe(args) {
         Ok(matches) => match matches.subcommand() {
             ("switch", Some(m)) => {
-                m.value_of("host").and_then(|host| {
-                    config.set_url(host.to_string());
+                m.value_of("url").and_then(|url| {
+                    config.set_url(url.to_string());
                     Some(())
                 });
                 if m.is_present("color") {
@@ -581,7 +581,11 @@ impl GlobalConfig {
     }
 
     pub fn set_url(&mut self, value: String) {
-        self.url = value;
+        if value.starts_with("http") {
+            self.url = value;
+        } else {
+            self.url = "http://".to_owned() + &value;
+        }
     }
 
     pub fn get_url(&self) -> &String {
