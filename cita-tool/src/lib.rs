@@ -29,6 +29,8 @@ extern crate tokio;
 extern crate uuid;
 #[macro_use]
 extern crate tool_derive;
+#[cfg(feature = "tls")]
+extern crate hyper_tls;
 extern crate libsm;
 
 /// Ethabi
