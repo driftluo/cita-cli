@@ -19,7 +19,7 @@ pub fn rpc_command() -> App<'static, 'static> {
         .subcommand(SubCommand::with_name("blockNumber").about("Get current height"))
         .subcommand(
             SubCommand::with_name("sendRawTransaction")
-                .about("Send a transaction return transaction hash")
+                .about("Send a transaction and return transaction hash")
                 .arg(
                     Arg::with_name("code")
                         .long("code")
@@ -315,7 +315,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 ),
         ).subcommand(
             SubCommand::with_name("newFilter")
-                .about("Creates a filter object")
+                .about("Create a filter object")
                 .arg(
                     Arg::with_name("address")
                         .long("address")

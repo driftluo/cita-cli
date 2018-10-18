@@ -515,7 +515,7 @@ where
     fn get_peer_count(&self) -> Self::RpcResult;
     /// blockNumber: Get current height
     fn get_block_number(&self) -> Self::RpcResult;
-    /// sendTransaction: Send a transaction return transaction hash
+    /// sendTransaction: Send a transaction and return transaction hash
     fn send_raw_transaction(&mut self, transaction_option: TransactionOptions) -> Self::RpcResult;
     /// getBlockByHash: Get block by hash
     fn get_block_by_hash(&self, hash: &str, transaction_info: bool) -> Self::RpcResult;
