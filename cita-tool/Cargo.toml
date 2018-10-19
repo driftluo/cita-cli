@@ -20,7 +20,7 @@ libsm = { git = "https://github.com/cryptape/libsm", rev = "ac323abd3512a9fdb8bf
 ethereum-types = "^0.4.0"
 lazy_static = "^1.0"
 rand = "^0.4"
-uuid = { version = "0.6", features = ["serde", "v4"] }
+uuid = { version = "0.7", features = ["serde", "v4"] }
 failure = "^0.1.1"
 ethabi = "^6.0"
 tool-derive = { path = "../tool-derive" }
