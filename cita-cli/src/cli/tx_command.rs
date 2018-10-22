@@ -46,7 +46,7 @@ pub fn tx_command() -> App<'static, 'static> {
                         .long("chain-id")
                         .takes_value(true)
                         .validator(|chain_id| parse_u256(chain_id.as_ref()).map(|_| ()))
-                        .help("The chain_id of transaction"),
+                        .help("The chain_id of transaction, default query to the chain"),
                 ).arg(
                     Arg::with_name("quota")
                         .long("quota")
