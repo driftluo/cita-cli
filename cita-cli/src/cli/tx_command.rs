@@ -21,10 +21,10 @@ pub fn tx_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("code")
                         .long("code")
+                        .default_value("0x")
                         .takes_value(true)
-                        .required(true)
                         .validator(|code| is_hex(code.as_str()))
-                        .help("Binary content of the transaction"),
+                        .help("Binary content of the transaction, default is empty"),
                 ).arg(
                     Arg::with_name("address")
                         .long("address")
