@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{str, u64};
 
+use crate::LowerHex;
 use failure::Fail;
 use futures::{future::join_all, future::JoinAll, sync, Future, Stream};
 use hex::{decode, encode};
@@ -15,7 +16,6 @@ use serde_json;
 use tokio;
 use types::U256;
 use uuid::Uuid;
-use LowerHex;
 
 use abi::encode_params;
 use client::{remove_0x, TransactionOptions};
@@ -529,13 +529,7 @@ where
         to: Option<&str>,
     ) -> Result<T, E>;
     /// call: (readonly, will not save state change)
-    fn call(
-        &self,
-        from: Option<&str>,
-        to: &str,
-        data: Option<&str>,
-        height: &str,
-    ) -> Result<T, E>;
+    fn call(&self, from: Option<&str>, to: &str, data: Option<&str>, height: &str) -> Result<T, E>;
     /// getTransaction: Get transaction by hash
     fn get_transaction(&self, hash: &str) -> Result<T, E>;
     /// getTransactionCount: Get transaction count of an account
@@ -575,7 +569,6 @@ where
 }
 
 impl ClientExt<JsonRpcResponse, ToolError> for Client {
-
     fn get_peer_count(&self) -> Result<JsonRpcResponse, ToolError> {
         let params =
             JsonRpcParams::new().insert("method", ParamsValue::String(String::from(PEER_COUNT)));
@@ -588,13 +581,20 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn send_raw_transaction(&mut self, transaction_option: TransactionOptions) -> Result<JsonRpcResponse, ToolError> {
+    fn send_raw_transaction(
+        &mut self,
+        transaction_option: TransactionOptions,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let tx = self.generate_transaction(transaction_option)?;
         let byte_code = self.generate_sign_transaction(&tx)?;
         Ok(self.send_signed_transaction(&byte_code)?)
     }
 
-    fn get_block_by_hash(&self, hash: &str, transaction_info: bool) -> Result<JsonRpcResponse, ToolError> {
+    fn get_block_by_hash(
+        &self,
+        hash: &str,
+        transaction_info: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -609,7 +609,11 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn get_block_by_number(&self, height: &str, transaction_info: bool) -> Result<JsonRpcResponse, ToolError> {
+    fn get_block_by_number(
+        &self,
+        height: &str,
+        transaction_info: bool,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -719,7 +723,11 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn get_transaction_count(&self, address: &str, height: &str) -> Result<JsonRpcResponse, ToolError> {
+    fn get_transaction_count(
+        &self,
+        address: &str,
+        height: &str,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let params = JsonRpcParams::new()
             .insert(
                 "method",
@@ -885,7 +893,12 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn get_state_proof(&self, address: &str, key: &str, height: &str) -> Result<JsonRpcResponse, ToolError> {
+    fn get_state_proof(
+        &self,
+        address: &str,
+        key: &str,
+        height: &str,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let params = JsonRpcParams::new()
             .insert(
                 "params",
@@ -898,7 +911,12 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
-    fn get_storage_at(&self, address: &str, key: &str, height: &str) -> Result<JsonRpcResponse, ToolError> {
+    fn get_storage_at(
+        &self,
+        address: &str,
+        key: &str,
+        height: &str,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let params = JsonRpcParams::new()
             .insert(
                 "params",
@@ -915,14 +933,27 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 /// Store data or contract ABI to chain
 pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Store data to chain, data can be get back by `getTransaction` rpc call
-    fn store_data(&mut self, content: &str, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError>;
+    fn store_data(
+        &mut self,
+        content: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError>;
 
     /// Store contract ABI to chain, ABI can be get back by `getAbi` rpc call
-    fn store_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError>;
+    fn store_abi(
+        &mut self,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError>;
 }
 
 impl StoreExt for Client {
-    fn store_data(&mut self, content: &str, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError> {
+    fn store_data(
+        &mut self,
+        content: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let tx_options = TransactionOptions::new()
             .set_code(content)
             .set_address(STORE_ADDRESS)
@@ -930,7 +961,12 @@ impl StoreExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn store_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError> {
+    fn store_abi(
+        &mut self,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -945,14 +981,28 @@ impl StoreExt for Client {
 /// Amend(Update) ABI/contract code/H256KV
 pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
     /// Amend contract code
-    fn amend_code(&mut self, address: &str, content: &str, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError>;
+    fn amend_code(
+        &mut self,
+        address: &str,
+        content: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError>;
 
     /// Amend contract ABI
-    fn amend_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError>;
+    fn amend_abi(
+        &mut self,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError>;
 
     /// Amend H256KV
-    fn amend_h256kv(&mut self, address: &str, h256_kv: &str, quota: Option<u64>)
-        -> Result<JsonRpcResponse, ToolError>;
+    fn amend_h256kv(
+        &mut self,
+        address: &str,
+        h256_kv: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError>;
 
     /// Amend account balance
     fn amend_balance(
@@ -964,7 +1014,12 @@ pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
 }
 
 impl AmendExt for Client {
-    fn amend_code(&mut self, address: &str, content: &str, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError> {
+    fn amend_code(
+        &mut self,
+        address: &str,
+        content: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let address = remove_0x(address);
         let content = remove_0x(content);
         let data = format!("0x{}{}", address, content);
@@ -976,7 +1031,12 @@ impl AmendExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn amend_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError> {
+    fn amend_abi(
+        &mut self,
+        address: &str,
+        content: String,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -1024,7 +1084,12 @@ impl AmendExt for Client {
 /// Account transfer, only applies to charge mode
 pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
     /// Account transfer, only applies to charge mode
-    fn transfer(&mut self, value: U256, address: &str, quota: Option<u64>) -> Result<JsonRpcResponse, ToolError> {
+    fn transfer(
+        &mut self,
+        value: U256,
+        address: &str,
+        quota: Option<u64>,
+    ) -> Result<JsonRpcResponse, ToolError> {
         let tx_options = TransactionOptions::new()
             .set_address(address)
             .set_quota(quota)

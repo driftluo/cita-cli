@@ -1,15 +1,15 @@
-use client::basic::{ClientExt};
+use client::basic::ClientExt;
 use client::{remove_0x, TransactionOptions};
 
 use std::str::{self, FromStr};
 
 use abi::contract_encode_input;
+use crate::LowerHex;
 use error::ToolError;
 use ethabi::{Address, Contract};
+use failure::Fail;
 use rpctypes::JsonRpcResponse;
 use types::U256;
-use LowerHex;
-use failure::Fail;
 
 /// Group Client
 #[derive(ContractExt)]
@@ -24,11 +24,10 @@ pub struct GroupClient<T> {
 
 /// Call/SendTx to a contract method
 pub trait ContractCall<R, E>
-    where
-        R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-        E: Fail,
+where
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
-
     /// Prepare contract call arguments
     fn prepare_call_args(
         &self,
@@ -70,9 +69,10 @@ pub trait ContractCall<R, E>
 
 /// Group System Contract
 pub trait GroupExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -110,12 +110,7 @@ pub trait GroupExt<T, R, E>: ContractCall<R, E>
         self.contract_call_to_address("queryParent", &[], address, height)
     }
     /// Check the account in the group
-    fn in_group(
-        &self,
-        address: &str,
-        account_address: &str,
-        height: Option<&str>,
-    ) -> Result<R, E> {
+    fn in_group(&self, address: &str, account_address: &str, height: Option<&str>) -> Result<R, E> {
         self.contract_call_to_address("inGroup", &[account_address], address, height)
     }
 }
@@ -133,9 +128,10 @@ pub struct GroupManageClient<T> {
 
 /// GroupManagement System Contract
 pub trait GroupManagementExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -220,9 +216,10 @@ pub struct RoleClient<T> {
 
 /// Role system contract
 pub trait RoleExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -282,9 +279,10 @@ pub struct RoleManageClient<T> {
 
 /// RoleManagement system contract
 pub trait RoleManagementExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -409,9 +407,10 @@ pub struct AuthorizationClient<T> {
 
 /// Authorization system contract
 pub trait AuthorizationExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -487,9 +486,10 @@ pub struct PermissionClient<T> {
 
 /// Permission system contract
 pub trait PermissionExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -545,9 +545,10 @@ pub struct PermissionManageClient<T> {
 
 /// PermissionManagement system contract
 pub trait PermissionManagementExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -691,11 +692,7 @@ pub trait PermissionManagementExt<T, R, E>: ContractCall<R, E>
     ///
     /// param account: The account to be cleared
     /// return true if success, otherwise false
-    fn clear_authorization(
-        &mut self,
-        account_address: &str,
-        quota: Option<u64>,
-    ) -> Result<R, E> {
+    fn clear_authorization(&mut self, account_address: &str, quota: Option<u64>) -> Result<R, E> {
         let values = [remove_0x(account_address)];
         self.contract_send_tx("clearAuthorization", &values, quota, None)
     }
@@ -714,9 +711,10 @@ pub struct NodeManageClient<T> {
 
 /// NodeManager system contract
 pub trait NodeManagementExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -775,9 +773,10 @@ pub struct QuotaManageClient<T> {
 
 /// QuotaManager system contract
 pub trait QuotaManagementExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -843,9 +842,10 @@ pub struct AdminClient<T> {
 
 /// Admin system contract
 pub trait AdminExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -881,9 +881,10 @@ pub struct BatchTxClient<T> {
 
 /// BatchTx system contract
 pub trait BatchTxExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -917,9 +918,10 @@ pub struct SysConfigClient<T> {
 
 /// System config contract
 pub trait SysConfigExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -927,6 +929,16 @@ pub trait SysConfigExt<T, R, E>: ContractCall<R, E>
     /// Get chain owner
     fn get_chain_owner(&self, height: Option<&str>) -> Result<R, E> {
         self.contract_call("getChainOwner", &[], None, height)
+    }
+
+    /// Get chain id
+    fn get_chain_id(&self, height: Option<&str>) -> Result<R, E> {
+        self.contract_call("getChainId", &[], None, height)
+    }
+
+    /// Get chain id v1
+    fn get_chain_id_v1(&self, height: Option<&str>) -> Result<R, E> {
+        self.contract_call("getChainIdV1", &[], None, height)
     }
 
     /// Check sender's create contract permission
@@ -996,9 +1008,10 @@ pub struct EmergencyBrakeClient<T> {
 
 /// Emergency brake contract
 pub trait EmergencyBrakeExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -1029,9 +1042,10 @@ pub struct PriceManagerClient<T> {
 
 /// Price manager contract
 pub trait PriceManagerExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;
@@ -1062,9 +1076,10 @@ pub struct VersionManagerClient<T> {
 
 /// Version manager contract
 pub trait VersionManagerExt<T, R, E>: ContractCall<R, E>
-    where T: ClientExt<R, E>,
-          R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
-          E: Fail,
+where
+    T: ClientExt<R, E>,
+    R: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
 {
     /// Create a ContractClient
     fn create(client: T) -> Self;

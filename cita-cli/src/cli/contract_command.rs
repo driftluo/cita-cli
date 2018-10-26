@@ -627,6 +627,18 @@ pub fn contract_command() -> App<'static, 'static> {
                     )
             )
                 .subcommand(
+                    SubCommand::with_name("getChainId")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("getChainIdV1")
+                        .arg(
+                            height_arg.clone()
+                        )
+                )
+                .subcommand(
                     SubCommand::with_name("getDelayBlockNumber")
                         .arg(
                             height_arg.clone()
@@ -839,9 +851,7 @@ pub fn contract_processor(
             _ => return Err(m.usage().to_owned()),
         },
         ("QuotaManager", Some(m)) => match m.subcommand() {
-            ("getBQL", Some(m)) => {
-                QuotaManageClient::create(client).get_bql(m.value_of("height"))
-            }
+            ("getBQL", Some(m)) => QuotaManageClient::create(client).get_bql(m.value_of("height")),
             ("getDefaultAQL", Some(m)) => {
                 QuotaManageClient::create(client).get_default_aql(m.value_of("height"))
             }
@@ -919,11 +929,7 @@ pub fn contract_processor(
             ("inGroup", Some(m)) => {
                 let address = m.value_of("address").unwrap();
                 let account_address = m.value_of("account").unwrap();
-                GroupClient::create(client).in_group(
-                    address,
-                    account_address,
-                    m.value_of("height"),
-                )
+                GroupClient::create(client).in_group(address, account_address, m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),
         },
@@ -1362,6 +1368,14 @@ pub fn contract_processor(
             ("getChainOwner", Some(m)) => {
                 let client: SysConfigClient<Client> = SysConfigExt::create(client);
                 SysConfigExt::get_chain_owner(&client, m.value_of("height"))
+            }
+            ("getChainId", Some(m)) => {
+                let client: SysConfigClient<Client> = SysConfigExt::create(client);
+                SysConfigExt::get_chain_id(&client, m.value_of("height"))
+            }
+            ("getChainIdV1", Some(m)) => {
+                let client: SysConfigClient<Client> = SysConfigExt::create(client);
+                SysConfigExt::get_chain_id_v1(&client, m.value_of("height"))
             }
             ("getDelayBlockNumber", Some(m)) => {
                 let client: SysConfigClient<Client> = SysConfigExt::create(client);

@@ -13,8 +13,8 @@ pub use self::cita_ed25519::{ed25519_sign, Ed25519KeyPair, Ed25519Signature};
 pub use self::cita_secp256k1::{secp256k1_sign, Secp256k1KeyPair, Secp256k1Signature};
 pub use self::cita_sm2::{sm2_sign, Sm2KeyPair, Sm2Signature};
 pub use self::crypto_trait::{CreateKey, Error, Hashable};
+use crate::LowerHex;
 use types::{Address, H256, H512};
-use LowerHex;
 
 /// Secp256k1 Private key
 pub type Secp256k1PrivKey = H256;
