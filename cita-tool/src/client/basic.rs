@@ -931,29 +931,13 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
 }
 
 /// Store data or contract ABI to chain
-pub trait StoreExt: ClientExt<JsonRpcResponse, ToolError> {
+pub trait StoreExt<T, E>: ClientExt<T, E>
+where
+    T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail + From<ToolError>,
+{
     /// Store data to chain, data can be get back by `getTransaction` rpc call
-    fn store_data(
-        &mut self,
-        content: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-
-    /// Store contract ABI to chain, ABI can be get back by `getAbi` rpc call
-    fn store_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-}
-
-impl StoreExt for Client {
-    fn store_data(
-        &mut self,
-        content: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    fn store_data(&mut self, content: &str, quota: Option<u64>) -> Result<T, E> {
         let tx_options = TransactionOptions::new()
             .set_code(content)
             .set_address(STORE_ADDRESS)
@@ -961,12 +945,8 @@ impl StoreExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn store_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    /// Store contract ABI to chain, ABI can be get back by `getAbi` rpc call
+    fn store_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<T, E> {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -978,48 +958,16 @@ impl StoreExt for Client {
     }
 }
 
+impl StoreExt<JsonRpcResponse, ToolError> for Client {}
+
 /// Amend(Update) ABI/contract code/H256KV
-pub trait AmendExt: ClientExt<JsonRpcResponse, ToolError> {
+pub trait AmendExt<T, E>: ClientExt<T, E>
+where
+    T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail + From<ToolError>,
+{
     /// Amend contract code
-    fn amend_code(
-        &mut self,
-        address: &str,
-        content: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-
-    /// Amend contract ABI
-    fn amend_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-
-    /// Amend H256KV
-    fn amend_h256kv(
-        &mut self,
-        address: &str,
-        h256_kv: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-
-    /// Amend account balance
-    fn amend_balance(
-        &mut self,
-        address: &str,
-        balance: U256,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError>;
-}
-
-impl AmendExt for Client {
-    fn amend_code(
-        &mut self,
-        address: &str,
-        content: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    fn amend_code(&mut self, address: &str, content: &str, quota: Option<u64>) -> Result<T, E> {
         let address = remove_0x(address);
         let content = remove_0x(content);
         let data = format!("0x{}{}", address, content);
@@ -1031,12 +979,8 @@ impl AmendExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn amend_abi(
-        &mut self,
-        address: &str,
-        content: String,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    /// Amend contract ABI
+    fn amend_abi(&mut self, address: &str, content: String, quota: Option<u64>) -> Result<T, E> {
         let address = remove_0x(address);
         let content_abi = encode_params(&["string".to_owned()], &[content], false)?;
         let data = format!("0x{}{}", address, content_abi);
@@ -1048,12 +992,8 @@ impl AmendExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn amend_h256kv(
-        &mut self,
-        address: &str,
-        h256_kv: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    /// Amend H256KV
+    fn amend_h256kv(&mut self, address: &str, h256_kv: &str, quota: Option<u64>) -> Result<T, E> {
         let address = remove_0x(address);
         let data = format!("0x{}{}", address, h256_kv);
         let tx_options = TransactionOptions::new()
@@ -1064,12 +1004,8 @@ impl AmendExt for Client {
         self.send_raw_transaction(tx_options)
     }
 
-    fn amend_balance(
-        &mut self,
-        address: &str,
-        balance: U256,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    /// Amend account balance
+    fn amend_balance(&mut self, address: &str, balance: U256, quota: Option<u64>) -> Result<T, E> {
         let address = remove_0x(address);
         let data = format!("0x{}{}", address, balance.completed_lower_hex());
         let tx_options = TransactionOptions::new()
@@ -1081,15 +1017,16 @@ impl AmendExt for Client {
     }
 }
 
+impl AmendExt<JsonRpcResponse, ToolError> for Client {}
+
 /// Account transfer, only applies to charge mode
-pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
+pub trait Transfer<T, E>: ClientExt<T, E>
+where
+    T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
+    E: Fail,
+{
     /// Account transfer, only applies to charge mode
-    fn transfer(
-        &mut self,
-        value: U256,
-        address: &str,
-        quota: Option<u64>,
-    ) -> Result<JsonRpcResponse, ToolError> {
+    fn transfer(&mut self, value: U256, address: &str, quota: Option<u64>) -> Result<T, E> {
         let tx_options = TransactionOptions::new()
             .set_address(address)
             .set_quota(quota)
@@ -1098,7 +1035,7 @@ pub trait Transfer: ClientExt<JsonRpcResponse, ToolError> {
     }
 }
 
-impl Transfer for Client {}
+impl Transfer<JsonRpcResponse, ToolError> for Client {}
 
 #[cfg(feature = "tls")]
 pub(crate) fn create_client() -> HyperClient<HttpsConnector<HttpConnector>> {
