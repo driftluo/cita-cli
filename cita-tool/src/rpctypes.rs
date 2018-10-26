@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::Into, default::Default, fmt};
 
-use serde_json;
+use serde_json::{self, json};
 
 /// JsonRpc params
 #[derive(Serialize, Deserialize, Clone)]

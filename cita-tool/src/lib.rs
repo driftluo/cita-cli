@@ -1,6 +1,6 @@
 //! A easy-use CITA command line tool
 
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(missing_docs)]
 
 #[cfg(feature = "ed25519")]
@@ -11,7 +11,6 @@ extern crate failure;
 extern crate futures;
 extern crate hex;
 extern crate hyper;
-#[macro_use]
 extern crate lazy_static;
 extern crate protobuf;
 extern crate rand;
@@ -19,7 +18,6 @@ extern crate secp256k1;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate serde_json;
 extern crate ethabi;
 #[cfg(feature = "ed25519")]

@@ -83,10 +83,11 @@ pub fn contract(input: TokenStream) -> TokenStream {
             panic!("Contract client must have client/address/contract");
         }
         quote!(
-                impl #name {
+                impl<T> #name<T>
+                    where T: ClientExt<JsonRpcResponse, ToolError>
+                {
                     /// Create a Contract Client
-                    pub fn new(client: Option<Client>, address_str: &str, contract_json: &str) -> Self {
-                        let client = client.unwrap_or_else(Client::default);
+                    pub fn new(client: T, address_str: &str, contract_json: &str) -> Self {
                         let address = Address::from_str(remove_0x(address_str)).unwrap_or_else(|_| Address::default());
                         let contract = Contract::load(contract_json.as_bytes()).unwrap();
                         #name {
@@ -96,9 +97,9 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
-                impl ContractCall for #name {
-                    type RpcResult = Result<JsonRpcResponse, ToolError>;
-
+                impl<T> ContractCall<JsonRpcResponse, ToolError> for #name<T>
+                    where T: ClientExt<JsonRpcResponse, ToolError>
+                {
                     fn prepare_call_args(
                         &self,
                         name: &str,
@@ -119,7 +120,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         values: &[&str],
                         quota: Option<u64>,
                         to_addr: Option<Address>,
-                    ) -> Self::RpcResult {
+                    ) -> Result<JsonRpcResponse, ToolError> {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         let tx_options = TransactionOptions::new()
                             .set_code(code.as_str())
@@ -136,7 +137,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         values: &[&str],
                         to_addr: Option<Address>,
                         height: Option<&str>,
-                    ) -> Self::RpcResult {
+                    ) -> Result<JsonRpcResponse, ToolError> {
                         let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
                         self.client.call(
                             None,
@@ -146,8 +147,10 @@ pub fn contract(input: TokenStream) -> TokenStream {
                         )
                     }
                 }
-                impl #trait_name for #name {
-                        fn create(client: Option<Client>) -> Self {
+                impl<T> #trait_name<T, JsonRpcResponse, ToolError> for #name<T>
+                     where T: ClientExt<JsonRpcResponse, ToolError>,
+                 {
+                        fn create(client: T) -> Self {
                             static ABI: &str = include_str!(#path);
                             static ADDRESS: &str = #address;
                             Self::new(client, ADDRESS, ABI)

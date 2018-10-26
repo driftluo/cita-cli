@@ -10,6 +10,7 @@ use secp256k1::{
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use types::{Address, H256};
+use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref SECP256K1: Secp256k1 = Secp256k1::new();
