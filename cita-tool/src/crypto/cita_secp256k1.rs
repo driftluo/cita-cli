@@ -2,6 +2,7 @@ use crypto::{
     pubkey_to_address, CreateKey, Error, Message, PubKey, Secp256k1PrivKey, Secp256k1PubKey,
 };
 use hex::encode;
+use lazy_static::lazy_static;
 use rand::thread_rng;
 use secp256k1::{
     key::{self, PublicKey, SecretKey},

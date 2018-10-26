@@ -7,7 +7,7 @@ use crypto::{pubkey_to_address, sign, Encryption, Hashable, KeyPair, PrivateKey,
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
-use serde_json::Value;
+use serde_json::{json, Value};
 use types::H256;
 
 use error::ToolError;

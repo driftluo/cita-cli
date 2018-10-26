@@ -11,7 +11,6 @@ extern crate failure;
 extern crate futures;
 extern crate hex;
 extern crate hyper;
-#[macro_use]
 extern crate lazy_static;
 extern crate protobuf;
 extern crate rand;
@@ -19,9 +18,8 @@ extern crate secp256k1;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate serde_json;
 extern crate ethabi;
+extern crate serde_json;
 #[cfg(feature = "ed25519")]
 extern crate sodiumoxide;
 extern crate tiny_keccak;
