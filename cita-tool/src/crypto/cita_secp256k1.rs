@@ -107,19 +107,19 @@ impl Secp256k1Signature {
 
     /// Check if this is a "low" signature.
     pub fn is_low_s(&self) -> bool {
-        H256::from_slice(self.s())
+        H256::from(self.s())
             <= "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0".into()
     }
 
     /// Check if each component of the signature is in range.
     pub fn is_valid(&self) -> bool {
         self.v() <= 1
-            && H256::from_slice(self.r())
+            && H256::from(self.r())
                 < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()
-            && H256::from_slice(self.r()) >= 1.into()
-            && H256::from_slice(self.s())
+            && H256::from(self.r()) >= 1.into()
+            && H256::from(self.s())
                 < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()
-            && H256::from_slice(self.s()) >= 1.into()
+            && H256::from(self.s()) >= 1.into()
     }
 
     /// Recover public key

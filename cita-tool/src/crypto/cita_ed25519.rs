@@ -83,7 +83,7 @@ impl Ed25519Signature {
         if !is_valid {
             Err(Error::InvalidSignature)
         } else {
-            Ok(Ed25519PubKey::from_slice(&pubkey))
+            Ok(Ed25519PubKey::from(&*pubkey))
         }
     }
 

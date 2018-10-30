@@ -581,7 +581,7 @@ impl GlobalConfig {
     }
 
     pub fn set_url(&mut self, value: String) {
-        if value.starts_with("http") {
+        if value.starts_with("http://") || value.starts_with("https://") {
             self.url = value;
         } else {
             self.url = "http://".to_owned() + &value;
