@@ -33,6 +33,17 @@ $ cargo install
 ```
 it will install on `~/.cargo/bin/cita-cli`
 
+If you want to support https requests, make sure that `openssl` exists in the build environment and
+compile with the following command:
+
+```bash
+$ cd cita-cli/cita-cli
+$ cargo install --features tls
+```
+
+> `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
+> and https requests is supported by default.
+
 If you want to support Secp256k1/Sm2/Ed25519 three algorithms at the same time, as follows and make sure clang version > 3.9
 
 ```bash

@@ -503,6 +503,7 @@ impl Default for Client {
 ///   * getMetaData
 ///   * getBlockHeader
 ///   * getStateProof
+///   * getStorageAt
 pub trait ClientExt<T, E>
 where
     T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
