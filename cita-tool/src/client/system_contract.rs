@@ -268,7 +268,7 @@ where
 
 /// Role manage Client
 #[derive(ContractExt)]
-#[contract(addr = "0xffffffffffffffffffffffffffffffffff020008")]
+#[contract(addr = "0xffffffffffffffffffffffffffffffffff020007")]
 #[contract(path = "../../contract_abi/RoleManagement.abi")]
 #[contract(name = "RoleManagementExt")]
 pub struct RoleManageClient<T> {
