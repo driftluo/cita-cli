@@ -1054,8 +1054,55 @@ pub fn contract_processor(
             }
             ("deleteRole", Some(m)) => {
                 let encryption = encryption(m, config);
+                let role = m.value_of("address").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
+                let mut client = RoleManageClient::create(client);
+                RoleManagementExt::delete_role(&mut client, role, quota)
+            }
+            ("updateRoleName", Some(m)) => {
+                let encryption = encryption(m, config);
+                let role = m.value_of("address").unwrap();
+                let name = m.value_of("name").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
+                let mut client = RoleManageClient::create(client);
+                RoleManagementExt::update_role_name(&mut client, role, name, quota)
+            }
+            ("addPermissions", Some(m)) => {
+                let encryption = encryption(m, config);
+                let role = m.value_of("address").unwrap();
+                let permissions = m.value_of("permissions").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
+                let mut client = RoleManageClient::create(client);
+                RoleManagementExt::add_permissions(&mut client, role, permissions, quota)
+            }
+            ("deletePermissions", Some(m)) => {
+                let encryption = encryption(m, config);
+                let role = m.value_of("address").unwrap();
+                let permissions = m.value_of("permissions").unwrap();
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                client.set_private_key(&parse_privkey(
+                    m.value_of("private-key").unwrap(),
+                    encryption,
+                )?);
+                let mut client = RoleManageClient::create(client);
+                RoleManagementExt::delete_permissions(&mut client, role, permissions, quota)
+            }
+            ("setRole", Some(m)) => {
+                let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
-                let role = m.value_of("role").unwrap();
+                let role = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 client.set_private_key(&parse_privkey(
                     m.value_of("private-key").unwrap(),
@@ -1067,7 +1114,7 @@ pub fn contract_processor(
             ("cancelRole", Some(m)) => {
                 let encryption = encryption(m, config);
                 let account = m.value_of("account").unwrap();
-                let role = m.value_of("role").unwrap();
+                let role = m.value_of("address").unwrap();
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 client.set_private_key(&parse_privkey(
                     m.value_of("private-key").unwrap(),
