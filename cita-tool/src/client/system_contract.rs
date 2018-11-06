@@ -381,7 +381,8 @@ where
     /// return The roles of the account
     fn query_roles(&self, account: &str, height: Option<&str>) -> Result<R, E> {
         let values = [remove_0x(account)];
-        self.contract_call("queryRoles", &values, None, height)
+        let to = "0xffffffffffffffffffffffffffffffffff02000d";
+        self.contract_call_to_address("queryRoles", &values, &to, height)
     }
 
     /// Query the accounts that have the role
@@ -390,7 +391,8 @@ where
     /// return The accounts that have the role
     fn query_accounts(&self, role: &str, height: Option<&str>) -> Result<R, E> {
         let values = [remove_0x(role)];
-        self.contract_call("queryAccounts", &values, None, height)
+        let to = "0xffffffffffffffffffffffffffffffffff02000d";
+        self.contract_call_to_address("queryAccounts", &values, &to, height)
     }
 }
 
