@@ -2,13 +2,15 @@ pub mod blockchain;
 
 pub use self::blockchain::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
 use client::remove_0x;
+use crate::LowerHex;
 use crypto::PubKey;
 use crypto::{pubkey_to_address, sign, Encryption, Hashable, KeyPair, PrivateKey, Signature};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
 use serde_json::{json, Value};
-use types::H256;
+use std::convert::From;
+use types::{Address, H256, U256};
 
 use error::ToolError;
 use std::str::FromStr;
@@ -24,16 +26,16 @@ impl UnverifiedTransaction {
         Ok(json!({
             "transaction": {
                 "to": tx.to,
-                "to_v1": tx.to_v1,
+                "to_v1": Address::from(tx.to_v1.as_slice()).completed_lower_hex_with_0x(),
                 "nonce": tx.nonce,
                 "quota": tx.quota,
                 "valid_until_block": tx.valid_until_block,
                 "data": format!("0x{}", hex::encode(&tx.data)),
-                "value": tx.value,
+                "value": U256::from(tx.value.as_slice()).completed_lower_hex_with_0x(),
                 "chain_id": tx.chain_id,
-                "chain_id_v1": tx.chain_id_v1,
+                "chain_id_v1": U256::from(tx.chain_id_v1.as_slice()).completed_lower_hex_with_0x(),
                 "version": tx.version,
-                "pub_key": pub_key.to_string(),
+                "pub_key": format!("0x{}", pub_key),
                 "sender": pubkey_to_address(&pub_key),
                 "encrypted_hash": tx.write_to_bytes().map_err(|e| e.to_string())?.crypt_hash(encryption)
             },

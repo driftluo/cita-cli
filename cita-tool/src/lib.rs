@@ -67,6 +67,8 @@ pub trait LowerHex {
     fn lower_hex(&self) -> String;
     /// completed hex doesn't with 0x
     fn completed_lower_hex(&self) -> String;
+    /// completed with 0x
+    fn completed_lower_hex_with_0x(&self) -> String;
     /// hex with 0x
     fn lower_hex_with_0x(&self) -> String;
 }
@@ -91,6 +93,11 @@ macro_rules! add_funcs {
             fn completed_lower_hex(&self) -> String {
                 let len = stringify!($name)[1..].parse::<usize>().unwrap() / 4;
                 format!("{:0>width$}", self.lower_hex(), width=len)
+            }
+
+            fn completed_lower_hex_with_0x(&self) -> String {
+                let len = stringify!($name)[1..].parse::<usize>().unwrap() / 4;
+                format!("0x{:0>width$}", self.lower_hex(), width=len)
             }
 
             #[inline]
