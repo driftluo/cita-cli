@@ -3,11 +3,11 @@ use clap::{App, Arg, ArgGroup, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, StoreExt};
 use cita_tool::remove_0x;
 
-use cli::{
+use crate::cli::{
     encryption, get_url, is_hex, parse_address, parse_privkey, parse_u64, privkey_validator,
 };
-use interactive::{set_output, GlobalConfig};
-use printer::Printer;
+use crate::interactive::{set_output, GlobalConfig};
+use crate::printer::Printer;
 
 use std::fs;
 use std::io::Read;
@@ -21,7 +21,8 @@ pub fn store_command() -> App<'static, 'static> {
             .validator(|chain_id| match chain_id.parse::<u32>() {
                 Ok(_) => Ok(()),
                 Err(err) => Err(format!("{:?}", err)),
-            }).help("The chain_id of transaction"),
+            })
+            .help("The chain_id of transaction"),
         Arg::with_name("private-key")
             .long("private-key")
             .takes_value(true)
@@ -47,8 +48,10 @@ pub fn store_command() -> App<'static, 'static> {
                         .validator(|content| is_hex(content.as_str()))
                         .takes_value(true)
                         .help("The content of data to store"),
-                ).args(&common_args),
-        ).subcommand(
+                )
+                .args(&common_args),
+        )
+        .subcommand(
             SubCommand::with_name("abi")
                 .about("Store ABI to: 0xffffffffffffffffffffffffffffffffff010001")
                 .arg(
@@ -58,19 +61,22 @@ pub fn store_command() -> App<'static, 'static> {
                         .validator(|address| parse_address(address.as_str()))
                         .takes_value(true)
                         .help("The contract address of the ABI"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("content")
                         .long("content")
                         .takes_value(true)
                         .required(true)
                         .conflicts_with("path")
                         .help("The content of ABI data to store (json)"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("path")
                         .long("path")
                         .takes_value(true)
                         .help("The path of ABI json file to store (.json)"),
-                ).group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
+                )
+                .group(ArgGroup::with_name("the-abi").args(&["content", "path"]))
                 .args(&common_args),
         )
 }

@@ -1,6 +1,6 @@
+use crate::crypto::Encryption;
 #[cfg(feature = "ed25519")]
 use blake2b::blake2b;
-use crypto::Encryption;
 use libsm::sm3;
 use std::{fmt, marker};
 use tiny_keccak;

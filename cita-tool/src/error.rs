@@ -1,3 +1,4 @@
+use failure::Fail;
 use hex::FromHexError;
 use hyper;
 use protobuf::error::ProtobufError;

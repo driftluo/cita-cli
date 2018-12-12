@@ -133,7 +133,7 @@ pub struct Colorizer {
 
 impl Colorizer {
     /// Start builder a new Colorizer.
-    pub fn new() -> ColorizerBuilder {
+    pub fn builder() -> ColorizerBuilder {
         ColorizerBuilder::new()
     }
 
@@ -141,7 +141,7 @@ impl Colorizer {
     ///
     /// Use this if you want your JSON to be colored, but don't care about the specific colors.
     pub fn arbitrary() -> Self {
-        Colorizer::new()
+        Colorizer::builder()
             .null(Color::Cyan)
             .boolean(Color::Yellow)
             .number(Color::Magenta)
@@ -164,7 +164,7 @@ impl Colorizer {
 
     /// An error is returned if the string is invalid JSON or an I/O error occurs.
     pub fn colorize_json_value(&self, value: &Value) -> Result<String> {
-        let vec = try!(self.to_vec(value));
+        let vec = self.to_vec(value)?;
         let string = unsafe { String::from_utf8_unchecked(vec) };
         Ok(string)
     }
@@ -175,7 +175,7 @@ impl Colorizer {
     {
         let mut writer = Vec::with_capacity(128);
 
-        try!(self.to_writer(&mut writer, value));
+        self.to_writer(&mut writer, value)?;
         Ok(writer)
     }
 
@@ -185,7 +185,7 @@ impl Colorizer {
         T: Serialize,
     {
         let mut ser = Serializer::with_formatter(writer, self.clone());
-        try!(value.serialize(&mut ser));
+        value.serialize(&mut ser)?;
         Ok(())
     }
 

@@ -2,6 +2,7 @@
 name = "cita-tool"
 version = "0.19.0"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 hyper = "^0.12.1"
@@ -16,8 +17,9 @@ tiny-keccak = "^1.4.2"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", rev = "db81cfea59014b4d176f10f86ed52e1a130b6822" }
 blake2b  = { git = "https://github.com/cryptape/cita-common", branch = "develop", optional = true }
 sodiumoxide = { version = "^0.1.0", optional = true }
-libsm = { git = "https://github.com/cryptape/libsm", rev = "ac323abd3512a9fdb8bfd6cd349a6fc46deb688f" }
-ethereum-types = "^0.4.0"
+libsm = { git = "https://github.com/cryptape/libsm" }
+# rename to types
+types = { version = "^0.4.0", package = "ethereum-types"}
 lazy_static = "^1.0"
 rand = "^0.4"
 uuid = { version = "0.7", features = ["serde", "v4"] }

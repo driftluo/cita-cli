@@ -1,4 +1,6 @@
-use crypto::{pubkey_to_address, CreateKey, Ed25519PrivKey, Ed25519PubKey, Error, Message, PubKey};
+use crate::crypto::{
+    pubkey_to_address, CreateKey, Ed25519PrivKey, Ed25519PubKey, Error, Message, PubKey,
+};
 use hex::encode;
 use sodiumoxide::crypto::sign::{
     gen_keypair, sign_detached, verify_detached, PublicKey as EdPublicKey, SecretKey,

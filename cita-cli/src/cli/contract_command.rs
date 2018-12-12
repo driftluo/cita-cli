@@ -13,12 +13,12 @@ use cita_tool::client::system_contract::{
     RoleExt, RoleManagementExt, SysConfigExt, VersionManagerExt,
 };
 
-use cli::{
+use crate::cli::{
     encryption, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
     privkey_validator,
 };
-use interactive::{set_output, GlobalConfig};
-use printer::Printer;
+use crate::interactive::{set_output, GlobalConfig};
+use crate::printer::Printer;
 
 /// System contract
 pub fn contract_command() -> App<'static, 'static> {
@@ -1001,11 +1001,11 @@ pub fn contract_processor(
             ("checkScope", Some(m)) => {
                 let origin = m.value_of("origin").unwrap();
                 let target = m.value_of("target").unwrap();
-                let mut client = GroupManageClient::create(client);
+                let client = GroupManageClient::create(client);
                 client.check_scope(origin, target, m.value_of("height"))
             }
             ("queryGroups", Some(m)) => {
-                let mut client = GroupManageClient::create(client);
+                let client = GroupManageClient::create(client);
                 client.query_groups(m.value_of("height"))
             }
             _ => return Err(m.usage().to_owned()),

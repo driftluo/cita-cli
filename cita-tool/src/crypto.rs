@@ -439,7 +439,8 @@ mod test {
         let key_pair = KeyPair::from_str(
             "8ee6aa885d9598f9c4e010b659aeecfc3f113beb646166414756568ab656f0f9",
             Encryption::Secp256k1,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(
             format!("{}", key_pair.pubkey()).as_str(),
@@ -457,7 +458,8 @@ mod test {
         let key_pair = KeyPair::from_str(
             "c3cf5004e9b025427cb07df7592ebbcc64bbf7285bbf50099f072fc0d06a2b20",
             Encryption::Sm2,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             format!("{}", key_pair.pubkey()).as_str(),
             "c82d3230f65335a4d07f81d5ab014c1bb606c90b2d098dadbe0bf1d9cf4618654b3a1310627703859ecf493055ea8389fcb78d9c3cf372780927e076278603ed"
@@ -475,7 +477,7 @@ mod test {
         let key_pair =
             KeyPair::from_str(
                 "87c8f34545181d38666aadaeee4924e811263e05f6e2d87d75fac27ab5075915456fdf394a9c4397ec29f1a72c16d601b4ee7f08160c784877cb6941a0e177a1",
-                              Encryption::Ed25519
+                Encryption::Ed25519
             ).unwrap();
 
         assert_eq!(

@@ -1,9 +1,9 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use serde_json::{self, Value};
 
+use crate::interactive::GlobalConfig;
+use crate::printer::Printer;
 use cita_tool::{decode_input, decode_logs, decode_params, encode_input, encode_params, remove_0x};
-use interactive::GlobalConfig;
-use printer::Printer;
 
 /// Ethereum abi sub command
 pub fn abi_command() -> App<'static, 'static> {
@@ -42,13 +42,16 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .required(true)
                                 .help("Function name"),
-                        ).arg(param_arg.clone().number_of_values(1).value_name("value"))
+                        )
+                        .arg(param_arg.clone().number_of_values(1).value_name("value"))
                         .arg(no_lenient_flag.clone()),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("params")
                         .arg(param_arg.clone().value_names(&["type", "value"]))
                         .arg(no_lenient_flag.clone()),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("constructor")
                         .arg(abi_arg.clone())
                         .arg(file_arg.clone())
@@ -58,10 +61,12 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .default_value("")
                                 .help("Contract bin code"),
-                        ).arg(no_lenient_flag)
+                        )
+                        .arg(no_lenient_flag)
                         .arg(param_arg.clone().number_of_values(1).value_name("value")),
                 ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("decode")
                 .subcommand(
                     SubCommand::with_name("params")
@@ -71,13 +76,15 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .multiple(true)
                                 .help("Decode types"),
-                        ).arg(
+                        )
+                        .arg(
                             Arg::with_name("data")
                                 .long("data")
                                 .takes_value(true)
                                 .help("Decode data"),
                         ),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("function")
                         .arg(abi_arg.clone())
                         .arg(file_arg.clone())
@@ -87,14 +94,16 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .required(true)
                                 .help("Function name"),
-                        ).arg(
+                        )
+                        .arg(
                             Arg::with_name("data")
                                 .long("data")
                                 .required(true)
                                 .takes_value(true)
                                 .help("Decode data"),
                         ),
-                ).subcommand(
+                )
+                .subcommand(
                     SubCommand::with_name("log")
                         .arg(abi_arg.clone())
                         .arg(file_arg.clone())
@@ -104,7 +113,8 @@ pub fn abi_command() -> App<'static, 'static> {
                                 .takes_value(true)
                                 .required(true)
                                 .help("Event name"),
-                        ).arg(param_arg.clone().number_of_values(1).value_name("topic"))
+                        )
+                        .arg(param_arg.clone().number_of_values(1).value_name("topic"))
                         .arg(
                             Arg::with_name("data")
                                 .long("data")

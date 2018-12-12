@@ -2,6 +2,7 @@
 name = "tool-derive"
 version = "0.1.0"
 authors = ["piaoliu <441594700@qq.com>"]
+edition = "2018"
 
 [lib]
 name = "tool_derive"

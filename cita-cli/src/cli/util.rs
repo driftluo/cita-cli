@@ -4,17 +4,19 @@ use clap::{App, ArgMatches};
 
 use cita_tool::{remove_0x, Address, Encryption, PrivateKey, H256, H512, U256};
 
-use interactive::GlobalConfig;
+use crate::interactive::GlobalConfig;
 
 /// Get url from arg match
 pub fn get_url<'a>(m: &'a ArgMatches, config: &'a GlobalConfig) -> &'a str {
     match m.value_of("url") {
         Some(url) => url,
-        _ => if m.subcommand().1.is_some() {
-            get_url(m.subcommand().1.unwrap(), config)
-        } else {
-            config.get_url().as_str()
-        },
+        _ => {
+            if m.subcommand().1.is_some() {
+                get_url(m.subcommand().1.unwrap(), config)
+            } else {
+                config.get_url().as_str()
+            }
+        }
     }
 }
 

@@ -1,10 +1,12 @@
 pub mod blockchain;
 
 pub use self::blockchain::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};
-use client::remove_0x;
+use crate::client::remove_0x;
+use crate::crypto::PubKey;
+use crate::crypto::{
+    pubkey_to_address, sign, Encryption, Hashable, KeyPair, PrivateKey, Signature,
+};
 use crate::LowerHex;
-use crypto::PubKey;
-use crypto::{pubkey_to_address, sign, Encryption, Hashable, KeyPair, PrivateKey, Signature};
 use hex;
 use protobuf::Message as MessageTrait;
 use protobuf::{parse_from_bytes, ProtobufEnum};
@@ -12,7 +14,7 @@ use serde_json::{json, Value};
 use std::convert::From;
 use types::{Address, H256, U256};
 
-use error::ToolError;
+use crate::error::ToolError;
 use std::str::FromStr;
 
 impl UnverifiedTransaction {

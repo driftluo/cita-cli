@@ -3,12 +3,12 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue};
 
-use cli::{
+use crate::cli::{
     encryption, get_url, parse_address, parse_privkey, parse_u256, parse_u64, privkey_validator,
     search_app,
 };
-use interactive::{set_output, GlobalConfig};
-use printer::Printer;
+use crate::interactive::{set_output, GlobalConfig};
+use crate::printer::Printer;
 
 use std::collections::BTreeSet;
 use std::io;
@@ -102,7 +102,8 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
                     fuzzy_match(&keyword, &cmd_lower)
                 }
             })
-        }).collect::<BTreeSet<String>>()
+        })
+        .collect::<BTreeSet<String>>()
         .into_iter()
         .collect::<Vec<String>>()
         .join("\n");
@@ -120,21 +121,24 @@ pub fn transfer_command() -> App<'static, 'static> {
                 .validator(|address| parse_address(address.as_str()))
                 .required(true)
                 .help("Transfer to address"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("private-key")
                 .long("private-key")
                 .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer Account Private Key"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("value")
                 .long("value")
                 .validator(|value| parse_u256(value.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer amount"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("quota")
                 .long("quota")
                 .default_value("30000")

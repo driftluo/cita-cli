@@ -29,7 +29,7 @@ if you want the latest version, compile the source code like follow, default sup
 $ git clone https://github.com/cryptape/cita-cli.git
 $ rustup update stable
 $ cd cita-cli/cita-cli
-$ cargo install
+$ cargo install --path .
 ```
 it will install on `~/.cargo/bin/cita-cli`
 
@@ -38,7 +38,7 @@ compile with the following command:
 
 ```bash
 $ cd cita-cli/cita-cli
-$ cargo install --features tls
+$ cargo install --features tls --path .
 ```
 
 > `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
@@ -58,7 +58,7 @@ $ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
 
 $ git clone https://github.com/cryptape/cita-cli.git
 $ cd cita-cli/cita-cli
-$ cargo install --features ed25519
+$ cargo install --features ed25519 --path .
 $ cd ..
 ```
 
@@ -83,7 +83,7 @@ $ rustup target add x86_64-unknown-linux-musl
 - Third, build
 
 ```bash
-$ cargo install --target x86_64-unknown-linux-musl
+$ cargo install --target x86_64-unknown-linux-musl --path .
 ```
 
 > Note: only for secp256k1/sm2 version, since libsodium is dynamically linked,
@@ -107,6 +107,7 @@ $ cita-cli
 [    encryption    ]: secp256k1
 [ completion_style ]: List
 [    edit_style    ]: Emacs
+[   save_private   ]: false
 cita> switch --host http://121.196.200.225:1337
 cita> rpc blockNumber
 {
@@ -129,6 +130,7 @@ cita> info
 [    encryption    ]: secp256k1
 [ completion_style ]: List
 [    edit_style    ]: Emacs
+[   save_private   ]: false
 cita> ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
 cita> ethabi encode function --file ../HelloWorld.abi --name update --param 16
@@ -236,7 +238,7 @@ $ cita-cli key create
 
 - Generate public keys and addresses based on private keys
 ```bash
-$ cita-cli key from-private-key --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
+$ cita-cli key from-private --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 {
   "address": "0x9dcd6b234e2772c5451fd4ccf7582f4283140697",
   "private": "0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9",

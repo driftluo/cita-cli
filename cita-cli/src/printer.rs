@@ -5,10 +5,10 @@ use std::rc::Rc;
 
 use ansi_term::Colour::{Red, Yellow};
 use atty;
-use serde_json;
+use serde_json::{self, json};
 
+use crate::json_color::Colorizer;
 use cita_tool::{JsonRpcResponse, KeyPair};
-use json_color::Colorizer;
 
 pub fn is_a_tty(stderr: bool) -> bool {
     let stream = if stderr {
@@ -172,10 +172,11 @@ impl Printable for KeyPair {
     fn rc_string(&self, format: OutputFormat, color: bool) -> Rc<String> {
         match format {
             OutputFormat::Json => json!({
-                    "private": format!("0x{}", self.privkey()),
-                    "public": format!("0x{}", self.pubkey()),
-                    "address": format!("0x{:x}", self.address())
-                }).rc_string(format, color),
+                "private": format!("0x{}", self.privkey()),
+                "public": format!("0x{}", self.pubkey()),
+                "address": format!("0x{:x}", self.address())
+            })
+            .rc_string(format, color),
             OutputFormat::Raw => {
                 let content = if color {
                     format!(

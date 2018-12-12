@@ -1,2 +1,5 @@
 [workspace]
 members = ["cita-cli", "cita-tool", "tool-derive"]
+
+[patch.crates-io]
+ethabi = { git = "https://github.com/paritytech/ethabi", rev = "c300678e0fa8b42bc3d54d876f2e85f37b9a4983" }

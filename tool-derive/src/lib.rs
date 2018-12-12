@@ -1,12 +1,9 @@
 #![recursion_limit = "128"]
 
 extern crate proc_macro;
-extern crate proc_macro2;
-extern crate syn;
-#[macro_use]
-extern crate quote;
 
 use proc_macro::TokenStream;
+use quote::quote;
 use std::collections::HashSet;
 use syn::DeriveInput;
 
@@ -67,7 +64,8 @@ pub fn contract(input: TokenStream) -> TokenStream {
             Some(syn::Ident::new("client", proc_macro2::Span::call_site())),
             Some(syn::Ident::new("address", proc_macro2::Span::call_site())),
             Some(syn::Ident::new("contract", proc_macro2::Span::call_site())),
-        ].into_iter()
+        ]
+        .into_iter()
         .collect::<HashSet<Option<syn::Ident>>>();
 
         if let syn::Fields::Named(ref x) = data.fields {
@@ -83,80 +81,80 @@ pub fn contract(input: TokenStream) -> TokenStream {
             panic!("Contract client must have client/address/contract");
         }
         quote!(
-                impl<T> #name<T>
-                    where T: ClientExt<JsonRpcResponse, ToolError>
-                {
-                    /// Create a Contract Client
-                    pub fn new(client: T, address_str: &str, contract_json: &str) -> Self {
-                        let address = Address::from_str(remove_0x(address_str)).unwrap_or_else(|_| Address::default());
-                        let contract = Contract::load(contract_json.as_bytes()).unwrap();
-                        #name {
-                            client,
-                            address,
-                            contract,
-                        }
+            impl<T> #name<T>
+                where T: ClientExt<JsonRpcResponse, ToolError>
+            {
+                /// Create a Contract Client
+                pub fn new(client: T, address_str: &str, contract_json: &str) -> Self {
+                    let address = Address::from_str(remove_0x(address_str)).unwrap_or_else(|_| Address::default());
+                    let contract = Contract::load(contract_json.as_bytes()).unwrap();
+                    #name {
+                        client,
+                        address,
+                        contract,
                     }
                 }
-                impl<T> ContractCall<JsonRpcResponse, ToolError> for #name<T>
-                    where T: ClientExt<JsonRpcResponse, ToolError>
-                {
-                    fn prepare_call_args(
-                        &self,
-                        name: &str,
-                        values: &[&str],
-                        to_addr: Option<Address>,
-                    ) -> Result<(String, String), ToolError> {
-                        let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-                        let code = contract_encode_input(&self.contract, name, values.as_slice(), false)?;
-                        let code = format!("0x{}", code);
-                        let to_address = to_addr.unwrap_or(self.address);
-                        let to_address = format!("{:?}", to_address);
-                        Ok((code, to_address))
-                    }
+            }
+            impl<T> ContractCall<JsonRpcResponse, ToolError> for #name<T>
+                where T: ClientExt<JsonRpcResponse, ToolError>
+            {
+                fn prepare_call_args(
+                    &self,
+                    name: &str,
+                    values: &[&str],
+                    to_addr: Option<Address>,
+                ) -> Result<(String, String), ToolError> {
+                    let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+                    let code = contract_encode_input(&self.contract, name, values.as_slice(), false)?;
+                    let code = format!("0x{}", code);
+                    let to_address = to_addr.unwrap_or(self.address);
+                    let to_address = format!("{:?}", to_address);
+                    Ok((code, to_address))
+                }
 
-                    fn contract_send_tx(
-                        &mut self,
-                        name: &str,
-                        values: &[&str],
-                        quota: Option<u64>,
-                        to_addr: Option<Address>,
-                    ) -> Result<JsonRpcResponse, ToolError> {
-                        let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
-                        let tx_options = TransactionOptions::new()
-                            .set_code(code.as_str())
-                            .set_address(to_address.as_str())
-                            .set_quota(quota);
-                        self.client.send_raw_transaction(
-                            tx_options,
-                        )
-                    }
+                fn contract_send_tx(
+                    &mut self,
+                    name: &str,
+                    values: &[&str],
+                    quota: Option<u64>,
+                    to_addr: Option<Address>,
+                ) -> Result<JsonRpcResponse, ToolError> {
+                    let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
+                    let tx_options = TransactionOptions::new()
+                        .set_code(code.as_str())
+                        .set_address(to_address.as_str())
+                        .set_quota(quota);
+                    self.client.send_raw_transaction(
+                        tx_options,
+                    )
+                }
 
-                    fn contract_call(
-                        &self,
-                        name: &str,
-                        values: &[&str],
-                        to_addr: Option<Address>,
-                        height: Option<&str>,
-                    ) -> Result<JsonRpcResponse, ToolError> {
-                        let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
-                        self.client.call(
-                            None,
-                            to_address.as_str(),
-                            Some(code.as_str()),
-                            height.unwrap_or_else(|| "latest"),
-                        )
+                fn contract_call(
+                    &self,
+                    name: &str,
+                    values: &[&str],
+                    to_addr: Option<Address>,
+                    height: Option<&str>,
+                ) -> Result<JsonRpcResponse, ToolError> {
+                    let (code, to_address) = self.prepare_call_args(name, values, to_addr)?;
+                    self.client.call(
+                        None,
+                        to_address.as_str(),
+                        Some(code.as_str()),
+                        height.unwrap_or_else(|| "latest"),
+                    )
+                }
+            }
+            impl<T> #trait_name<T, JsonRpcResponse, ToolError> for #name<T>
+                 where T: ClientExt<JsonRpcResponse, ToolError>,
+             {
+                    fn create(client: T) -> Self {
+                        static ABI: &str = include_str!(#path);
+                        static ADDRESS: &str = #address;
+                        Self::new(client, ADDRESS, ABI)
                     }
-                }
-                impl<T> #trait_name<T, JsonRpcResponse, ToolError> for #name<T>
-                     where T: ClientExt<JsonRpcResponse, ToolError>,
-                 {
-                        fn create(client: T) -> Self {
-                            static ABI: &str = include_str!(#path);
-                            static ADDRESS: &str = #address;
-                            Self::new(client, ADDRESS, ABI)
-                        }
-                }
-            )
+            }
+        )
     } else {
         panic!("Only impl to struct")
     };

@@ -5,9 +5,9 @@ use cita_tool::{
     decode, pubkey_to_address, remove_0x, Hashable, KeyPair, LowerHex, Message, PubKey, Signature,
 };
 
-use cli::{encryption, h256_validator, is_hex, privkey_validator, pubkey_validator};
-use interactive::GlobalConfig;
-use printer::Printer;
+use crate::cli::{encryption, h256_validator, is_hex, privkey_validator, pubkey_validator};
+use crate::interactive::GlobalConfig;
+use crate::printer::Printer;
 use std::str::FromStr;
 
 /// Key related commands
@@ -24,7 +24,8 @@ pub fn key_command() -> App<'static, 'static> {
                     .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
                     .help("The private key of transaction"),
             ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("pub-to-address").arg(
                 Arg::with_name("pubkey")
                     .long("pubkey")
@@ -33,7 +34,8 @@ pub fn key_command() -> App<'static, 'static> {
                     .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
                     .help("Pubkey"),
             ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("hash").arg(
                 Arg::with_name("content")
                     .long("content")
@@ -45,7 +47,8 @@ pub fn key_command() -> App<'static, 'static> {
                          Secp256k1 means keccak256/Ed25529 means blake2b/Sm2 means Sm3",
                     ),
             ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("verification")
                 .arg(
                     Arg::with_name("pubkey")
@@ -54,14 +57,16 @@ pub fn key_command() -> App<'static, 'static> {
                         .required(true)
                         .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
                         .help("Pubkey"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("message")
                         .long("message")
                         .takes_value(true)
                         .required(true)
                         .validator(|pubkey| h256_validator(&pubkey).map(|_| ()))
                         .help("message"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("signature")
                         .long("signature")
                         .takes_value(true)

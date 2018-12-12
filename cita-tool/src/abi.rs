@@ -8,7 +8,7 @@ use ethabi::{decode, encode, Contract, Hash};
 use hex::{decode as hex_decode, encode as hex_encode};
 use types::U256;
 
-use error::ToolError;
+use crate::error::ToolError;
 
 pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, ToolError> {
     params
@@ -25,7 +25,8 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
                     let x = if value.starts_with('-') {
                         let x = (!U256::from_dec_str(&value[1..])
                             .map_err(|_| "Can't parse into u256")?
-                            + U256::from(1)).lower_hex();
+                            + U256::from(1))
+                        .lower_hex();
                         format!("{:f>64}", x)
                     } else {
                         U256::from_dec_str(value)
@@ -39,7 +40,8 @@ pub fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<T
             } else {
                 StrictTokenizer::tokenize(param, value)
             }
-        }).collect::<Result<_, _>>()
+        })
+        .collect::<Result<_, _>>()
         .map_err(|e| ToolError::Abi(e.to_string()))
 }
 
@@ -165,7 +167,8 @@ pub fn decode_params(types: &[String], data: &str) -> Result<Vec<String>, ToolEr
             } else {
                 format!("{{\"{}\": \"{}\"}}", ty, to)
             }
-        }).collect::<Vec<String>>();
+        })
+        .collect::<Vec<String>>();
 
     Ok(result)
 }
@@ -197,7 +200,8 @@ pub fn decode_input(
             } else {
                 format!("{{\"{}\": \"{}\"}}", ty, to)
             }
-        }).collect::<Vec<String>>();
+        })
+        .collect::<Vec<String>>();
 
     Ok(result)
 }
@@ -264,7 +268,8 @@ mod test {
             &["int".to_string()],
             &["-99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
             true,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             b,
             "fffffffc4a717738acec1362cd61555e7046d08adea4e8f00000000000000001".to_string()
@@ -280,7 +285,8 @@ mod test {
             &["uint".to_string()],
             &["99999999999999999999999999999999999999999999999999999999999999999999".to_string()],
             true,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             d,
             "00000003b58e88c75313ec9d329eaaa18fb92f75215b170fffffffffffffffff".to_string()

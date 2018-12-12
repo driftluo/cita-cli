@@ -17,12 +17,12 @@ use tokio;
 use types::U256;
 use uuid::Uuid;
 
-use abi::encode_params;
-use client::{remove_0x, TransactionOptions};
-use crypto::PrivateKey;
-use error::ToolError;
-use protos::{Transaction, UnverifiedTransaction};
-use rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
+use crate::abi::encode_params;
+use crate::client::{remove_0x, TransactionOptions};
+use crate::crypto::PrivateKey;
+use crate::error::ToolError;
+use crate::protos::{Transaction, UnverifiedTransaction};
+use crate::rpctypes::{JsonRpcParams, JsonRpcResponse, ParamsValue, ResponseValue};
 
 const BLOCK_NUMBER: &str = "blockNumber";
 const GET_META_DATA: &str = "getMetaData";
@@ -88,7 +88,8 @@ impl Client {
                 .for_each(|item| {
                     tokio::spawn(item);
                     Ok(())
-                }).map_err(|_| ());
+                })
+                .map_err(|_| ());
 
             tokio::run(task);
         });
@@ -228,7 +229,8 @@ impl Client {
                     "id",
                     ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
                 )
-            }).for_each(|param| {
+            })
+            .for_each(|param| {
                 let req: Request<Body> = Request::builder()
                     .uri(self.url.clone())
                     .method("POST")
@@ -308,7 +310,8 @@ impl Client {
             encode(
                 tx.build_unverified(*self.private_key().ok_or_else(|| ToolError::Customize(
                     "The provided private key do not match the algorithm".to_string(),
-                ))?).write_to_bytes()
+                ))?)
+                .write_to_bytes()
                 .map_err(ToolError::Proto)?
             )
         ))
@@ -323,7 +326,8 @@ impl Client {
                     decode(remove_0x(param))
                         .map_err(ToolError::Decode)?
                         .as_slice()
-                ).map_err(ToolError::Proto)?
+                )
+                .map_err(ToolError::Proto)?
                 .write_to_bytes()
                 .map_err(ToolError::Proto)?
             )
@@ -332,7 +336,8 @@ impl Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(byte_code)]),
             );
@@ -345,13 +350,15 @@ impl Client {
             decode(remove_0x(param))
                 .map_err(ToolError::Decode)?
                 .as_slice(),
-        ).map_err(ToolError::Proto)?;
+        )
+        .map_err(ToolError::Proto)?;
         let byte_code = self.generate_sign_transaction(&tx)?;
         let params = JsonRpcParams::new()
             .insert(
                 "method",
                 ParamsValue::String(String::from(SEND_RAW_TRANSACTION)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(byte_code)]),
             );
@@ -424,7 +431,8 @@ impl Client {
                 "0xffffffffffffffffffffffffffffffffff020011",
                 Some("0x0d8e6e2c"),
                 "latest",
-            )?.result()
+            )?
+            .result()
         {
             Ok(u32::from_str_radix(remove_0x(&version), 16).map_err(ToolError::Parse)?)
         } else {
@@ -600,7 +608,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_BY_HASH)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(hash)),
@@ -619,7 +628,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_BY_NUMBER)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(height)),
@@ -634,7 +644,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_RECEIPT)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
             );
@@ -733,7 +744,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_COUNT)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![
                     ParamsValue::String(String::from(address)),
@@ -830,7 +842,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(UNINSTALL_FILTER)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
@@ -843,7 +856,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_FILTER_CHANGES)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(filter_id))]),
             );
@@ -866,7 +880,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "method",
                 ParamsValue::String(String::from(GET_TRANSACTION_PROOF)),
-            ).insert(
+            )
+            .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(hash))]),
             );
@@ -878,7 +893,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
-            ).insert("method", ParamsValue::String(String::from(GET_META_DATA)));
+            )
+            .insert("method", ParamsValue::String(String::from(GET_META_DATA)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
@@ -887,7 +903,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             .insert(
                 "params",
                 ParamsValue::List(vec![ParamsValue::String(String::from(height))]),
-            ).insert(
+            )
+            .insert(
                 "method",
                 ParamsValue::String(String::from(GET_BLOCK_HEADER)),
             );
@@ -908,7 +925,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                     ParamsValue::String(String::from(key)),
                     ParamsValue::String(String::from(height)),
                 ]),
-            ).insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
+            )
+            .insert("method", ParamsValue::String(String::from(GET_STATE_PROOF)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 
@@ -926,7 +944,8 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                     ParamsValue::String(String::from(key)),
                     ParamsValue::String(String::from(height)),
                 ]),
-            ).insert("method", ParamsValue::String(String::from(GET_STORAGE_AT)));
+            )
+            .insert("method", ParamsValue::String(String::from(GET_STORAGE_AT)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 }
