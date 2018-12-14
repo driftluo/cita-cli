@@ -396,7 +396,7 @@ impl Client {
         } else if let Some(ResponseValue::Map(mut value)) = self.get_metadata("latest")?.result() {
             match value.remove("chainIdV1") {
                 Some(ParamsValue::String(chain_id)) => {
-                    let chain_id = U256::from_str(&chain_id)
+                    let chain_id = U256::from_str(remove_0x(&chain_id))
                         .map_err(|e| ToolError::Customize(e.to_string()))?;
                     self.chain_id = Some(chain_id);
                     return Ok(chain_id);
