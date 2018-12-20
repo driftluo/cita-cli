@@ -108,7 +108,7 @@ $ cita-cli
 [ completion_style ]: List
 [    edit_style    ]: Emacs
 [   save_private   ]: false
-cita> switch --host http://121.196.200.225:1337
+cita> switch --url http://121.196.200.225:1337
 cita> rpc blockNumber
 {
   "jsonrpc": "2.0",
