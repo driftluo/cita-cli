@@ -1,11 +1,12 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
+use serde_json::json;
 
 use cita_tool::client::basic::{Client, Transfer};
-use cita_tool::{JsonRpcParams, ParamsValue};
+use cita_tool::{JsonRpcParams, ParamsValue, TransactionOptions};
 
 use crate::cli::{
-    encryption, get_url, parse_address, parse_privkey, parse_u256, parse_u64, privkey_validator,
-    search_app,
+    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u32, parse_u64,
+    privkey_validator, search_app,
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
@@ -184,6 +185,80 @@ pub fn benchmark_command() -> App<'static, 'static> {
     App::new("benchmark")
         .about("Simple performance test")
         .subcommand(SubCommand::with_name("get-height").about("Send 1,000 query height requests"))
+        .subcommand(
+            SubCommand::with_name("sendTransaction")
+                .about("Send the same transaction at the same time and send n times")
+                .arg(
+                    Arg::with_name("code")
+                        .long("code")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|code| is_hex(code.as_str()))
+                        .help("Binary content of the transaction"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .default_value("0x")
+                        .takes_value(true)
+                        .validator(|address| parse_address(address.as_str()))
+                        .help(
+                            "The address of the invoking contract, default is empty to \
+                             create contract",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .takes_value(true)
+                        .validator(|height| parse_u64(height.as_ref()).map(|_| ()))
+                        .help("Current chain height, default query to the chain"),
+                )
+                .arg(
+                    Arg::with_name("chain-id")
+                        .long("chain-id")
+                        .takes_value(true)
+                        .validator(|chain_id| parse_u256(chain_id.as_ref()).map(|_| ()))
+                        .help("The chain_id of transaction"),
+                )
+                .arg(
+                    Arg::with_name("private-key")
+                        .long("private-key")
+                        .takes_value(true)
+                        .required(true)
+                        .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
+                        .help("The private key of transaction"),
+                )
+                .arg(
+                    Arg::with_name("quota")
+                        .long("quota")
+                        .takes_value(true)
+                        .validator(|quota| parse_u64(quota.as_ref()).map(|_| ()))
+                        .help("Transaction quota costs, default 10_000_000"),
+                )
+                .arg(
+                    Arg::with_name("value")
+                        .long("value")
+                        .takes_value(true)
+                        .validator(|value| parse_u256(value.as_ref()).map(|_| ()))
+                        .help("The value to send, default is 0"),
+                )
+                .arg(
+                    Arg::with_name("version")
+                        .long("version")
+                        .takes_value(true)
+                        .validator(|version| parse_u32(version.as_str()).map(|_| ()))
+                        .help("The version of transaction, default is 0"),
+                )
+                .arg(
+                    Arg::with_name("number")
+                        .long("number")
+                        .takes_value(true)
+                        .default_value("1000")
+                        .validator(|version| parse_u32(version.as_str()).map(|_| ()))
+                        .help("The number of transmissions, default is 1000"),
+                ),
+        )
 }
 
 /// Benchmark processor
@@ -193,7 +268,7 @@ pub fn benchmark_processor(
     config: &GlobalConfig,
     client: Client,
 ) -> Result<(), String> {
-    let client = client.set_uri(get_url(sub_matches, config));
+    let mut client = client.set_uri(get_url(sub_matches, config));
 
     match sub_matches.subcommand() {
         ("get-height", _) => {
@@ -222,6 +297,58 @@ pub fn benchmark_processor(
                     return Err(format!("Error: {:?}", e));
                 }
             }
+        }
+        ("sendTransaction", Some(m)) => {
+            let encryption = encryption(m, config);
+            if let Some(chain_id) = m.value_of("chain-id").map(|s| parse_u256(s).unwrap()) {
+                client.set_chain_id(chain_id);
+            }
+            if let Some(private_key) = m.value_of("private-key") {
+                client.set_private_key(&parse_privkey(private_key, encryption)?);
+            }
+            let code = m.value_of("code").unwrap();
+            let address = m.value_of("address").unwrap();
+            let current_height = m.value_of("height").map(|s| parse_u64(s).unwrap());
+            let quota = m.value_of("quota").map(|s| parse_u64(s).unwrap());
+            let value = m.value_of("value").map(|value| parse_u256(value).unwrap());
+            let version = m
+                .value_of("version")
+                .map(|version| parse_u32(version).unwrap());
+            let tx_options = TransactionOptions::new()
+                .set_code(code)
+                .set_address(address)
+                .set_current_height(current_height)
+                .set_quota(quota)
+                .set_value(value)
+                .set_version(version);
+            let number = m
+                .value_of("number")
+                .map(|number| parse_u32(number).unwrap())
+                .unwrap();
+
+            let mut txs = Vec::with_capacity(number as usize);
+            for _ in 0..number {
+                let tx = client
+                    .generate_transaction(tx_options)
+                    .map_err(|err| format!("{}", err))?;
+                let byte_code = client
+                    .generate_sign_transaction(&tx)
+                    .map_err(|err| format!("{}", err))?;
+                let params = JsonRpcParams::new()
+                    .insert(
+                        "method",
+                        ParamsValue::String(String::from("sendRawTransaction")),
+                    )
+                    .insert(
+                        "params",
+                        ParamsValue::List(vec![ParamsValue::String(byte_code)]),
+                    );
+                txs.push(params);
+            }
+            let result = client
+                .send_request(txs.into_iter())
+                .map_err(|err| format!("{}", err))?;
+            printer.println(&json!(result), true);
         }
         _ => return Err(sub_matches.usage().to_owned()),
     }
