@@ -22,8 +22,8 @@ Just like the relationship between redis-cli and redis.
 
 ### Clone and Build
 
-You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases),
-if you want the latest version, compile the source code like follow, default support Secp256k1/Sm2 algorithms:
+You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases).
+If you need the latest version, compile from the source code, which supports Secp256k1/Sm2 algorithms:
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
@@ -31,7 +31,7 @@ $ rustup update stable
 $ cd cita-cli/cita-cli
 $ cargo install --path .
 ```
-it will install on `~/.cargo/bin/cita-cli`
+It will install to `~/.cargo/bin/cita-cli`.
 
 If you want to support https requests, make sure that `openssl` exists in the build environment and
 compile with the following command:
@@ -44,7 +44,7 @@ $ cargo install --features tls --path .
 > `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
 > and https requests is supported by default.
 
-If you want to support Secp256k1/Sm2/Ed25519 three algorithms at the same time, as follows and make sure clang version > 3.9
+If you want to support all the three Secp256k1/Sm2/Ed25519 algorithms, make sure you have clang version > 3.9 then build as follows:
 
 ```bash
 $ sudo apt install clang
@@ -92,8 +92,8 @@ $ cargo install --target x86_64-unknown-linux-musl --path .
 
 ### Examples
 
-If you think that the url specified on the command line is too complex, you can write the env file directly, 
-or the corresponding environment variable cli will get it automatically.
+If you think that specifying the URL from the command line is too complex, you can edit the env file directly,
+then the cli will get the corresponding environment variable and use it automatically.
 
 #### Interactive mode(recommend)
 
@@ -115,7 +115,7 @@ cita> rpc blockNumber
   "result": "0x5fbb2",
   "id": 1
 }
-cita> key create 
+cita> key create
 {
   "address": "0x1cd05e93e7501c125f14a4859c854fa6d0e63ad6",
   "private": "0xfed11b78f963f7cf3de6fc43087900b13e449055e8a9bae1e9dc369412cdddca",
@@ -218,7 +218,7 @@ $ cita-cli rpc call \
     --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 \
     --data 0x6d4ce63c \
     --height latest \
-    --url http://121.196.200.225:1337 
+    --url http://121.196.200.225:1337
 {
   "jsonrpc": "2.0",
   "result": "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -256,4 +256,4 @@ $ cita-cli ethabi encode function --file ../HelloWorld.abi --name update --param
 
 ## Contribute
 
-Please submit to [https://github.com/cryptape/cita-cli](https://github.com/cryptape/cita-cli) this repo
+Please submit to [https://github.com/cryptape/cita-cli](https://github.com/cryptape/cita-cli).
