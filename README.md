@@ -86,9 +86,9 @@ $ rustup target add x86_64-unknown-linux-musl
 $ cargo install --target x86_64-unknown-linux-musl --path .
 ```
 
-> Note: only for secp256k1/sm2 version, since libsodium is dynamically linked,
-> first need to be changed to static link,
-> then need to use musl-gcc to recompile libsodium the entire library
+> Note: this only build the secp256k1/sm2 version. If you want to build the musl version with all the three algorithms,
+> you need to use musl-gcc to recompile the libsodium as a static link library (libsodium is dynamically linked by default),
+> then build cita-cli with the static linked libsodium.
 
 ### Examples
 
