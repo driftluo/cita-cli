@@ -402,7 +402,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .long("height")
                         .required(true)
                         .validator(|s| parse_height(s.as_str()))
-                        .takes_value(true)
+                        .default_value("latest")
                         .help("The number of the block"),
                 )
                 .arg(
@@ -428,7 +428,7 @@ pub fn rpc_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("height")
                         .long("height")
-                        .required(true)
+                        .default_value("latest")
                         .validator(|s| parse_height(s.as_str()))
                         .takes_value(true)
                         .help("The number of the block"),
