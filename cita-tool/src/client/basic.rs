@@ -154,9 +154,7 @@ impl Client {
         params: T,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
         let params = params.collect::<Vec<JsonRpcParams>>();
-        if self.debug {
-            Self::debug_request(params.clone().iter())
-        }
+
         let reqs = self.make_requests_with_params_list(params.into_iter());
 
         self.run(reqs)
@@ -168,9 +166,6 @@ impl Client {
         url: T,
         params: JsonRpcParams,
     ) -> Result<Vec<JsonRpcResponse>, ToolError> {
-        if self.debug {
-            Self::debug_request(vec![&params].into_iter());
-        }
         let reqs = self.make_requests_with_all_url(url, params);
 
         self.run(reqs)
@@ -188,6 +183,10 @@ impl Client {
             "id",
             ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
         );
+
+        if self.debug {
+            Self::debug_request(vec![&params].into_iter())
+        }
 
         let client = create_client();
         let mut reqs = Vec::with_capacity(100);
@@ -225,10 +224,14 @@ impl Client {
         params
             .map(|param| {
                 self.id.fetch_add(1, Ordering::Relaxed);
-                param.insert(
+                let param = param.insert(
                     "id",
                     ParamsValue::Int(self.id.load(Ordering::Relaxed) as u64),
-                )
+                );
+                if self.debug {
+                    Self::debug_request(vec![&param].into_iter())
+                }
+                param
             })
             .for_each(|param| {
                 let req: Request<Body> = Request::builder()
