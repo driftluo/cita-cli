@@ -30,7 +30,12 @@ const DEFAULT_JSONRPC_URL: &str = "http://127.0.0.1:1337";
 
 fn main() {
     dotenv().ok();
-    let version = format!("{}+{}", crate_version!(), get_commit_id());
+    let version = format!(
+        "{}+{}, {}",
+        crate_version!(),
+        get_commit_id(),
+        feature_version()
+    );
 
     let mut env_map: HashMap<String, String> = HashMap::from_iter(env::vars());
     let default_jsonrpc_url = env_map
@@ -70,5 +75,17 @@ fn main() {
     } {
         printer.eprintln(&Rc::new(err.to_string()), true);
         process::exit(1);
+    }
+}
+
+fn feature_version() -> String {
+    if cfg!(feature = "tls") && cfg!(feature = "ed25519") {
+        "support tls, ed25519".to_owned()
+    } else if cfg!(feature = "tls") {
+        "support tls".to_owned()
+    } else if cfg!(feature = "ed25519") {
+        "support ed25519".to_owned()
+    } else {
+        "no other support".to_owned()
     }
 }

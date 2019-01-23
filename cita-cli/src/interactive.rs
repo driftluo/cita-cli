@@ -819,7 +819,7 @@ mod test {
     fn test_re() {
         fn capture(regex: &Regex, line: &str) -> String {
             let replaced = regex.replace_all(line, |caps: &Captures| {
-                format!("{}", caps.name("key").unwrap().as_str())
+                caps.name("key").unwrap().as_str().to_string()
             });
             replaced.into_owned()
         }

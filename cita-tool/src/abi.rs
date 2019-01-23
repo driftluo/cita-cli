@@ -221,7 +221,7 @@ pub fn decode_logs(
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
 
     let topics: Vec<Hash> = topics
-        .into_iter()
+        .iter()
         .map(|t| t.parse())
         .collect::<Result<_, _>>()
         .map_err(|e| ToolError::Abi(format!("{}", e)))?;
