@@ -2,30 +2,30 @@
 
 [![Build Status](https://travis-ci.org/cryptape/cita-cli.svg?branch=master)](https://travis-ci.org/cryptape/cita-cli)
 
-English | [简体中文](./README-CN.md)
+[English](./README.md) | 简体中文
 
-An easy-to-use [CITA](https://github.com/cryptape/cita) command line tool.
+CITA CLI 是用于开发中调试 [CITA](https://github.com/cryptape/cita) 的命令行工具。
 
-Just like the relationship between redis-cli and redis.
+CITA CLI 与 CITA 的关系，就像 redis-cli 和 redis。
 
-## Overview
+## 简介
 
-[cita-cli](./cita-cli): a binary project, command line tool.
+[cita-cli](./cita-cli): 命令行工具的实现。
 
-[cita-tool](./cita-tool): a crate to support cita-cli, of course, can also be used for secondary development, which contains all the methods needed.
+[cita-tool](./cita-tool): 用户可直接依赖cita-tool编写与CITA交互的程序。
 
-> This project assumes that the user understands what the smart contract is.
+> 本项目前提是用户需理解什么是智能合约。
 
-## Usage
+## 用户手册
 
-### Screencast
+### 屏幕截图
 
 ![A asciicast of cita-cli](./cita-cli.gif)
 
 ### Clone and Build
 
-You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases).
-If you need the latest version, compile from the source code, which supports Secp256k1/Sm2 algorithms:
+下载编译后的版本 [here](https://github.com/cryptape/cita-cli/releases)。
+如果需要最新版本，可编译源码，支持 Secp256k1/Sm2 加密算法:
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
@@ -33,20 +33,19 @@ $ rustup update stable
 $ cd cita-cli/cita-cli
 $ cargo install --path .
 ```
-It will install to `~/.cargo/bin/cita-cli`.
+会安装在 `~/.cargo/bin/cita-cli`。
 
-If you want to support https requests, make sure that `openssl` exists in the build environment and
-compile with the following command:
+如果需要支持 https 请求， 确保 build 环境中存在 `openssl` 并按如下命令编译：
 
 ```bash
 $ cd cita-cli/cita-cli
 $ cargo install --features tls --path .
 ```
 
-> `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
-> and https requests is supported by default.
+> `openssl` 静态编译在 [release](https://github.com/cryptape/cita-cli/releases)，
+> 并默认支持 https 请求。
 
-If you want to support all the three Secp256k1/Sm2/Ed25519 algorithms, make sure you have clang version > 3.9 then build as follows:
+如果需要支持全部3种加密算法 Secp256k1/Sm2/Ed25519 ，确保 clang version > 3.9 并按如下命令 build：
 
 ```bash
 $ sudo apt install clang
@@ -64,9 +63,9 @@ $ cargo install --features ed25519 --path .
 $ cd ..
 ```
 
-#### Compile the Linux cross-platform version
+#### 编译 Linux 跨平台版本
 
-- First, install `musl-gcc`, default on `/usr/local/musl`
+- 首先， 安装 `musl-gcc`， 默认在 `/usr/local/musl`
 
 ```bash
 $ wget https://www.musl-libc.org/releases/musl-1.1.19.tar.gz
@@ -76,28 +75,27 @@ $ ./configure && make && sudo make install
 $ sudo ln -sf /usr/local/musl/bin/musl-gcc /usr/local/bin/musl-gcc
 ```
 
-- Second, add `x86_64-unknown-linux-musl` toolchain
+- 第二， 添加 `x86_64-unknown-linux-musl` 
 
 ```bash
 $ rustup target add x86_64-unknown-linux-musl
 ```
 
-- Third, build
+- 第三， build
 
 ```bash
 $ cargo install --target x86_64-unknown-linux-musl --path .
 ```
 
-> Note: this only build the secp256k1/sm2 version. If you want to build the musl version with all the three algorithms,
-> you need to use musl-gcc to recompile the libsodium as a static link library (libsodium is dynamically linked by default),
-> then build cita-cli with the static linked libsodium.
+> 注意： 这里只 build secp256k1/sm2 版本。如果需要 build 包括 3 种加密算法的 musl 版本，
+> 你需要使用 musl-gcc 将 libsodium 重新编译为静态链接库（ 默认情况下 libsodium 是动态链接的），
+> 然后 用静态连接的 libsodium 构建 cita-cli。
 
-### Examples
+### 例子
 
-If you think that specifying the URL from the command line is too complex, you can edit the env file directly,
-then the cli will get the corresponding environment variable and use it automatically.
+如果认为从命令行指定 URL 太复杂，可以直接编辑env文件，然后 cli 将获得相应的环境变量并自动执行。
 
-#### Interactive mode(recommend)
+#### 交互模式（推荐）
 
 ```bash
 $ cita-cli
@@ -142,11 +140,11 @@ cita> ethabi encode params --param address 08d1a8bbec3dbc2e4fa930dfb6886732f3a72
 cita> exit
 ```
 
-#### Command line mode
+#### 命令行模式
 
-> Tips: Add `source <(cita-cli completions bash)` to your `.bashrc` to provide command completion.
+> Tips: 添加 `source <(cita-cli completions bash)` 在你的 `.bashrc` 用来提供命令实现。
 
-- Get chain height
+- 获取链高度
 ```bash
 $ cita-cli rpc blockNumber --url http://121.196.200.225:1337
 {
@@ -156,7 +154,7 @@ $ cita-cli rpc blockNumber --url http://121.196.200.225:1337
 }
 ```
 
-- Send transaction
+- 发送交易
 ```bash
 $ cita-cli rpc sendRawTransaction \
     --private-key "0x352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
@@ -173,7 +171,7 @@ $ cita-cli rpc sendRawTransaction \
 }
 ```
 
-- Get transaction receipt
+- 获取交易回执
 ```bash
 $ cita-cli rpc getTransactionReceipt \
     --hash "0x16251c374ee87eae41cbd9203eea481b861738a19c19df9d3c6603b9fbe84478" \
@@ -197,7 +195,7 @@ $ cita-cli rpc getTransactionReceipt \
 }
 ```
 
-- Call contract function
+- 调用合约函数
 ```bash
 $ cita-cli rpc sendRawTransaction \
     --private-key "0x352416e1c910e413768c51390dfd791b414212b7b4fe6b1a18f58007fa894214" \
@@ -214,7 +212,7 @@ $ cita-cli rpc sendRawTransaction \
 }
 ```
 
-- Get call result
+- 获取调用结果
 ```bash
 $ cita-cli rpc call \
     --to 0xd9ae0a3b3e856bf5d01061d99721cc4b136d7e26 \
@@ -228,7 +226,7 @@ $ cita-cli rpc call \
 }
 ```
 
-- Create new key pair
+- 创建新的公私钥对
 ```bash
 $ cita-cli key create
 {
@@ -238,7 +236,7 @@ $ cita-cli key create
 }
 ```
 
-- Generate public keys and addresses based on private keys
+- 基于私钥生成公钥和地址
 ```bash
 $ cita-cli key from-private --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc2fd829e3ca3e19f6081ddabb07e9
 {
@@ -248,7 +246,7 @@ $ cita-cli key from-private --private-key 0x993ef0853d7bf1f4c2977457b50ea6b5f8bc
 }
 ```
 
-- ABI generate
+- 生成ABI
 ```bash
 $ cita-cli ethabi encode params --param uint256 16
 0000000000000000000000000000000000000000000000000000000000000010
@@ -256,6 +254,6 @@ $ cita-cli ethabi encode function --file ../HelloWorld.abi --name update --param
 82ab890a0000000000000000000000000000000000000000000000000000000000000010
 ```
 
-## Contribute
+## 贡献
 
-Please submit to [https://github.com/cryptape/cita-cli](https://github.com/cryptape/cita-cli).
+请提交在 [https://github.com/cryptape/cita-cli](https://github.com/cryptape/cita-cli)。
