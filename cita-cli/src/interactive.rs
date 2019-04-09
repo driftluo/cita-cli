@@ -95,6 +95,17 @@ pub fn start(url: &str, client: &Client) -> io::Result<()> {
         config.set_save_private(configs["save_private"].as_bool().unwrap_or(false));
     }
 
+    let mut env_file = cita_cli_dir.clone();
+    env_file.push("env_vars");
+    if env_file.as_path().exists() {
+        let file = fs::File::open(&env_file)?;
+        let env_vars_json = serde_json::from_reader(file).unwrap_or(json!(null));
+        match env_vars_json {
+            serde_json::Value::Object(env_vars) => config.env_variable.extend(env_vars),
+            _ => eprintln!("Parse environment variable file failed."),
+        }
+    }
+
     let mut printer = Printer::default();
     if !config.json_format() {
         printer.switch_format();
