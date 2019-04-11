@@ -28,6 +28,7 @@ const BLOCK_NUMBER: &str = "blockNumber";
 const GET_META_DATA: &str = "getMetaData";
 const SEND_RAW_TRANSACTION: &str = "sendRawTransaction";
 const PEER_COUNT: &str = "peerCount";
+const PEERS_INFO: &str = "peersInfo";
 const GET_BLOCK_BY_HASH: &str = "getBlockByHash";
 const GET_BLOCK_BY_NUMBER: &str = "getBlockByNumber";
 const GET_TRANSACTION: &str = "getTransaction";
@@ -493,6 +494,7 @@ impl Default for Client {
 ///
 /// JSONRPC methods:
 ///   * peerCount
+///   * peersInfo
 ///   * blockNumber
 ///   * sendTransaction
 ///   * getBlockByHash
@@ -522,6 +524,8 @@ where
 {
     /// peerCount: Get network peer count
     fn get_peer_count(&self) -> Result<T, E>;
+    /// peersInfo: Get all peers information
+    fn get_peers_info(&self) -> Result<T, E>;
     /// blockNumber: Get current height
     fn get_block_number(&self) -> Result<T, E>;
     /// sendTransaction: Send a transaction and return transaction hash
@@ -584,6 +588,12 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
     fn get_peer_count(&self) -> Result<JsonRpcResponse, ToolError> {
         let params =
             JsonRpcParams::new().insert("method", ParamsValue::String(String::from(PEER_COUNT)));
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
+
+    fn get_peers_info(&self) -> Result<JsonRpcResponse, ToolError> {
+        let params =
+            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(PEERS_INFO)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 

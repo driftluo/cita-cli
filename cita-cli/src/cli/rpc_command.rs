@@ -16,6 +16,7 @@ pub fn rpc_command() -> App<'static, 'static> {
     App::new("rpc")
         .about("All cita jsonrpc interface commands")
         .subcommand(SubCommand::with_name("peerCount").about("Get network peer count"))
+        .subcommand(SubCommand::with_name("peersInfo").about("Get all peers information"))
         .subcommand(SubCommand::with_name("blockNumber").about("Get current height"))
         .subcommand(
             SubCommand::with_name("sendRawTransaction")
@@ -467,6 +468,7 @@ pub fn rpc_processor(
 
     let result = match sub_matches.subcommand() {
         ("peerCount", _) => client.get_peer_count(),
+        ("peersInfo", _) => client.get_peers_info(),
         ("blockNumber", _) => client.get_block_number(),
         ("sendRawTransaction", Some(m)) => {
             let encryption = encryption(m, config);
