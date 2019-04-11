@@ -51,6 +51,8 @@ const GET_BLOCK_HEADER: &str = "getBlockHeader";
 const GET_STATE_PROOF: &str = "getStateProof";
 const GET_STORAGE_AT: &str = "getStorageAt";
 
+const GET_VERSION: &str = "getVersion";
+
 /// Store action target address
 pub const STORE_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffff010000";
 /// StoreAbi action target address
@@ -515,6 +517,7 @@ impl Default for Client {
 ///   * getBlockHeader
 ///   * getStateProof
 ///   * getStorageAt
+///   * getVersion
 pub trait ClientExt<T, E>
 where
     T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
@@ -578,6 +581,8 @@ where
     fn get_state_proof(&self, address: &str, key: &str, height: &str) -> Result<T, E>;
     /// getStorageAt: Get the value of the key at the specified height
     fn get_storage_at(&self, address: &str, key: &str, height: &str) -> Result<T, E>;
+    /// getVersion: Get release version info of all modules
+    fn get_version(&self) -> Result<T, E>;
 }
 
 impl ClientExt<JsonRpcResponse, ToolError> for Client {
@@ -949,6 +954,12 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
                 ]),
             )
             .insert("method", ParamsValue::String(String::from(GET_STORAGE_AT)));
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
+
+    fn get_version(&self) -> Result<JsonRpcResponse, ToolError> {
+        let params =
+            JsonRpcParams::new().insert("method", ParamsValue::String(String::from(GET_VERSION)));
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 }
