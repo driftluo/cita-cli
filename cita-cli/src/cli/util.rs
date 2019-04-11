@@ -48,50 +48,12 @@ pub fn parse_privkey(hash: &str, encryption: Encryption) -> Result<PrivateKey, S
     Ok(PrivateKey::from_str(remove_0x(hash), encryption)?)
 }
 
-#[cfg(feature = "ed25519")]
-pub fn privkey_validator(hash: &str) -> Result<(), String> {
+pub fn key_validator(hash: &str) -> Result<(), String> {
     is_hex(hash)?;
     if hash.len() > 66 {
         h512_validator(hash)
     } else {
         h256_validator(hash)
-    }
-}
-
-#[cfg(not(feature = "ed25519"))]
-pub fn privkey_validator(hash: &str) -> Result<(), String> {
-    if hash.len() > 66 {
-        Err(
-            "The current version does not support 512-byte private keys, \
-             should build with feature blake2b_hash"
-                .to_string(),
-        )
-    } else {
-        h256_validator(hash)
-    }
-}
-
-#[cfg(feature = "ed25519")]
-pub fn pubkey_validator(hash: &str) -> Result<(), String> {
-    is_hex(hash)?;
-    if hash.len() < 66 {
-        h256_validator(hash)
-    } else {
-        h512_validator(hash)
-    }
-}
-
-#[cfg(not(feature = "ed25519"))]
-pub fn pubkey_validator(hash: &str) -> Result<(), String> {
-    is_hex(hash)?;
-    if hash.len() < 66 {
-        Err(
-            "The current version does not support 512-byte private keys, \
-             should build with feature blake2b_hash"
-                .to_string(),
-        )
-    } else {
-        h512_validator(hash)
     }
 }
 

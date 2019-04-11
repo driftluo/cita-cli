@@ -1,11 +1,12 @@
 use crate::crypto::{
     pubkey_to_address, CreateKey, Ed25519PrivKey, Ed25519PubKey, Error, Message, PubKey,
 };
-use hex::encode;
-use sodiumoxide::crypto::sign::{
-    gen_keypair, sign_detached, verify_detached, PublicKey as EdPublicKey, SecretKey,
-    Signature as EdSignature,
+use ed25519_dalek::{
+    Keypair, PublicKey as EdPublicKey, SecretKey as EdSecretKey, Signature as EdSignature,
 };
+use hex::encode;
+use rand::thread_rng;
+use sha2::Sha512;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use types::Address;
@@ -38,10 +39,15 @@ impl CreateKey for Ed25519KeyPair {
     }
 
     fn gen_keypair() -> Self {
-        let (pk, sk) = gen_keypair();
+        let keypair = Keypair::generate::<Sha512, _>(&mut thread_rng());
+        let pubkey = keypair.public.to_bytes();
+        let mut privkey = [0u8; 64];
+        privkey[..32].copy_from_slice(&keypair.secret.to_bytes());
+        privkey[32..].copy_from_slice(&pubkey);
+
         Ed25519KeyPair {
-            privkey: Ed25519PrivKey::from(sk.0),
-            pubkey: Ed25519PubKey::from(pk.0),
+            privkey: Ed25519PrivKey::from(privkey),
+            pubkey: Ed25519PubKey::from(pubkey),
         }
     }
 
@@ -76,17 +82,11 @@ impl Ed25519Signature {
     pub fn recover(&self, message: &Message) -> Result<Ed25519PubKey, Error> {
         let sig = self.sig();
         let pubkey = self.pk();
-        let is_valid = verify_detached(
-            &EdSignature::from_slice(&sig).unwrap(),
-            message.as_ref(),
-            &EdPublicKey::from_slice(&pubkey).unwrap(),
-        );
-
-        if !is_valid {
-            Err(Error::InvalidSignature)
-        } else {
-            Ok(Ed25519PubKey::from(&*pubkey))
-        }
+        EdPublicKey::from_bytes(&pubkey)
+            .unwrap()
+            .verify::<Sha512>(message, &EdSignature::from_bytes(&sig).unwrap())
+            .map_err(|_| Error::InvalidSignature)
+            .map(|_| Ed25519PubKey::from(pubkey))
     }
 
     /// Verify public key
@@ -97,22 +97,17 @@ impl Ed25519Signature {
             return Err(Error::InvalidPubKey);
         }
 
-        let is_valid = verify_detached(
-            &EdSignature::from_slice(&sig).unwrap(),
-            message.as_ref(),
-            &EdPublicKey::from_slice(&pubkey).unwrap(),
-        );
-        if !is_valid {
-            Err(Error::InvalidSignature)
-        } else {
-            Ok(true)
-        }
+        EdPublicKey::from_bytes(&pubkey)
+            .unwrap()
+            .verify::<Sha512>(message.as_ref(), &EdSignature::from_bytes(&sig).unwrap())
+            .map_err(|_| Error::InvalidSignature)
+            .map(|_| true)
     }
 }
 
 impl PartialEq for Ed25519Signature {
     fn eq(&self, rhs: &Self) -> bool {
-        &self.0[..] == &rhs.0[..]
+        self.0[..] == rhs.0[..]
     }
 }
 
@@ -156,14 +151,14 @@ pub fn ed25519_sign(
     privkey: &Ed25519PrivKey,
     message: &Message,
 ) -> Result<Ed25519Signature, Error> {
-    let keypair = Ed25519KeyPair::from_privkey(*privkey)?;
-    let secret_key = SecretKey::from_slice(privkey.as_ref()).unwrap();
-    let pubkey = keypair.pubkey();
-    let mut ret = [0u8; 96];
-    let sig = sign_detached(message.as_ref(), &secret_key);
+    let secret = EdSecretKey::from_bytes(&privkey.0[..32]).unwrap();
+    let public = EdPublicKey::from_bytes(&privkey.0[32..]).unwrap();
+    let keypair = Keypair { secret, public };
+    let sig = keypair.sign::<Sha512>(message);
 
-    ret[0..64].copy_from_slice(&sig.0[..]);
-    ret[64..96].copy_from_slice(pubkey.as_ref() as &[u8]);
+    let mut ret = [0u8; 96];
+    ret[0..64].copy_from_slice(&sig.to_bytes());
+    ret[64..96].copy_from_slice(public.as_bytes());
     Ok(Ed25519Signature(ret))
 }
 

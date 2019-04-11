@@ -88,7 +88,6 @@ impl Transaction {
 
         let hash = match sk {
             PrivateKey::Secp256k1(_) => bytes.crypt_hash(Encryption::Secp256k1),
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(_) => bytes.crypt_hash(Encryption::Ed25519),
             PrivateKey::Sm2(_) => bytes.crypt_hash(Encryption::Sm2),
             PrivateKey::Null => H256::default(),
@@ -106,7 +105,6 @@ impl Transaction {
 
         let hash = match sk {
             PrivateKey::Secp256k1(_) => bytes.crypt_hash(Encryption::Secp256k1),
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(_) => bytes.crypt_hash(Encryption::Ed25519),
             PrivateKey::Sm2(_) => bytes.crypt_hash(Encryption::Sm2),
             PrivateKey::Null => H256::default(),

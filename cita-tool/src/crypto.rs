@@ -1,4 +1,3 @@
-#[cfg(feature = "ed25519")]
 mod cita_ed25519;
 mod cita_secp256k1;
 mod cita_sm2;
@@ -8,7 +7,6 @@ use hex::encode;
 use std::fmt;
 use std::str::FromStr;
 
-#[cfg(feature = "ed25519")]
 pub use self::cita_ed25519::{ed25519_sign, Ed25519KeyPair, Ed25519Signature};
 pub use self::cita_secp256k1::{secp256k1_sign, Secp256k1KeyPair, Secp256k1Signature};
 pub use self::cita_sm2::{sm2_sign, Sm2KeyPair, Sm2Signature};
@@ -28,17 +26,14 @@ pub type Sm2Privkey = H256;
 pub type Sm2Pubkey = H512;
 
 /// Ed25519 Private key
-#[cfg(feature = "ed25519")]
 pub type Ed25519PrivKey = H512;
 /// Ed25519 Public key
-#[cfg(feature = "ed25519")]
 pub type Ed25519PubKey = H256;
 
 /// Generate Address from public key
 pub fn pubkey_to_address(pubkey: &PubKey) -> Address {
     match pubkey {
         PubKey::Secp256k1(pubkey) => Address::from(pubkey.crypt_hash(Encryption::Secp256k1)),
-        #[cfg(feature = "ed25519")]
         PubKey::Ed25519(pubkey) => Address::from(pubkey.crypt_hash(Encryption::Ed25519)),
         PubKey::Sm2(pubkey) => Address::from(pubkey.crypt_hash(Encryption::Sm2)),
         PubKey::Null => Address::default(),
@@ -49,7 +44,6 @@ pub fn pubkey_to_address(pubkey: &PubKey) -> Address {
 pub fn sign(privkey: &PrivateKey, message: &Message) -> Signature {
     match privkey {
         PrivateKey::Secp256k1(pk) => Signature::Secp256k1(secp256k1_sign(pk, message).unwrap()),
-        #[cfg(feature = "ed25519")]
         PrivateKey::Ed25519(pk) => Signature::Ed25519(ed25519_sign(pk, message).unwrap()),
         PrivateKey::Sm2(pk) => Signature::Sm2(sm2_sign(pk, message).unwrap()),
         PrivateKey::Null => Signature::Null,
@@ -73,7 +67,6 @@ impl FromStr for Encryption {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "secp256k1" => Ok(Encryption::Secp256k1),
-            #[cfg(feature = "ed25519")]
             "ed25519" => Ok(Encryption::Ed25519),
             "sm2" => Ok(Encryption::Sm2),
             _ => Err("Unsupported algorithm".to_string()),
@@ -109,7 +102,6 @@ pub enum PrivateKey {
     /// Secp256k1
     Secp256k1(Secp256k1PrivKey),
     /// Ed25519
-    #[cfg(feature = "ed25519")]
     Ed25519(Ed25519PrivKey),
     /// Sm2
     Sm2(Sm2Privkey),
@@ -124,22 +116,9 @@ impl PrivateKey {
             Encryption::Secp256k1 => Ok(PrivateKey::Secp256k1(
                 Secp256k1PrivKey::from_str(hex).map_err(|err| format!("{}", err))?,
             )),
-            Encryption::Ed25519 => {
-                #[cfg(feature = "ed25519")]
-                {
-                    let private_key = PrivateKey::Ed25519(
-                        Ed25519PrivKey::from_str(hex).map_err(|err| format!("{}", err))?,
-                    );
-                    return Ok(private_key);
-                }
-
-                #[cfg(not(feature = "ed25519"))]
-                Err(
-                    "The current version does not support 512-byte private keys, \
-                     should build with feature blake2b_hash"
-                        .to_string(),
-                )
-            }
+            Encryption::Ed25519 => Ok(PrivateKey::Ed25519(
+                Ed25519PrivKey::from_str(hex).map_err(|err| format!("{}", err))?,
+            )),
             Encryption::Sm2 => Ok(PrivateKey::Sm2(
                 Sm2Privkey::from_str(hex).map_err(|err| format!("{}", err))?,
             )),
@@ -151,7 +130,6 @@ impl fmt::Debug for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             PrivateKey::Secp256k1(private_key) => encode(private_key.to_vec()),
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(private_key) => encode(private_key.to_vec()),
             PrivateKey::Sm2(private_key) => encode(private_key.to_vec()),
             PrivateKey::Null => "".to_string(),
@@ -164,7 +142,6 @@ impl fmt::Display for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             PrivateKey::Secp256k1(private_key) => encode(private_key.to_vec()),
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(private_key) => encode(private_key.to_vec()),
             PrivateKey::Sm2(private_key) => encode(private_key.to_vec()),
             PrivateKey::Null => "".to_string(),
@@ -178,7 +155,6 @@ pub enum PubKey {
     /// sha3
     Secp256k1(Secp256k1PubKey),
     /// blake2b
-    #[cfg(feature = "ed25519")]
     Ed25519(Ed25519PubKey),
     /// Sm2
     Sm2(Sm2Pubkey),
@@ -193,22 +169,9 @@ impl PubKey {
             Encryption::Secp256k1 => Ok(PubKey::Secp256k1(
                 Secp256k1PubKey::from_str(hex).map_err(|err| format!("{}", err))?,
             )),
-            Encryption::Ed25519 => {
-                #[cfg(feature = "ed25519")]
-                {
-                    let private_key = PubKey::Ed25519(
-                        Ed25519PubKey::from_str(hex).map_err(|err| format!("{}", err))?,
-                    );
-                    return Ok(private_key);
-                }
-
-                #[cfg(not(feature = "ed25519"))]
-                Err(
-                    "The current version does not support 256-byte public keys, \
-                     should build with feature blake2b_hash"
-                        .to_string(),
-                )
-            }
+            Encryption::Ed25519 => Ok(PubKey::Ed25519(
+                Ed25519PubKey::from_str(hex).map_err(|err| format!("{}", err))?,
+            )),
             Encryption::Sm2 => Ok(PubKey::Sm2(
                 Sm2Pubkey::from_str(hex).map_err(|err| format!("{}", err))?,
             )),
@@ -219,7 +182,6 @@ impl PubKey {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
             PubKey::Secp256k1(pk) | PubKey::Sm2(pk) => pk.to_vec(),
-            #[cfg(feature = "ed25519")]
             PubKey::Ed25519(pk) => pk.to_vec(),
             PubKey::Null => Vec::new(),
         }
@@ -230,7 +192,6 @@ impl fmt::Display for PubKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             PubKey::Secp256k1(pubkey) => encode(pubkey.to_vec()),
-            #[cfg(feature = "ed25519")]
             PubKey::Ed25519(pubkey) => encode(pubkey.to_vec()),
             PubKey::Sm2(pubkey) => encode(pubkey.to_vec()),
             PubKey::Null => "".to_string(),
@@ -244,7 +205,6 @@ pub enum KeyPair {
     /// Secp256k1
     Secp256k1(Secp256k1KeyPair),
     /// Ed25519
-    #[cfg(feature = "ed25519")]
     Ed25519(Ed25519KeyPair),
     /// Sm2
     Sm2(Sm2KeyPair),
@@ -257,15 +217,7 @@ impl KeyPair {
     pub fn new(encryption: Encryption) -> Self {
         match encryption {
             Encryption::Secp256k1 => KeyPair::Secp256k1(Secp256k1KeyPair::gen_keypair()),
-            Encryption::Ed25519 => {
-                #[cfg(feature = "ed25519")]
-                let key_pair = KeyPair::Ed25519(Ed25519KeyPair::gen_keypair());
-
-                #[cfg(not(feature = "ed25519"))]
-                let key_pair = KeyPair::Null;
-
-                key_pair
-            }
+            Encryption::Ed25519 => KeyPair::Ed25519(Ed25519KeyPair::gen_keypair()),
             Encryption::Sm2 => KeyPair::Sm2(Sm2KeyPair::gen_keypair()),
         }
     }
@@ -276,7 +228,6 @@ impl KeyPair {
             PrivateKey::Secp256k1(pk) => {
                 KeyPair::Secp256k1(Secp256k1KeyPair::from_privkey(pk).unwrap())
             }
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(pk) => KeyPair::Ed25519(Ed25519KeyPair::from_privkey(pk).unwrap()),
             PrivateKey::Sm2(pk) => KeyPair::Sm2(Sm2KeyPair::from_privkey(pk).unwrap()),
             PrivateKey::Null => KeyPair::Null,
@@ -287,7 +238,6 @@ impl KeyPair {
     pub fn privkey(&self) -> PrivateKey {
         match self {
             KeyPair::Secp256k1(key_pair) => PrivateKey::Secp256k1(*key_pair.privkey()),
-            #[cfg(feature = "ed25519")]
             KeyPair::Ed25519(key_pair) => PrivateKey::Ed25519(*key_pair.privkey()),
             KeyPair::Sm2(key_pair) => PrivateKey::Sm2(*key_pair.privkey()),
             KeyPair::Null => PrivateKey::Null,
@@ -298,7 +248,6 @@ impl KeyPair {
     pub fn pubkey(&self) -> PubKey {
         match self {
             KeyPair::Secp256k1(key_pair) => PubKey::Secp256k1(*key_pair.pubkey()),
-            #[cfg(feature = "ed25519")]
             KeyPair::Ed25519(key_pair) => PubKey::Ed25519(*key_pair.pubkey()),
             KeyPair::Sm2(key_pair) => PubKey::Sm2(*key_pair.pubkey()),
             KeyPair::Null => PubKey::Null,
@@ -309,7 +258,6 @@ impl KeyPair {
     pub fn address(&self) -> Address {
         match self {
             KeyPair::Secp256k1(private_key) => private_key.address(),
-            #[cfg(feature = "ed25519")]
             KeyPair::Ed25519(private_key) => private_key.address(),
             KeyPair::Sm2(private_key) => private_key.address(),
             KeyPair::Null => Address::default(),
@@ -324,7 +272,6 @@ impl KeyPair {
             PrivateKey::Secp256k1(private) => Ok(KeyPair::Secp256k1(
                 Secp256k1KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
             )),
-            #[cfg(feature = "ed25519")]
             PrivateKey::Ed25519(private) => Ok(KeyPair::Ed25519(
                 Ed25519KeyPair::from_privkey(private).map_err(|err| format!("{}", err))?,
             )),
@@ -341,7 +288,6 @@ pub enum Signature {
     /// Secp256k1
     Secp256k1(Secp256k1Signature),
     /// Ed25519
-    #[cfg(feature = "ed25519")]
     Ed25519(Ed25519Signature),
     /// Sm2
     Sm2(Sm2Signature),
@@ -353,13 +299,7 @@ impl Signature {
     /// New from slice
     pub fn from(slice: &[u8]) -> Self {
         if slice.len() == 96 {
-            #[cfg(feature = "ed25519")]
-            let key_pair = Signature::Ed25519(Ed25519Signature::from(slice));
-
-            #[cfg(not(feature = "ed25519"))]
-            let key_pair = Signature::Null;
-
-            key_pair
+            Signature::Ed25519(Ed25519Signature::from(slice))
         } else if slice.len() == 65 {
             Signature::Secp256k1(Secp256k1Signature::from(slice))
         } else if slice.len() == 128 {
@@ -374,7 +314,6 @@ impl Signature {
         match self {
             Signature::Sm2(sig) => sig.to_vec(),
             Signature::Secp256k1(sig) => sig.to_vec(),
-            #[cfg(feature = "ed25519")]
             Signature::Ed25519(sig) => sig.to_vec(),
             Signature::Null => Vec::new(),
         }
@@ -387,7 +326,6 @@ impl Signature {
                 .recover(message)
                 .map(|pubkey| PubKey::from_str(&pubkey.lower_hex(), Encryption::Secp256k1).unwrap())
                 .map_err(|_| "Can't recover to public key".to_string())?),
-            #[cfg(feature = "ed25519")]
             Signature::Ed25519(sig) => Ok(sig
                 .recover(message)
                 .map(|pubkey| PubKey::from_str(&pubkey.lower_hex(), Encryption::Ed25519).unwrap())
@@ -406,7 +344,6 @@ impl Signature {
             (Signature::Secp256k1(sig), PubKey::Secp256k1(pubkey)) => sig
                 .verify_public(&pubkey, &message)
                 .map_err(|e| e.to_string()),
-            #[cfg(feature = "ed25519")]
             (Signature::Ed25519(sig), PubKey::Ed25519(pubkey)) => sig
                 .verify_public(&pubkey, &message)
                 .map_err(|e| e.to_string()),
@@ -422,7 +359,6 @@ impl fmt::Display for Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Signature::Secp256k1(sig) => write!(f, "{}", encode(sig.0[..].to_vec())),
-            #[cfg(feature = "ed25519")]
             Signature::Ed25519(sig) => write!(f, "{}", encode(sig.0[..].to_vec())),
             Signature::Sm2(sig) => write!(f, "{}", encode(sig.0[..].to_vec())),
             Signature::Null => write!(f, "null"),
@@ -472,7 +408,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "ed25519")]
     fn ed25519_generate_from_private_key() {
         let key_pair =
             KeyPair::from_str(

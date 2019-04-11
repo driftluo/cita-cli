@@ -4,8 +4,8 @@ use cita_tool::client::basic::Client;
 use cita_tool::{encode, ProtoMessage, TransactionOptions, UnverifiedTransaction};
 
 use crate::cli::{
-    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u32, parse_u64,
-    privkey_validator,
+    encryption, get_url, is_hex, key_validator, parse_address, parse_privkey, parse_u256,
+    parse_u32, parse_u64,
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
@@ -99,7 +99,7 @@ pub fn tx_command() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("private-key")
                         .long("private-key")
-                        .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
+                        .validator(|private| key_validator(private.as_str()).map(|_| ()))
                         .takes_value(true)
                         .required(true)
                         .help("Transfer Account Private Key"),

@@ -5,8 +5,8 @@ use cita_tool::client::basic::{Client, Transfer};
 use cita_tool::{JsonRpcParams, ParamsValue, TransactionOptions};
 
 use crate::cli::{
-    encryption, get_url, is_hex, parse_address, parse_privkey, parse_u256, parse_u32, parse_u64,
-    privkey_validator, search_app,
+    encryption, get_url, is_hex, key_validator, parse_address, parse_privkey, parse_u256,
+    parse_u32, parse_u64, search_app,
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
@@ -126,7 +126,7 @@ pub fn transfer_command() -> App<'static, 'static> {
         .arg(
             Arg::with_name("private-key")
                 .long("private-key")
-                .validator(|private| privkey_validator(private.as_str()).map(|_| ()))
+                .validator(|private| key_validator(private.as_str()).map(|_| ()))
                 .takes_value(true)
                 .required(true)
                 .help("Transfer Account Private Key"),
@@ -226,7 +226,7 @@ pub fn benchmark_command() -> App<'static, 'static> {
                         .long("private-key")
                         .takes_value(true)
                         .required(true)
-                        .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
+                        .validator(|privkey| key_validator(privkey.as_ref()).map(|_| ()))
                         .help("The private key of transaction"),
                 )
                 .arg(

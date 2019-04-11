@@ -3,10 +3,10 @@ use crate::crypto::{
 };
 use hex::encode;
 use lazy_static::lazy_static;
-use rand::thread_rng;
 use secp256k1::{
     constants,
     key::{self, PublicKey, SecretKey},
+    rand::OsRng,
     Error as SecpError, Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
 };
 use std::fmt;
@@ -58,7 +58,7 @@ impl CreateKey for Secp256k1KeyPair {
 
     fn gen_keypair() -> Self {
         let context = &SECP256K1;
-        let (s, p) = context.generate_keypair(&mut thread_rng());
+        let (s, p) = context.generate_keypair(&mut OsRng::new().unwrap());
         let serialized = p.serialize_uncompressed();
         let mut privkey = Secp256k1PrivKey::default();
         privkey.0.copy_from_slice(&s[0..32]);

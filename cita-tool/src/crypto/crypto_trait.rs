@@ -1,12 +1,10 @@
 use crate::crypto::Encryption;
-#[cfg(feature = "ed25519")]
-use blake2b::blake2b;
+use blake2b_simd::Params;
 use libsm::sm3;
 use std::{fmt, marker};
 use tiny_keccak;
 use types::{Address, H256};
 
-#[cfg(feature = "ed25519")]
 const BLAKE2BKEY: &str = "CryptapeCryptape";
 
 /// Create secret Key
@@ -40,10 +38,7 @@ pub trait Hashable {
         let mut result = [0u8; 32];
         match encryption {
             Encryption::Secp256k1 => self.sha3_crypt_hash_into(&mut result),
-            Encryption::Ed25519 => {
-                #[cfg(feature = "ed25519")]
-                self.blake2b_crypt_hash_into(&mut result);
-            }
+            Encryption::Ed25519 => self.blake2b_crypt_hash_into(&mut result),
             Encryption::Sm2 => self.sm3_crypt_hash_into(&mut result),
         }
         H256(result)
@@ -53,7 +48,6 @@ pub trait Hashable {
     fn sha3_crypt_hash_into(&self, dest: &mut [u8]);
 
     /// Calculate crypt HASH of this object and place result into dest, use blake2b
-    #[cfg(feature = "ed25519")]
     fn blake2b_crypt_hash_into(&self, dest: &mut [u8]);
 
     /// Calculate crypt HASH of this object and place result into dest, use sm3
@@ -69,20 +63,18 @@ where
         tiny_keccak::Keccak::keccak256(input, dest);
     }
 
-    #[cfg(feature = "ed25519")]
     fn blake2b_crypt_hash_into(&self, dest: &mut [u8]) {
         let input: &[u8] = self.as_ref();
 
-        unsafe {
-            blake2b(
-                dest.as_mut_ptr(),
-                dest.len(),
-                input.as_ptr(),
-                input.len(),
-                BLAKE2BKEY.as_bytes().as_ptr(),
-                BLAKE2BKEY.len(),
-            );
-        }
+        dest.copy_from_slice(
+            Params::new()
+                .hash_length(dest.len())
+                .key(BLAKE2BKEY.as_bytes())
+                .to_state()
+                .update(input)
+                .finalize()
+                .as_ref(),
+        );
     }
 
     fn sm3_crypt_hash_into(&self, dest: &mut [u8]) {

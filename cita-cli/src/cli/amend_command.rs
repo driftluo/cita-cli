@@ -4,8 +4,8 @@ use cita_tool::client::basic::{AmendExt, Client};
 use cita_tool::remove_0x;
 
 use crate::cli::{
-    encryption, get_url, h256_validator, parse_address, parse_privkey, parse_u256, parse_u64,
-    privkey_validator,
+    encryption, get_url, h256_validator, key_validator, parse_address, parse_privkey, parse_u256,
+    parse_u64,
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
@@ -28,7 +28,7 @@ pub fn amend_command() -> App<'static, 'static> {
             .long("admin-private-key")
             .takes_value(true)
             .required(true)
-            .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
+            .validator(|privkey| key_validator(privkey.as_ref()).map(|_| ()))
             .help("The private key of super admin"),
         Arg::with_name("quota")
             .long("quota")

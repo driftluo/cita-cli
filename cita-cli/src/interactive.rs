@@ -27,7 +27,7 @@ use shell_words;
 
 use crate::cli::{
     abi_processor, amend_processor, benchmark_processor, build_interactive, contract_processor,
-    encryption, key_processor, privkey_validator, rpc_processor, search_processor, store_processor,
+    encryption, key_processor, key_validator, rpc_processor, search_processor, store_processor,
     string_include, transfer_processor, tx_processor,
 };
 use crate::printer::{OutputFormat, Printable, Printer};
@@ -753,7 +753,7 @@ fn remove_private(line: &str) -> String {
             shell_words::split(line)
                 .unwrap()
                 .into_iter()
-                .filter(|key| privkey_validator(key).is_err())
+                .filter(|key| key_validator(key).is_err())
                 .collect::<Vec<String>>(),
         )
     } else {
