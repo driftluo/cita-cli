@@ -1,7 +1,11 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 
-use cita_tool::client::basic::{Client, ClientExt};
-use cita_tool::{ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction};
+use cita_tool::{
+    client::basic::{Client, ClientExt},
+    error::ToolError,
+    rpctypes::JsonRpcResponse,
+    ParamsValue, ResponseValue, TransactionOptions, UnverifiedTransaction,
+};
 
 use crate::cli::{
     encryption, get_url, h256_validator, is_hex, key_validator, parse_address, parse_height,
@@ -451,6 +455,9 @@ pub fn rpc_command() -> App<'static, 'static> {
                         .help("The position of the variable"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("getVersion").about("Get release version info of all modules"),
+        )
 }
 
 /// RPC processor
@@ -594,6 +601,9 @@ pub fn rpc_processor(
             let address = m.value_of("address").unwrap();
             let key = m.value_of("key").unwrap();
             client.get_storage_at(address, key, height)
+        }
+        ("getVersion", _) => {
+            <Client as ClientExt<JsonRpcResponse, ToolError>>::get_version(&client)
         }
         _ => {
             return Err(sub_matches.usage().to_owned());
