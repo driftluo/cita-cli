@@ -5,7 +5,7 @@ use cita_tool::{
     decode, pubkey_to_address, remove_0x, Hashable, KeyPair, LowerHex, Message, PubKey, Signature,
 };
 
-use crate::cli::{encryption, h256_validator, is_hex, privkey_validator, pubkey_validator};
+use crate::cli::{encryption, h256_validator, is_hex, key_validator};
 use crate::interactive::GlobalConfig;
 use crate::printer::Printer;
 use std::str::FromStr;
@@ -21,7 +21,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .long("private-key")
                     .takes_value(true)
                     .required(true)
-                    .validator(|privkey| privkey_validator(privkey.as_ref()).map(|_| ()))
+                    .validator(|privkey| key_validator(privkey.as_ref()).map(|_| ()))
                     .help("The private key of transaction"),
             ),
         )
@@ -31,7 +31,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .long("pubkey")
                     .takes_value(true)
                     .required(true)
-                    .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
+                    .validator(|pubkey| key_validator(&pubkey).map(|_| ()))
                     .help("Pubkey"),
             ),
         )
@@ -44,7 +44,7 @@ pub fn key_command() -> App<'static, 'static> {
                     .validator(|content| is_hex(content.as_str()))
                     .help(
                         "Hash the content and output,\
-                         Secp256k1 means keccak256/Ed25529 means blake2b/Sm2 means Sm3",
+                         Secp256k1 means keccak256/Ed25519 means blake2b/Sm2 means Sm3",
                     ),
             ),
         )
@@ -55,7 +55,7 @@ pub fn key_command() -> App<'static, 'static> {
                         .long("pubkey")
                         .takes_value(true)
                         .required(true)
-                        .validator(|pubkey| pubkey_validator(&pubkey).map(|_| ()))
+                        .validator(|pubkey| key_validator(&pubkey).map(|_| ()))
                         .help("Pubkey"),
                 )
                 .arg(

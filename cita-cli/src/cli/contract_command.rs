@@ -14,8 +14,8 @@ use cita_tool::client::system_contract::{
 };
 
 use crate::cli::{
-    encryption, get_url, is_hex, parse_address, parse_height, parse_privkey, parse_u256, parse_u64,
-    privkey_validator,
+    encryption, get_url, is_hex, key_validator, parse_address, parse_height, parse_privkey,
+    parse_u256, parse_u64,
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
@@ -95,13 +95,13 @@ pub fn contract_command() -> App<'static, 'static> {
         .long("private-key")
         .takes_value(true)
         .required(true)
-        .validator(|private_key| privkey_validator(private_key.as_ref()).map(|_| ()))
+        .validator(|private_key| key_validator(private_key.as_ref()).map(|_| ()))
         .help("Private key");
     let admin_private = Arg::with_name("admin-private")
         .long("admin-private")
         .takes_value(true)
         .required(true)
-        .validator(|private_key| privkey_validator(private_key.as_ref()).map(|_| ()))
+        .validator(|private_key| key_validator(private_key.as_ref()).map(|_| ()))
         .help("Private key must be admin");
 
     let role_address_arg = address_arg.clone().help("Role address");

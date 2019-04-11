@@ -21,7 +21,6 @@ pub mod rpctypes;
 
 pub use crate::abi::{decode_input, decode_logs, decode_params, encode_input, encode_params};
 pub use crate::client::{parse_url, remove_0x, TransactionOptions};
-#[cfg(feature = "ed25519")]
 pub use crate::crypto::{
     ed25519_sign, Ed25519KeyPair, Ed25519PrivKey, Ed25519PubKey, Ed25519Signature,
 };

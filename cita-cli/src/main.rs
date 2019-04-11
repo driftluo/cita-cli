@@ -79,12 +79,8 @@ fn main() {
 }
 
 fn feature_version() -> String {
-    if cfg!(feature = "tls") && cfg!(feature = "ed25519") {
-        "support tls, ed25519".to_owned()
-    } else if cfg!(feature = "tls") {
+    if cfg!(feature = "tls") {
         "support tls".to_owned()
-    } else if cfg!(feature = "ed25519") {
-        "support ed25519".to_owned()
     } else {
         "no other support".to_owned()
     }
