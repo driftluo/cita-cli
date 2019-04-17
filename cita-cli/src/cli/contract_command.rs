@@ -1407,7 +1407,7 @@ pub fn contract_processor(
                     encryption,
                 )?);
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
-                let txs = m.values_of("tx-code").map(|value| value.collect()).unwrap();
+                let txs = m.values_of("tx-code").map(Iterator::collect).unwrap();
                 BatchTxClient::create(client).multi_transactions(txs, quota)
             }
             _ => return Err(m.usage().to_owned()),

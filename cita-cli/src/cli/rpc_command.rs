@@ -543,8 +543,8 @@ pub fn rpc_processor(
             client.get_metadata(height)
         }
         ("getLogs", Some(m)) => client.get_logs(
-            m.values_of("topic").map(|value| value.collect()),
-            m.values_of("address").map(|value| value.collect()),
+            m.values_of("topic").map(Iterator::collect),
+            m.values_of("address").map(Iterator::collect),
             m.value_of("from"),
             m.value_of("to"),
         ),
@@ -580,10 +580,10 @@ pub fn rpc_processor(
         ("getFilterChanges", Some(m)) => client.get_filter_changes(m.value_of("id").unwrap()),
         ("getFilterLogs", Some(m)) => client.get_filter_logs(m.value_of("id").unwrap()),
         ("newFilter", Some(m)) => {
-            let address = m.values_of("address").map(|value| value.collect());
+            let address = m.values_of("address").map(Iterator::collect);
             let from = m.value_of("from");
             let to = m.value_of("to");
-            let topic = m.values_of("topic").map(|value| value.collect());
+            let topic = m.values_of("topic").map(Iterator::collect);
             client.new_filter(topic, address, from, to)
         }
         ("getBlockHeader", Some(m)) => {

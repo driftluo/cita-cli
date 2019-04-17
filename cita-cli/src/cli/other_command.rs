@@ -87,7 +87,7 @@ pub fn search_processor<'a, 'b>(app: &App<'a, 'b>, sub_matches: &ArgMatches) {
     let keywords = sub_matches
         .values_of("keyword")
         .unwrap()
-        .map(|s| s.to_lowercase())
+        .map(str::to_lowercase)
         .collect::<Vec<String>>();
     let mut value: Vec<Vec<String>> = Vec::new();
     search_app(app, &None, &mut value);

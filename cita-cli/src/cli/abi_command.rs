@@ -142,7 +142,7 @@ pub fn abi_processor(
                 let lenient = !m.is_present("no-lenient");
                 let values: Vec<String> = match m.values_of("param") {
                     None => Vec::new(),
-                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                    Some(param) => param.map(ToOwned::to_owned).collect::<Vec<String>>(),
                 };
                 let output = encode_input(file, abi, name, &values, lenient, false)
                     .map_err(|err| format!("{}", err))?;
@@ -171,7 +171,7 @@ pub fn abi_processor(
                 let lenient = !m.is_present("no-lenient");
                 let values: Vec<String> = match m.values_of("param") {
                     None => Vec::new(),
-                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                    Some(param) => param.map(ToOwned::to_owned).collect::<Vec<String>>(),
                 };
                 let output = encode_input(file, abi, code, &values, lenient, true)
                     .map_err(|err| format!("{}", err))?;
@@ -186,7 +186,7 @@ pub fn abi_processor(
                 let types: Vec<String> = m
                     .values_of("type")
                     .ok_or_else(|| "Please give at least one parameter.".to_string())?
-                    .map(|value| value.to_owned())
+                    .map(ToOwned::to_owned)
                     .collect();
                 let data = remove_0x(m.value_of("data").unwrap());
                 let output = decode_params(&types, data)
@@ -214,7 +214,7 @@ pub fn abi_processor(
                 let event = m.value_of("event").unwrap();
                 let topic: Vec<String> = match m.values_of("param") {
                     None => Vec::new(),
-                    Some(param) => param.map(|s| s.to_owned()).collect::<Vec<String>>(),
+                    Some(param) => param.map(ToOwned::to_owned).collect::<Vec<String>>(),
                 };
                 let data = m.value_of("data").unwrap();
                 let output = decode_logs(file, abi, event, &topic, data)
