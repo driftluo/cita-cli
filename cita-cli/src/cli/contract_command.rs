@@ -323,7 +323,8 @@ pub fn contract_command() -> App<'static, 'static> {
                     SubCommand::with_name("inGroup")
                         .about("Check the account in the group")
                         .arg(group_address_arg.clone())
-                        .arg(height_arg.clone()),
+                        .arg(height_arg.clone())
+                        .arg(account_address_arg.clone()),
                 ),
         )
         .subcommand(
