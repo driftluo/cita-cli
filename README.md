@@ -25,7 +25,7 @@ Just like the relationship between redis-cli and redis.
 ### Clone and Build
 
 You can download the compiled version [here](https://github.com/cryptape/cita-cli/releases).
-If you need the latest version, compile from the source code, which supports Secp256k1/Sm2 algorithms:
+If you need the latest version, compile from the source code, which supports Secp256k1/Ed25519/Sm2 algorithms:
 
 ```bash
 $ git clone https://github.com/cryptape/cita-cli.git
@@ -45,24 +45,6 @@ $ cargo install --features tls --path .
 
 > `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
 > and https requests is supported by default.
-
-If you want to support all the three Secp256k1/Sm2/Ed25519 algorithms, make sure you have clang version > 3.9 then build as follows:
-
-```bash
-$ sudo apt install clang
-$ wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
-$ tar xvfz libsodium-1.0.16.tar.gz
-$ cd libsodium-1.0.16
-$ ./configure --prefix=$HOME/libsodium
-$ make && make install
-$ export PKG_CONFIG_PATH=$HOME/libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
-$ export LD_LIBRARY_PATH=$HOME/libsodium/lib:$LD_LIBRARY_PATH
-
-$ git clone https://github.com/cryptape/cita-cli.git
-$ cd cita-cli/cita-cli
-$ cargo install --features ed25519 --path .
-$ cd ..
-```
 
 #### Compile the Linux cross-platform version
 
@@ -87,10 +69,6 @@ $ rustup target add x86_64-unknown-linux-musl
 ```bash
 $ cargo install --target x86_64-unknown-linux-musl --path .
 ```
-
-> Note: this only build the secp256k1/sm2 version. If you want to build the musl version with all the three algorithms,
-> you need to use musl-gcc to recompile the libsodium as a static link library (libsodium is dynamically linked by default),
-> then build cita-cli with the static linked libsodium.
 
 ### Examples
 

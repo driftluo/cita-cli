@@ -112,7 +112,7 @@ where
     }
     /// Check the account in the group
     fn in_group(&self, address: &str, account_address: &str, height: Option<&str>) -> Result<R, E> {
-        self.contract_call_to_address("inGroup", &[account_address], address, height)
+        self.contract_call_to_address("inGroup", &[remove_0x(account_address)], address, height)
     }
 }
 

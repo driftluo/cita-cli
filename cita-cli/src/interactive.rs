@@ -431,7 +431,7 @@ impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
         let word_lower = word.to_lowercase();
         let tmp_pair = Self::find_subcommand(
             self.clap_app.clone(),
-            args.iter().map(|s| s.as_str()).peekable(),
+            args.iter().map(String::as_str).peekable(),
         )
         .map(|current_app| Self::get_completions(&current_app, &args))
         .unwrap_or_default();
@@ -602,7 +602,7 @@ impl GlobalConfig {
             None => KV::Keys(
                 self.env_variable
                     .keys()
-                    .map(|key| key.as_str())
+                    .map(String::as_str)
                     .collect::<Vec<&str>>(),
             ),
         }

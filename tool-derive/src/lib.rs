@@ -104,7 +104,7 @@ pub fn contract(input: TokenStream) -> TokenStream {
                     values: &[&str],
                     to_addr: Option<Address>,
                 ) -> Result<(String, String), ToolError> {
-                    let values = values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+                    let values = values.iter().map(ToString::to_string).collect::<Vec<_>>();
                     let code = contract_encode_input(&self.contract, name, values.as_slice(), false)?;
                     let code = format!("0x{}", code);
                     let to_address = to_addr.unwrap_or(self.address);
