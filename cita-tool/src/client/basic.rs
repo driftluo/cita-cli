@@ -197,6 +197,7 @@ impl Client {
             let req: Request<Body> = Request::builder()
                 .uri(url)
                 .method("POST")
+                .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&params).unwrap()))
                 .unwrap();
             let future: Box<
@@ -240,6 +241,7 @@ impl Client {
                 let req: Request<Body> = Request::builder()
                     .uri(self.url.clone())
                     .method("POST")
+                    .header("Content-Type", "application/json")
                     .body(Body::from(serde_json::to_string(&param).unwrap()))
                     .unwrap();
                 let future: Box<
