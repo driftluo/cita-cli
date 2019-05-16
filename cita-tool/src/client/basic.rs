@@ -293,7 +293,7 @@ impl Client {
             // Create a contract if the target address is empty
             tx.set_to(remove_0x(transaction_options.address()).to_string());
             tx.set_chain_id(self.get_chain_id()?);
-        } else if version == 1 {
+        } else if version < 3 {
             // Create a contract if the target address is empty
             tx.set_to_v1(
                 decode(remove_0x(transaction_options.address())).map_err(ToolError::Decode)?,
