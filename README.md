@@ -35,15 +35,15 @@ $ cargo install --path .
 ```
 It will install to `~/.cargo/bin/cita-cli`.
 
-If you want to support https requests, make sure that `openssl` exists in the build environment and
+If you want to use `openssl` to support https requests, make sure that `openssl` exists in the build environment and
 compile with the following command:
 
 ```bash
 $ cd cita-cli/cita-cli
-$ cargo install --features tls --path .
+$ cargo install --features openssl --path .
 ```
 
-> `openssl` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
+> `rustls` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),
 > and https requests is supported by default.
 
 #### Compile the Linux cross-platform version

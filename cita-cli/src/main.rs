@@ -31,7 +31,7 @@ const DEFAULT_JSONRPC_URL: &str = "http://127.0.0.1:1337";
 fn main() {
     dotenv().ok();
     let version = format!(
-        "{}+{}, {}",
+        "{}-{}, {}",
         crate_version!(),
         get_commit_id(),
         feature_version()
@@ -79,9 +79,9 @@ fn main() {
 }
 
 fn feature_version() -> String {
-    if cfg!(feature = "tls") {
-        "support tls".to_owned()
+    if cfg!(feature = "openssl") {
+        "use openssl".to_owned()
     } else {
-        "no other support".to_owned()
+        "use rustls".to_owned()
     }
 }

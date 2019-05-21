@@ -35,14 +35,14 @@ $ cargo install --path .
 ```
 会安装在 `~/.cargo/bin/cita-cli`。
 
-如果需要支持 https 请求， 确保 build 环境中存在 `openssl` 并按如下命令编译：
+如果需要使用 `openssl` 去支持 https 请求， 确保 build 环境中存在 `openssl` 并按如下命令编译：
 
 ```bash
 $ cd cita-cli/cita-cli
-$ cargo install --features tls --path .
+$ cargo install --features openssl --path .
 ```
 
-> `openssl` 静态编译在 [release](https://github.com/cryptape/cita-cli/releases)，
+> `rustls` 静态编译在 [release](https://github.com/cryptape/cita-cli/releases)，
 > 并默认支持 https 请求。
 
 #### 编译 Linux 跨平台版本

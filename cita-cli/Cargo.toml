@@ -1,6 +1,6 @@
 [package]
 name = "cita-cli"
-version = "0.19.5"
+version = "0.19.6"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 build = "build.rs"
 edition = "2018"
@@ -20,9 +20,6 @@ dirs = "^1.0.3"
 regex = "^1.0.4"
 ## lazy_static = "^1.0"
 
-[build-dependencies]
-git2 = "^0.7.5"
-
 [features]
 default = []
-tls = ["cita-tool/tls"]
+openssl = ["cita-tool/openssl"]
