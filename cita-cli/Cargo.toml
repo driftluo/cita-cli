@@ -1,6 +1,6 @@
 [package]
 name = "cita-cli"
-version = "0.19.4"
+version = "0.19.5"
 authors = ["piaoliu <441594700@qq.com>", "Qian Linfeng <thewawar@gmail.com>"]
 build = "build.rs"
 edition = "2018"
