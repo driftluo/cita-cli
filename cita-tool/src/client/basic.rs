@@ -8,8 +8,6 @@ use failure::Fail;
 use futures::{future::join_all, future::JoinAll, sync, Future, Stream};
 use hex::{decode, encode};
 use hyper::{client::HttpConnector, Body, Client as HyperClient, Request, Uri};
-#[cfg(feature = "tls")]
-use hyper_tls::HttpsConnector;
 use protobuf::{parse_from_bytes, Message};
 use serde;
 use serde_json;
@@ -1083,13 +1081,14 @@ where
 
 impl Transfer<JsonRpcResponse, ToolError> for Client {}
 
-#[cfg(feature = "tls")]
-pub(crate) fn create_client() -> HyperClient<HttpsConnector<HttpConnector>> {
-    let https = HttpsConnector::new(4).unwrap();
+#[cfg(feature = "openssl")]
+pub(crate) fn create_client() -> HyperClient<hyper_tls::HttpsConnector<HttpConnector>> {
+    let https = hyper_tls::HttpsConnector::new(4).unwrap();
     HyperClient::builder().build::<_, Body>(https)
 }
 
-#[cfg(not(feature = "tls"))]
-pub(crate) fn create_client() -> HyperClient<HttpConnector> {
-    HyperClient::new()
+#[cfg(not(feature = "openssl"))]
+pub(crate) fn create_client() -> HyperClient<hyper_rustls::HttpsConnector<HttpConnector>> {
+    let https = hyper_rustls::HttpsConnector::new(4);
+    HyperClient::builder().build::<_, Body>(https)
 }
