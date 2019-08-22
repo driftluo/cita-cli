@@ -19,7 +19,7 @@ use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress};
+use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, Helper, KeyPress};
 
 use regex::{Captures, Regex};
 use serde_json::{self, json};
@@ -183,7 +183,7 @@ fn start_rustyline(
                     }
                 }
                 if config.save_private() {
-                    rl.add_history_entry(line.as_ref());
+                    rl.add_history_entry(&line);
                 } else {
                     rl.add_history_entry(remove_private(line.as_ref()));
                 }
@@ -425,7 +425,12 @@ impl<'a, 'b> CitaCompleter<'a, 'b> {
 impl<'a, 'b> Completer for CitaCompleter<'a, 'b> {
     type Candidate = Pair;
 
-    fn complete(&self, line: &str, pos: usize) -> Result<(usize, Vec<Pair>), ReadlineError> {
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &Context,
+    ) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let (start, word) = extract_word(line, pos, ESCAPE_CHAR, &DEFAULT_BREAK_CHARS);
         let args = shell_words::split(&line[..pos]).unwrap();
         let word_lower = word.to_lowercase();
@@ -516,7 +521,7 @@ impl<'a, 'b> Highlighter for CitaCompleter<'a, 'b> {
 }
 
 impl<'a, 'b> Hinter for CitaCompleter<'a, 'b> {
-    fn hint(&self, line: &str, _pos: usize) -> Option<String> {
+    fn hint(&self, line: &str, _pos: usize, _ctx: &Context) -> Option<String> {
         if line == "get" {
             Some(RGB(105, 105, 105).paint(" [key]").to_string())
         } else if line == "set" {

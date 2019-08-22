@@ -1,3 +1,4 @@
+#![allow(bare_trait_objects)]
 pub mod blockchain;
 
 pub use self::blockchain::{Crypto, SignedTransaction, Transaction, UnverifiedTransaction};

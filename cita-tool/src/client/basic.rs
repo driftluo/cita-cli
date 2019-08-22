@@ -379,9 +379,9 @@ impl Client {
             match value.remove("chainId").unwrap() {
                 ParamsValue::Int(chain_id) => {
                     self.chain_id = Some(U256::from(chain_id));
-                    return Ok(chain_id as u32);
+                    Ok(chain_id as u32)
                 }
-                _ => return Ok(0),
+                _ => Ok(0),
             }
         } else {
             Ok(0)
@@ -405,9 +405,9 @@ impl Client {
                     let chain_id = U256::from_str(remove_0x(&chain_id))
                         .map_err(|e| ToolError::Customize(e.to_string()))?;
                     self.chain_id = Some(chain_id);
-                    return Ok(chain_id);
+                    Ok(chain_id)
                 }
-                _ => return Ok(U256::zero()),
+                _ => Ok(U256::zero()),
             }
         } else {
             Ok(U256::zero())
@@ -833,7 +833,7 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
             ParamsValue::String(String::from(to.unwrap_or("latest"))),
         );
         object.insert(
-            String::from("topic"),
+            String::from("topics"),
             serde_json::from_str::<ParamsValue>(&serde_json::to_string(&topic).unwrap()).unwrap(),
         );
         object.insert(
