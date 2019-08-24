@@ -9,6 +9,8 @@ use crate::cli::{
 };
 use crate::interactive::{set_output, GlobalConfig};
 use crate::printer::Printer;
+use std::fs::File;
+use std::io::Read;
 use std::str::FromStr;
 
 /// Transaction command
@@ -113,8 +115,15 @@ pub fn tx_command() -> App<'static, 'static> {
                         .long("content")
                         .takes_value(true)
                         .validator(|content| is_hex(content.as_str()))
+                        .conflicts_with("file")
                         .required(true)
                         .help("UnverifiedTransaction content"),
+                )
+                .arg(
+                    Arg::with_name("file")
+                        .long("file")
+                        .takes_value(true)
+                        .help("content data file path"),
                 ),
         )
 }
@@ -177,8 +186,16 @@ pub fn tx_processor(
         }
         ("decode-unverifiedTransaction", Some(m)) => {
             let encryption = encryption(sub_matches, config);
-            let content = m.value_of("content").unwrap();
-            let tx = UnverifiedTransaction::from_str(&content).map_err(|err| format!("{}", err))?;
+            let content = m.value_of("content");
+            let content_file = m.value_of("file");
+            let mut content_reader = get_content(content_file, content)?;
+            let mut content_data = String::new();
+            content_reader
+                .read_to_string(&mut content_data)
+                .map_err(|err| format!("{}", err))?;
+            let content_data = content_data.trim();
+            let tx =
+                UnverifiedTransaction::from_str(&content_data).map_err(|err| format!("{}", err))?;
             printer.println(&tx.to_json(encryption)?, is_color);
             return Ok(());
         }
@@ -190,4 +207,17 @@ pub fn tx_processor(
     printer.println(&resp, is_color);
     set_output(&resp, config);
     Ok(())
+}
+
+fn get_content(path: Option<&str>, content: Option<&str>) -> Result<Box<dyn Read>, String> {
+    match content {
+        Some(data) => Ok(Box::new(::std::io::Cursor::new(data.to_owned()))),
+        None => {
+            let file = match path {
+                Some(path) => File::open(path).map_err(|err| format!("{}", err))?,
+                None => return Err("No input content".to_owned()),
+            };
+            Ok(Box::new(file))
+        }
+    }
 }
