@@ -18,7 +18,7 @@ secp256k1 = { version = "0.12.2", features = [ "rand" ] }
 blake2b_simd = "0.4.1"
 ed25519-dalek = "0.9.1"
 sha2 = "0.8.0"
-libsm = { git = "https://github.com/cryptape/libsm" }
+libsm = { version = "0.3.0", package = "cryptape-sm" }
 # rename to types
 types = { version = "^0.4.0", package = "ethereum-types"}
 lazy_static = "^1.0"
