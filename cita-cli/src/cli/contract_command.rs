@@ -706,6 +706,18 @@ pub fn contract_command() -> App<'static, 'static> {
                         .arg(admin_private.clone())
                 )
                 .subcommand(
+                    SubCommand::with_name("setBlockInterval")
+                        .arg(
+                            Arg::with_name("blockInterval")
+                                .long("blockInterval")
+                                .takes_value(true)
+                                .required(true)
+                                .help("Set block interval")
+                        )
+                        .arg(quota_arg.clone())
+                        .arg(admin_private.clone())
+                )
+                .subcommand(
                     SubCommand::with_name("getCreateContractPermissionCheck")
                         .arg(
                             height_arg.clone()
@@ -1477,6 +1489,21 @@ pub fn contract_processor(
                 let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
                 let website = m.value_of("website").unwrap();
                 SysConfigExt::set_website(&mut client, website, quota)
+            }
+            ("setBlockInterval", Some(m)) => {
+                let encryption = encryption(m, config);
+                client.set_private_key(&parse_privkey(
+                    m.value_of("admin-private").unwrap(),
+                    encryption,
+                )?);
+                let mut client: SysConfigClient<Client> = SysConfigExt::create(client);
+                let quota = m.value_of("quota").map(|quota| parse_u64(quota).unwrap());
+                let block_interval = m
+                    .value_of("blockInterval")
+                    .map(|interval| parse_u256(interval).unwrap())
+                    .unwrap();
+
+                SysConfigExt::set_block_interval(&mut client, block_interval, quota)
             }
             ("getCreateContractPermissionCheck", Some(m)) => {
                 let client: SysConfigClient<Client> = SysConfigExt::create(client);
