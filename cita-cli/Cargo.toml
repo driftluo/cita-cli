@@ -15,11 +15,12 @@ serde = "^1.0.66"
 serde_json = "^1.0.17"
 shell-words = "^0.1.0"
 rustyline = "^5.0.2"
-cita-tool = { path = "../cita-tool" }
-dirs = "^1.0.3"
+cita-tool = { path = "../cita-tool", default-features = false }
+dirs = "^2.0.0"
 regex = "^1.0.4"
 ## lazy_static = "^1.0"
 
 [features]
-default = []
+default = ["rustls"]
 openssl = ["cita-tool/openssl"]
+rustls = ["cita-tool/rustls"]

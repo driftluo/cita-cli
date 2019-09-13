@@ -1087,7 +1087,7 @@ pub(crate) fn create_client() -> HyperClient<hyper_tls::HttpsConnector<HttpConne
     HyperClient::builder().build::<_, Body>(https)
 }
 
-#[cfg(not(feature = "openssl"))]
+#[cfg(feature = "rustls")]
 pub(crate) fn create_client() -> HyperClient<hyper_rustls::HttpsConnector<HttpConnector>> {
     let https = hyper_rustls::HttpsConnector::new(4);
     HyperClient::builder().build::<_, Body>(https)

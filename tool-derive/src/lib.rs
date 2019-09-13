@@ -18,21 +18,21 @@ pub fn contract(input: TokenStream) -> TokenStream {
         for meta_item in meta_items {
             match meta_item {
                 // parse #[contract(name = "foo")]
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "name" => {
+                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.path.is_ident("name") => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         trait_name = lit.value();
                         // println!("{}", lit.value());
                     }
                 }
                 // parse #[contract(addr = "foo")]
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "addr" => {
+                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.path.is_ident("addr") => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         address = lit.value();
                         // println!("{}", lit.value());
                     }
                 }
                 // parse #[contract(path = "foo")]
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.ident == "path" => {
+                syn::NestedMeta::Meta(syn::Meta::NameValue(ref m)) if m.path.is_ident("path") => {
                     if let syn::Lit::Str(ref lit) = m.lit {
                         path = lit.value();
                         // println!("{}", lit.value());
@@ -166,8 +166,8 @@ pub fn contract(input: TokenStream) -> TokenStream {
 /// Filter contract attribute like #[contract(foo = bar)]
 fn get_contract_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
     if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "contract" {
-        match attr.interpret_meta() {
-            Some(syn::Meta::List(ref meta)) => Some(meta.nested.iter().cloned().collect()),
+        match attr.parse_meta() {
+            Ok(syn::Meta::List(ref meta)) => Some(meta.nested.iter().cloned().collect()),
             _ => {
                 // TODO: produce an error
                 None

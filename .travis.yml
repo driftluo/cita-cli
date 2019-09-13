@@ -8,4 +8,4 @@ script:
   # For speed up the CI process
   #   See: https://docs.travis-ci.com/user/build-stages/#Data-persistence-between-stages-and-jobs
   - .ci-script/clippy_test.sh
-  - cargo fmt -- --check && cargo build --all-features --all && cargo test --all-features --all
+  - cargo fmt -- --check && cargo test --all && cargo test --no-default-features --features openssl --all
