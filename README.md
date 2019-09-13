@@ -40,7 +40,7 @@ compile with the following command:
 
 ```bash
 $ cd cita-cli/cita-cli
-$ cargo install --features openssl --path .
+$ cargo install --no-default-features --features openssl --path .
 ```
 
 > `rustls` is statically compiled in [release](https://github.com/cryptape/cita-cli/releases),

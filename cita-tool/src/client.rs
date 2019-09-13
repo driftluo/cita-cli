@@ -1,3 +1,6 @@
+#[cfg(all(feature = "rustls", feature = "openssl"))]
+compile_error!("features `rustls` and `openssl` are mutually exclusive");
+
 /// Basic client api, for Low-level interface
 pub mod basic;
 /// System contract client api, call system contract more easy

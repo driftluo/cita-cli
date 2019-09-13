@@ -6,8 +6,9 @@ use lazy_static::lazy_static;
 use secp256k1::{
     constants,
     key::{self, PublicKey, SecretKey},
-    rand::OsRng,
-    Error as SecpError, Message as SecpMessage, RecoverableSignature, RecoveryId, Secp256k1,
+    rand::rngs::OsRng,
+    recovery::{RecoverableSignature, RecoveryId},
+    Error as SecpError, Message as SecpMessage, Secp256k1,
 };
 use std::fmt;
 use std::ops::{Deref, DerefMut};

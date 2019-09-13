@@ -14,8 +14,8 @@ serde_derive = "^1.0.53"
 protobuf = "^2.0.2"
 hex = "^0.3.2"
 tiny-keccak = "^1.4.2"
-secp256k1 = { version = "0.12.2", features = [ "rand" ] }
-blake2b_simd = "0.4.1"
+secp256k1 = { version = "0.15.0", features = ["recovery"]}
+blake2b_simd = "0.5.0"
 ed25519-dalek = "0.9.1"
 sha2 = "0.8.0"
 libsm = { version = "0.3.0", package = "cryptape-sm" }
@@ -25,11 +25,12 @@ lazy_static = "^1.0"
 rand = "^0.6.0"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 failure = "^0.1.1"
-ethabi = "^7.0"
+ethabi = "^8.0"
 tool-derive = { path = "../tool-derive" }
-hyper-rustls = "0.16.1"
+hyper-rustls = { version = "0.16.1", optional = true }
 hyper-tls = { version = "^0.3", optional = true }
 
 [features]
-default = []
+default = ["rustls"]
 openssl = ["hyper-tls"]
+rustls = ["hyper-rustls"]
