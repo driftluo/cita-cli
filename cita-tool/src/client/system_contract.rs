@@ -996,6 +996,13 @@ where
         let value = [website];
         self.contract_send_tx("setWebsite", &value, quota, None)
     }
+
+    /// Set block interval
+    fn set_block_interval(&mut self, block_interval: U256, quota: Option<u64>) -> Result<R, E> {
+        let interval = block_interval.completed_lower_hex();
+        let value = [interval.as_str()];
+        self.contract_send_tx("setBlockInterval", &value, quota, None)
+    }
 }
 
 /// Emergency brake contract
