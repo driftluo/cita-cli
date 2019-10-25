@@ -52,6 +52,8 @@ const GET_STORAGE_AT: &str = "getStorageAt";
 
 const GET_VERSION: &str = "getVersion";
 
+const ESTIMATE_QUOTA: &str = "estimateQuota";
+
 /// Store action target address
 pub const STORE_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffff010000";
 /// StoreAbi action target address
@@ -520,6 +522,7 @@ impl Default for Client {
 ///   * getStateProof
 ///   * getStorageAt
 ///   * getVersion
+///   * estimateQuota
 pub trait ClientExt<T, E>
 where
     T: serde::Serialize + serde::Deserialize<'static> + ::std::fmt::Display,
@@ -587,6 +590,14 @@ where
     fn get_storage_at(&self, address: &str, key: &str, height: &str) -> Result<T, E>;
     /// getVersion: Get release version info of all modules
     fn get_version(&self) -> Result<T, E>;
+    /// estimateQuota: Estimate a transaction's quota used
+    fn estimate_quota(
+        &self,
+        from: Option<&str>,
+        to: &str,
+        data: Option<&str>,
+        height: &str,
+    ) -> Result<T, E>;
 }
 
 impl ClientExt<JsonRpcResponse, ToolError> for Client {
@@ -718,16 +729,16 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
         let mut object = HashMap::new();
 
         object.insert(String::from("to"), ParamsValue::String(String::from(to)));
-        if from.is_some() {
+        if let Some(from) = from {
             object.insert(
                 String::from("from"),
-                ParamsValue::String(String::from(from.unwrap())),
+                ParamsValue::String(String::from(from)),
             );
         }
-        if data.is_some() {
+        if let Some(data) = data {
             object.insert(
                 String::from("data"),
-                ParamsValue::String(String::from(data.unwrap())),
+                ParamsValue::String(String::from(data)),
             );
         }
 
@@ -970,6 +981,40 @@ impl ClientExt<JsonRpcResponse, ToolError> for Client {
     fn get_version(&self) -> Result<JsonRpcResponse, ToolError> {
         let params =
             JsonRpcParams::new().insert("method", ParamsValue::String(String::from(GET_VERSION)));
+        Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
+    }
+
+    fn estimate_quota(
+        &self,
+        from: Option<&str>,
+        to: &str,
+        data: Option<&str>,
+        height: &str,
+    ) -> Result<JsonRpcResponse, ToolError> {
+        let mut object = HashMap::new();
+
+        object.insert(String::from("to"), ParamsValue::String(String::from(to)));
+        if let Some(from) = from {
+            object.insert(
+                String::from("from"),
+                ParamsValue::String(String::from(from)),
+            );
+        }
+        if let Some(data) = data {
+            object.insert(
+                String::from("data"),
+                ParamsValue::String(String::from(data)),
+            );
+        }
+
+        let param = ParamsValue::List(vec![
+            ParamsValue::Map(object),
+            ParamsValue::String(String::from(height)),
+        ]);
+        let params = JsonRpcParams::new()
+            .insert("method", ParamsValue::String(String::from(ESTIMATE_QUOTA)))
+            .insert("params", param);
+
         Ok(self.send_request(vec![params].into_iter())?.pop().unwrap())
     }
 }

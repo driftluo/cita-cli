@@ -458,6 +458,39 @@ pub fn rpc_command() -> App<'static, 'static> {
         .subcommand(
             SubCommand::with_name("getVersion").about("Get release version info of all modules"),
         )
+        .subcommand(
+            SubCommand::with_name("estimateQuota")
+                .about("Estimate a transaction's quota used.")
+                .arg(
+                    Arg::with_name("from")
+                        .long("from")
+                        .validator(|address| parse_address(address.as_str()))
+                        .takes_value(true)
+                        .help("From address"),
+                )
+                .arg(
+                    Arg::with_name("to")
+                        .long("to")
+                        .validator(|address| parse_address(address.as_str()))
+                        .takes_value(true)
+                        .required(true)
+                        .help("To address"),
+                )
+                .arg(
+                    Arg::with_name("data")
+                        .long("data")
+                        .takes_value(true)
+                        .help("The data"),
+                )
+                .arg(
+                    Arg::with_name("height")
+                        .long("height")
+                        .takes_value(true)
+                        .validator(|s| parse_height(s.as_str()))
+                        .default_value("latest")
+                        .help("The block number"),
+                ),
+        )
 }
 
 /// RPC processor
@@ -605,6 +638,12 @@ pub fn rpc_processor(
         ("getVersion", _) => {
             <Client as ClientExt<JsonRpcResponse, ToolError>>::get_version(&client)
         }
+        ("estimateQuota", Some(m)) => client.estimate_quota(
+            m.value_of("from"),
+            m.value_of("to").unwrap(),
+            m.value_of("data"),
+            m.value_of("height").unwrap(),
+        ),
         _ => {
             return Err(sub_matches.usage().to_owned());
         }
